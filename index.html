@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tend</title>
+<meta name="theme-color" content="#3B2A2A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tend">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root{
+  --espresso:#3B2A2A; --rose:#7A4B4F; --mauve:#A8777C; --dusty:#D9BFC1; --blush:#F3E8E7; --cream:#FBF7F5;
+  --ink:#3B2A2A; --muted:#6B5552; --line:#EADBD9; --white:#FFFFFF; --head-sub:#E6CFD1;
+  --red:#9B2C2C; --orange:#A9500A; --green:#3F5E37; --grey:#6B5552;
+  --dot-red:#9B2C2C; --dot-orange:#D9822B; --dot-green:#7E9C74; --dot-grey:#BDB3AF;
+  --serif: ui-serif, "New York", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px); --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--cream);color:var(--ink);font-family:var(--sans);font-size:15px;-webkit-text-size-adjust:100%}
+body{overscroll-behavior-y:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:var(--rose)}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;max-width:560px;margin:0 auto;background:var(--cream)}
+#view{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.head{background:var(--espresso);color:#fff;padding:calc(var(--safe-top) + 16px) 20px 20px;display:flex;flex-direction:column;gap:6px}
+.head.round{border-radius:0 0 26px 26px;padding-bottom:34px}
+.head h1{margin:0;font-family:var(--serif);font-size:28px;font-weight:700;line-height:1.15}
+.head .sub{font-size:14px;color:var(--head-sub)}
+.head .eyebrow{font-size:12px;letter-spacing:.06em;color:var(--head-sub);text-transform:uppercase}
+.headrow{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:44px}
+.iconbtn{width:44px;height:44px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 44px}
+.backbtn{align-self:flex-start;background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:8px 14px 8px 10px;min-height:40px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600}
+.textbtn{color:#fff;font-weight:600;font-size:15px;min-height:44px;padding:0 6px}
+.section{padding:22px 20px 8px;display:flex;justify-content:space-between;align-items:center}
+.section h2{margin:0;font-family:var(--serif);font-size:20px}
+.link{color:var(--rose);font-size:14px;font-weight:600;min-height:44px;padding:0 4px}
+.stack{display:flex;flex-direction:column;gap:8px;padding:0 16px}
+.card{background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(59,42,42,.08)}
+.listcard{margin:0 16px;background:#fff;border-radius:16px;padding:2px 16px;box-shadow:0 1px 3px rgba(59,42,42,.08)}
+.lrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F0E4E2;width:100%;text-align:left}
+.lrow:last-child{border-bottom:0}
+.lrow .t{font-size:15px;font-weight:600}
+.lrow .s{font-size:12.5px;color:var(--muted)}
+.lrow .r{font-size:13px;font-weight:600;color:var(--rose);flex:0 0 auto;text-align:right}
+.col{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row{width:100%;background:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;text-align:left;min-height:60px;box-shadow:0 1px 3px rgba(59,42,42,.07)}
+.row.alt{background:var(--blush);box-shadow:none}
+.row .name{font-size:15px;font-weight:600;color:var(--ink)}
+.row .meta{font-size:12.5px;color:var(--muted)}
+.row .st{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:0 0 auto;font-size:12.5px}
+.row .st b{font-size:12.5px}
+.badge{width:40px;height:40px;flex:0 0 40px;border-radius:12px;background:var(--blush);color:var(--rose);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.avatar{width:42px;height:42px;flex:0 0 42px;border-radius:999px;background:var(--mauve);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 16px;margin-top:-20px}
+.stat{background:#fff;border-radius:16px;padding:14px 12px;text-align:left;display:flex;flex-direction:column;gap:2px;box-shadow:0 4px 14px rgba(59,42,42,.10);min-height:44px}
+.stat .n{font-family:var(--serif);font-size:30px;font-weight:700;line-height:1.1}
+.stat .l{font-size:12.5px;font-weight:600;color:var(--muted)}
+.cats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 16px}
+.cat{background:#fff;border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(59,42,42,.08)}
+.bar{height:6px;border-radius:3px;background:var(--blush);overflow:hidden}.bar i{display:block;height:6px;border-radius:3px;background:var(--mauve)}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:0 6px 0 12px;min-height:44px;color:var(--ink)}
+.search input{flex:1 1 auto;min-width:0;border:0;outline:none;background:transparent;font-size:16px;padding:10px 0;-webkit-appearance:none;appearance:none}
+.search .clear{width:36px;height:36px;border-radius:999px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:0 20px}
+.chips::-webkit-scrollbar{display:none}
+.chip{border:1px solid var(--mauve);border-radius:999px;padding:8px 13px;min-height:36px;font-size:13.5px;font-weight:600;color:var(--blush);white-space:nowrap;flex:0 0 auto}
+.chip[aria-pressed="true"]{background:var(--blush);color:var(--espresso);border-color:var(--blush)}
+.selectwrap{position:relative}
+.headselect{width:100%;min-height:40px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;padding:8px 36px 8px 12px;font-size:16px;-webkit-appearance:none;appearance:none}
+.headselect option{color:#000}
+.selectwrap svg{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#fff}
+.pill{align-self:flex-start;background:#fff;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:16px 16px 10px}
+.tile{background:#fff;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.tile .k{font-size:12.5px;color:var(--muted)}.tile .v{font-size:16px;font-weight:700}
+.btn{border-radius:16px;min-height:52px;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;text-decoration:none}
+.btn.primary{background:var(--rose);color:#fff}
+.btn.secondary{background:#fff;color:var(--rose);border:1px solid var(--dusty);min-height:48px;font-size:14.5px;border-radius:14px}
+.btn.danger{background:#fff;color:var(--red);border:1px solid #E6C4C4;min-height:48px;font-size:14.5px;border-radius:14px}
+.btn.danger.armed{background:var(--red);color:#fff;border-color:var(--red)}
+.btns2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.flash{margin:14px 16px 0;background:#E3EDDD;color:#2F4A29;border-radius:14px;padding:8px 8px 8px 14px;font-size:14px;font-weight:600;display:flex;gap:10px;align-items:center;min-height:52px}
+.flash span{flex:1 1 auto}
+.flash button{background:#fff;color:#2F4A29;border-radius:10px;min-height:40px;padding:0 14px;font-size:13.5px;font-weight:700}
+.note{font-size:12.5px;color:var(--muted);text-align:center;padding:2px 8px 4px}
+.actions{display:flex;gap:8px;padding:16px}
+.act{flex:1 1 0;min-height:64px;border-radius:14px;background:var(--rose);color:#fff;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12.5px;font-weight:600}
+.act.soft{background:var(--blush);color:var(--rose);min-height:44px;flex-direction:row;gap:6px;font-size:13.5px;font-weight:700;border-radius:12px}
+.empty{text-align:center;color:var(--muted);font-size:14px;margin:36px 16px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line)}
+.dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center;font-size:11px;font-weight:600;color:var(--head-sub);letter-spacing:.04em}
+.day{height:46px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:500}
+.day i{width:6px;height:6px;border-radius:999px;display:block}
+.day.has{background:var(--blush);font-weight:700}
+.day.today{box-shadow:inset 0 0 0 2px var(--mauve);font-weight:700}
+.day.sel{background:var(--rose);color:#fff;font-weight:700;box-shadow:none}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:10px 20px 0;font-size:11.5px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:5px}.legend i{width:8px;height:8px;border-radius:999px;display:block}
+.form{padding:12px 16px 24px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>span{font-size:13px;font-weight:600;color:var(--muted)}
+.field small{font-size:12px;color:var(--muted);line-height:1.35}
+.input{width:100%;min-height:46px;border-radius:12px;border:1px solid var(--dusty);background:#fff;padding:10px 12px;font-size:16px;-webkit-appearance:none;appearance:none}
+.input:focus{outline:2px solid var(--mauve);outline-offset:0;border-color:var(--mauve)}
+textarea.input{min-height:90px;resize:vertical;line-height:1.4}
+select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237A4B4F' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.switchrow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--dusty);border-radius:12px;padding:10px 12px}
+.switch{width:52px;height:32px;flex:0 0 52px;border-radius:999px;padding:3px;display:flex;background:#D9CFCC}
+.switch i{width:26px;height:26px;border-radius:999px;background:#fff;display:block;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch[aria-pressed="true"]{background:var(--rose);justify-content:flex-end}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.seg button{border:1px solid var(--dusty);border-radius:12px;min-height:44px;font-weight:700;background:#fff;color:var(--rose)}
+.seg button[aria-pressed="true"]{background:var(--rose);color:#fff;border-color:var(--rose)}
+.tip{margin:14px 16px 0;background:var(--blush);border-radius:14px;padding:14px;font-size:13.5px;line-height:1.45}
+.fab{position:absolute;right:18px;bottom:calc(var(--safe-bot) + 84px);width:56px;height:56px;border-radius:999px;background:var(--rose);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(59,42,42,.28);z-index:2}
+nav.tabs{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:6px 8px calc(var(--safe-bot) + 6px)}
+nav.tabs button{min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:#8C7B75}
+nav.tabs button[aria-current="page"]{color:var(--rose)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pad-b{height:28px}
+.welcome{padding:calc(var(--safe-top) + 48px) 24px 32px;display:flex;flex-direction:column;gap:16px;min-height:100%}
+.welcome img{width:84px;height:84px;border-radius:20px}
+.welcome h1{font-family:var(--serif);font-size:34px;margin:0}
+.welcome p{margin:0;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view" aria-live="polite"></main>
+  <nav class="tabs" id="tabs" aria-label="Main"></nav>
+</div>
+<input type="file" id="restoreFile" accept=".json,application/json" class="sr" tabindex="-1" aria-hidden="true">
+<script>
+'use strict';
+/* =========================================================
+   Tend: household maintenance tracker. Data lives on this phone
+   (localStorage), with a JSON backup file for safekeeping.
+   ========================================================= */
+var KEY = 'tend.data.v1';
+var CATS = ['Home','Cleaning','Yard & Pool','Vehicle','Health','Personal','Finance & Insurance','Tech & Digital','Misc'];
+var FREQS = [['Weekly',0,7],['Every 2 weeks',0,14],['Monthly',1,0],['Every 2 months',2,0],['Every 3 months',3,0],['Every 4 months',4,0],
+  ['Every 6 months',6,0],['Yearly',12,0],['Every 2 years',24,0],['Every 3 years',36,0],['Every 4 years',48,0],['Every 5 years',60,0],
+  ['Every 10 years',120,0],['Well-child (by age)',0,0],['One-time',0,0]];
+var FREQ = {}; FREQS.forEach(function (f) { FREQ[f[0]] = { mo: f[1], dy: f[2] }; });
+var MILESTONES = [0,0.5,1,3,6,9,12,15,18,24,30,36,48,60,72,84,96,108,120,132,144,156,168,180,192,204,216];
+var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+/* ---------- dates (all local, date-only) ---------- */
+function parse(s) { if (!s) return null; var p = String(s).split('-'); var d = new Date(+p[0], +p[1] - 1, +p[2]); return isNaN(d) ? null : d; }
+function iso(d) { var m = d.getMonth() + 1, x = d.getDate(); return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (x < 10 ? '0' : '') + x; }
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+function addMonths(d, n) { var r = new Date(d.getFullYear(), d.getMonth() + n, 1); var last = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate(); r.setDate(Math.min(d.getDate(), last)); return r; }
+function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
+function today() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+function fmt(d, year) { if (!d) return ''; var t = today(); var y = year === true || (year !== false && d.getFullYear() !== t.getFullYear()); return MON[d.getMonth()] + ' ' + d.getDate() + (y ? ', ' + d.getFullYear() : ''); }
+
+/* ---------- escape ---------- */
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+/* ---------- storage ---------- */
+var db = null, storageOk = true;
+function blank() { return { app: 'tend', version: 1, user: 'Solomon', members: ['Solomon', 'Kelly'], tasks: [], contacts: [], lastBackup: null, nextId: 1 }; }
+function load() {
+  try { var raw = localStorage.getItem(KEY); if (raw) { db = normalize(JSON.parse(raw)); return true; } }
+  catch (e) { storageOk = false; }
+  db = null; return false;
+}
+function save() {
+  db.savedAt = new Date().toISOString();
+  try { localStorage.setItem(KEY, JSON.stringify(db)); storageOk = true; }
+  catch (e) { storageOk = false; toast('Couldn\u2019t save on this phone. Save a backup now.'); }
+}
+function normalize(d) {
+  var out = blank();
+  out.user = d.user || 'Solomon';
+  out.members = Array.isArray(d.members) && d.members.length ? d.members.slice(0, 4) : ['Solomon', 'Kelly'];
+  out.lastBackup = d.lastBackup || null;
+  var n = 1;
+  out.contacts = (d.contacts || []).map(function (c) {
+    return { id: String(c.id || ('c' + n++)), name: String(c.name || 'Untitled'), role: c.role || '', phone: c.phone || '', email: c.email || '', address: c.address || '', web: c.web || '', notes: c.notes || '' };
+  });
+  var cids = {}; out.contacts.forEach(function (c) { cids[c.id] = 1; });
+  out.tasks = (d.tasks || []).map(function (t) {
+    var hist = Array.isArray(t.history) ? t.history.filter(function (h) { return h && parse(h.date); }).map(function (h) { return { date: h.date, by: h.by || '' }; }) : [];
+    hist.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    return {
+      id: String(t.id || ('t' + n++)), name: String(t.name || 'Untitled'), cat: CATS.indexOf(t.cat) >= 0 ? t.cat : 'Misc', who: t.who || '',
+      freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: parse(t.first) ? t.first : null, last: parse(t.last) ? t.last : (hist[0] ? hist[0].date : null),
+      early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '',
+      contact: t.contact && cids[t.contact] ? t.contact : null, snooze: parse(t.snooze) ? t.snooze : null, history: hist
+    };
+  });
+  var max = 0;
+  out.tasks.concat(out.contacts).forEach(function (x) { var m = /(\d+)$/.exec(x.id); if (m) max = Math.max(max, +m[1]); });
+  out.nextId = Math.max(d.nextId || 1, max + 1);
+  return out;
+}
+function newId(p) { var id = p + db.nextId; db.nextId++; return id; }
+
+/* ---------- scheduling: same rules as the spreadsheet ---------- */
+function nextDue(t) {
+  if (!t.active) return null;
+  var first = parse(t.first), last = parse(t.last), f = FREQ[t.freq];
+  if (t.freq === 'One-time') return last ? null : first;
+  if (t.freq === 'Well-child (by age)') {
+    if (!first) return null;
+    if (!last) return addDays(first, 4);
+    var x = (last - first) / 86400000 / 30.4375; x = x + Math.max(0.25, x * 0.05);
+    var idx = -1; for (var i = 0; i < MILESTONES.length; i++) if (MILESTONES[i] <= x) idx = i;
+    var km = MILESTONES[idx + 1]; if (km == null) return null;
+    return km === 0.5 ? addDays(first, 14) : addMonths(first, km);
+  }
+  if (!last) return first;
+  if (f.dy) return addDays(last, f.dy);
+  if (!f.mo) return null;
+  if (t.fixed && first) {
+    var ref = addDays(last, t.early);
+    var cyc = Math.max(0, Math.floor(((ref.getFullYear() - first.getFullYear()) * 12 + ref.getMonth() - first.getMonth()) / f.mo));
+    var c = addMonths(first, cyc * f.mo);
+    return c > ref ? c : addMonths(first, (cyc + 1) * f.mo);
+  }
+  return addMonths(last, f.mo);
+}
+var STATUS = {
+  overdue: { text: 'Overdue', color: 'var(--red)', dot: 'var(--dot-red)', rank: 5 },
+  due: { text: 'Due', color: 'var(--orange)', dot: 'var(--dot-orange)', rank: 4 },
+  upcoming: { text: 'Upcoming', color: 'var(--green)', dot: 'var(--dot-green)', rank: 3 },
+  snoozed: { text: 'Snoozed', color: 'var(--grey)', dot: 'var(--dot-grey)', rank: 2 },
+  nodate: { text: 'Needs date', color: 'var(--grey)', dot: 'transparent', rank: 1 },
+  done: { text: 'Done', color: 'var(--grey)', dot: 'transparent', rank: 0 },
+  paused: { text: 'Paused', color: 'var(--grey)', dot: 'transparent', rank: 0 }
+};
+function info(t) {
+  var T = today(), due = nextDue(t), r = { due: due, start: null, days: null };
+  if (!t.active) r.status = 'paused';
+  else if (!due) r.status = (t.freq === 'One-time' && t.last) ? 'done' : 'nodate';
+  else {
+    r.start = addDays(due, -t.early); r.days = daysBetween(T, due);
+    var sn = parse(t.snooze);
+    if (r.days < 0) r.status = 'overdue';
+    else if (sn && sn > T) r.status = 'snoozed';
+    else r.status = T >= r.start ? 'due' : 'upcoming';
+  }
+  var s = STATUS[r.status]; r.text = s.text; r.color = s.color; r.dot = s.dot;
+  var d = r.days;
+  r.short = r.status === 'overdue' ? (-d) + 'd overdue' : r.status === 'due' ? (d === 0 ? 'due today' : 'due in ' + d + 'd')
+    : r.status === 'snoozed' ? 'until ' + fmt(parse(t.snooze)) : due ? fmt(due) : '';
+  r.long = r.status === 'overdue' ? 'Overdue by ' + (-d) + (d === -1 ? ' day' : ' days')
+    : r.status === 'due' ? (d === 0 ? 'Due today' : 'Due in ' + d + (d === 1 ? ' day' : ' days'))
+    : r.status === 'upcoming' ? 'Upcoming \u00b7 opens ' + fmt(r.start)
+    : r.status === 'snoozed' ? 'Snoozed until ' + fmt(parse(t.snooze))
+    : r.status === 'nodate' ? 'Needs a date' : r.status === 'done' ? 'Done' : 'Paused';
+  return r;
+}
+function rows() {
+  return db.tasks.map(function (t) { return { t: t, i: info(t) }; }).sort(function (a, b) {
+    var ad = a.i.due ? a.i.due.getTime() : Infinity, bd = b.i.due ? b.i.due.getTime() : Infinity;
+    return ad - bd || a.t.name.localeCompare(b.t.name);
+  });
+}
+
+/* ---------- ui state ---------- */
+var ui = { screen: 'home', stack: [], filter: 'all', cat: '', q: '', cq: '', taskId: null, conId: null, flash: null, undo: null, calY: 0, calM: 0, calDay: null, form: null, armed: null };
+function go(screen, opts, push) {
+  if (push) ui.stack.push({ screen: ui.screen, taskId: ui.taskId, conId: ui.conId, scroll: view.scrollTop });
+  else ui.stack = [];
+  ui.screen = screen; ui.flash = null; ui.undo = null; ui.armed = null;
+  Object.keys(opts || {}).forEach(function (k) { ui[k] = opts[k]; });
+  render(); view.scrollTop = 0;
+}
+function back() {
+  var p = ui.stack.pop(); if (!p) { go('home'); return; }
+  ui.screen = p.screen; ui.taskId = p.taskId; ui.conId = p.conId; ui.flash = null; ui.undo = null; ui.armed = null; ui.form = null;
+  render(); view.scrollTop = p.scroll || 0;
+}
+function toast(msg) { ui.flash = msg; ui.undo = null; render(); }
+
+/* ---------- icons ---------- */
+var I = {
+  home: '<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-6h4v6"/>',
+  tasks: '<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6l1 1 2-2"/><path d="M4 12l1 1 2-2"/><path d="M4 18l1 1 2-2"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M21.5 20a6.5 6.5 0 0 0-4-6"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>', next: '<path d="M9 6l6 6-6 6"/>', check: '<path d="M20 6L9 17l-5-5"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', x: '<path d="M18 6L6 18"/><path d="M6 6l12 12"/>',
+  plus: '<path d="M12 5v14"/><path d="M5 12h14"/>', down: '<path d="M6 9l6 6 6-6"/>',
+  phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+  text: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/>',
+  snooze: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3L2 6"/><path d="M19 3l3 3"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  save: '<path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/>', upload: '<path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M5 3h14"/>'
+};
+function ic(name, size, sw) { return '<svg width="' + (size || 20) + '" height="' + (size || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + I[name] + '</svg>'; }
+
+/* ---------- small pieces ---------- */
+function initials(name) { var p = String(name).replace(/[^A-Za-z ]/g, ' ').split(' ').filter(Boolean); return ((p[0] || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase(); }
+function backBtn() { return '<button class="backbtn" data-act="back">' + ic('back', 18, 2.2) + 'Back</button>'; }
+function flashHtml() {
+  if (!ui.flash) return '';
+  return '<div class="flash" role="status">' + ic('check', 20, 2.4) + '<span>' + esc(ui.flash) + '</span>' + (ui.undo ? '<button data-act="undo">Undo</button>' : '') + '</div>';
+}
+function taskRow(r, alt, mode) {
+  var t = r.t, i = r.i, meta = (mode === 'contact' ? [t.who, i.short] : [t.cat, t.who]).filter(Boolean).map(esc).join(' \u00b7 ');
+  return '<button class="row' + (alt ? ' alt' : '') + '" data-act="task" data-id="' + esc(t.id) + '"><span class="col"><span class="name">' + esc(t.name) + '</span><span class="meta">' + meta + '</span></span>' +
+    '<span class="st"><b style="color:' + i.color + '">' + i.text + '</b>' + (mode === 'contact' ? '' : '<span class="meta">' + esc(i.status === 'overdue' || i.status === 'due' || i.status === 'snoozed' ? i.short : (i.due ? fmt(i.due) : '')) + '</span>') + '</span></button>';
+}
+function attnRow(r) {
+  var t = r.t, i = r.i;
+  return '<button class="row" data-act="task" data-id="' + esc(t.id) + '"><span class="badge">' + esc(t.cat.slice(0, 2).toUpperCase()) + '</span><span class="col"><span class="name ellip">' + esc(t.name) + '</span><span class="meta">' + [t.who, i.short].filter(Boolean).map(esc).join(' \u00b7 ') + '</span></span><b style="color:' + i.color + ';font-size:12.5px">' + i.text + '</b></button>';
+}
+function searchBox(id, val, ph, label) {
+  return '<label class="search">' + ic('search', 18) + '<span class="sr">' + label + '</span><input id="' + id + '" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="' + ph + '" value="' + esc(val) + '">' +
+    '<button class="clear" data-act="clear-' + id + '" aria-label="Clear search"' + (val ? '' : ' hidden') + '>' + ic('x', 16) + '</button></label>';
+}
+
+/* ---------- screens ---------- */
+function scrHome() {
+  var R = rows(), c = { overdue: 0, due: 0, upcoming: 0 };
+  R.forEach(function (r) { if (c[r.i.status] != null) c[r.i.status]++; });
+  var need = c.overdue + c.due, T = today();
+  var attn = R.filter(function (r) { return r.i.status === 'overdue' || r.i.status === 'due'; });
+  var h = '<header class="head round"><div class="headrow"><span class="eyebrow">' + DAYS[T.getDay()] + ', ' + MON[T.getMonth()] + ' ' + T.getDate() + '</span>' +
+    '<button class="iconbtn" data-act="settings" aria-label="Settings and backup">' + ic('gear') + '</button></div>' +
+    '<h1>Hi, ' + esc(db.user) + '</h1><span class="sub">' + (need ? need + (need === 1 ? ' thing needs' : ' things need') + ' attention' : 'Everything is on track') + '</span></header>';
+  h += '<div class="stats">' + [['overdue', 'Overdue', 'var(--red)'], ['due', 'Due now', 'var(--orange)'], ['upcoming', 'Upcoming', 'var(--green)']].map(function (s) {
+    return '<button class="stat" data-act="list" data-filter="' + s[0] + '"><span class="n" style="color:' + s[2] + '">' + c[s[0]] + '</span><span class="l">' + s[1] + '</span></button>';
+  }).join('') + '</div>';
+  var lb = parse(db.lastBackup ? db.lastBackup.slice(0, 10) : null);
+  if (db.tasks.length && (!lb || daysBetween(lb, T) > 30)) {
+    h += '<div class="tip" style="display:flex;gap:12px;align-items:center"><span style="flex:1 1 auto">' + (lb ? 'Your last backup was ' + fmt(lb) + '.' : 'You haven\u2019t saved a backup yet.') + ' It takes 10 seconds and protects your list.</span><button class="btn primary" style="width:auto;min-height:44px;padding:0 14px;font-size:14px;border-radius:12px;white-space:nowrap;flex:0 0 auto" data-act="backup">Back up</button></div>';
+  }
+  h += '<div class="section"><h2>Needs attention</h2><button class="link" data-act="list" data-filter="all">See all</button></div><div class="stack">';
+  h += attn.length ? attn.slice(0, 6).map(attnRow).join('') : '<p class="note" style="text-align:left;padding:4px">All caught up. Nothing needs attention right now.</p>';
+  if (attn.length > 6) h += '<button class="link" data-act="list" data-filter="due-all" style="align-self:flex-start">See ' + (attn.length - 6) + ' more</button>';
+  h += '</div>';
+  var kids = R.filter(function (r) { return r.t.freq === 'Well-child (by age)' && r.t.active; });
+  if (kids.length) {
+    h += '<div class="section"><h2>Kids\u2019 well visits</h2></div><div class="listcard">' + kids.map(function (r) {
+      var age = kidAge(r.t, r.i.due);
+      return '<button class="lrow" data-act="task" data-id="' + esc(r.t.id) + '"><span class="col"><span class="t">' + esc(r.t.who) + '</span><span class="s">' + esc(age) + '</span></span><span class="r" style="color:' + (r.i.status === 'overdue' ? 'var(--red)' : 'var(--rose)') + '">' + (r.i.due ? fmt(r.i.due) : 'Needs date') + '</span></button>';
+    }).join('') + '</div>';
+  }
+  var recent = [];
+  db.tasks.forEach(function (t) { t.history.forEach(function (x) { recent.push({ t: t, h: x }); }); });
+  recent.sort(function (a, b) { return a.h.date < b.h.date ? 1 : -1; });
+  recent = recent.filter(function (x) { return daysBetween(parse(x.h.date), T) <= 60; }).slice(0, 4);
+  if (recent.length) {
+    h += '<div class="section"><h2>Recently done</h2></div><div class="listcard">' + recent.map(function (x) {
+      return '<button class="lrow" data-act="task" data-id="' + esc(x.t.id) + '"><span class="col"><span class="t ellip">' + esc(x.t.name) + '</span><span class="s">' + (x.h.by ? 'by ' + esc(x.h.by) : esc(x.t.cat)) + '</span></span><span class="r">' + fmt(parse(x.h.date)) + '</span></button>';
+    }).join('') + '</div>';
+  }
+  var max = 1, cats = CATS.map(function (cn) {
+    var mine = R.filter(function (r) { return r.t.cat === cn && r.t.active; });
+    max = Math.max(max, mine.length);
+    return { name: cn, n: mine.length, open: mine.filter(function (r) { return r.i.status === 'overdue' || r.i.status === 'due'; }).length };
+  }).filter(function (x) { return x.n; });
+  if (cats.length) {
+    h += '<div class="section"><h2>By category</h2></div><div class="cats">' + cats.map(function (x) {
+      return '<button class="cat" data-act="list" data-filter="all" data-cat="' + esc(x.name) + '"><span style="font-weight:600">' + esc(x.name) + '</span><span class="bar"><i style="width:' + Math.round(x.n / max * 100) + '%"></i></span><span class="meta" style="font-size:12.5px;color:var(--muted)">' + x.n + (x.n === 1 ? ' task' : ' tasks') + (x.open ? ' \u00b7 ' + x.open + ' need attention' : ' \u00b7 all clear') + '</span></button>';
+    }).join('') + '</div>';
+  }
+  return h + '<div class="pad-b"></div>';
+}
+function kidAge(t, due) {
+  var b = parse(t.first); if (!b || !due) return 'Well-child visit';
+  var mo = Math.round((due - b) / 86400000 / 30.4375);
+  if (mo < 1) return 'Newborn visit';
+  if (mo < 24) return mo + '-month visit';
+  if (mo < 36 && mo % 12) return mo + '-month visit';
+  return Math.round(mo / 12) + '-year visit';
+}
+function filteredTasks() {
+  var q = ui.q.trim().toLowerCase(), f = ui.filter;
+  return rows().filter(function (r) {
+    var s = r.i.status;
+    if (f === 'all' && (s === 'paused' || s === 'done')) { /* still shown, at the end */ }
+    if (f === 'due-all' && s !== 'overdue' && s !== 'due') return false;
+    if (['overdue', 'due', 'upcoming', 'nodate', 'paused'].indexOf(f) >= 0 && s !== f) return false;
+    if (ui.cat && r.t.cat !== ui.cat) return false;
+    if (q && r.t.name.toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+}
+function taskResults() {
+  var list = filteredTasks();
+  if (!list.length) return '<p class="empty">' + (ui.q.trim() ? 'No tasks match \u201C' + esc(ui.q.trim()) + '\u201D.' : 'Nothing here. Nice work.') + '</p>';
+  return list.map(function (r, i) { return taskRow(r, i % 2 === 1); }).join('');
+}
+function scrList() {
+  var R = rows(), counts = {}; R.forEach(function (r) { counts[r.i.status] = (counts[r.i.status] || 0) + 1; });
+  var chips = [['all', 'All'], ['overdue', 'Overdue'], ['due', 'Due'], ['upcoming', 'Upcoming']];
+  if (counts.nodate) chips.push(['nodate', 'Needs date']);
+  if (counts.paused) chips.push(['paused', 'Paused']);
+  var f = ui.filter === 'due-all' ? 'all' : ui.filter;
+  var h = '<header class="head" style="gap:12px"><div class="headrow"><h1>' + (ui.filter === 'due-all' ? 'Needs attention' : 'Tasks') + '</h1><button class="iconbtn" data-act="new-task" aria-label="Add a task">' + ic('plus', 22) + '</button></div>' +
+    searchBox('q', ui.q, 'Search tasks by name', 'Search tasks') +
+    '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '</button>'; }).join('') + '</div>' +
+    '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></header>';
+  return h + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:24px">' + taskResults() + '</div>';
+}
+function scrCal() {
+  var R = rows(), byDay = {}, T = today(), tIso = iso(T);
+  R.forEach(function (r) { if (r.i.due) (byDay[iso(r.i.due)] = byDay[iso(r.i.due)] || []).push(r); });
+  var first = new Date(ui.calY, ui.calM, 1), n = new Date(ui.calY, ui.calM + 1, 0).getDate(), cells = '', count = 0;
+  for (var b = 0; b < first.getDay(); b++) cells += '<span aria-hidden="true"></span>';
+  for (var d = 1; d <= n; d++) {
+    var k = iso(new Date(ui.calY, ui.calM, d)), L = byDay[k] || [], worst = null;
+    L.forEach(function (r) { if (!worst || STATUS[r.i.status].rank > STATUS[worst.i.status].rank) worst = r; });
+    count += L.length;
+    var cls = 'day' + (L.length ? ' has' : '') + (k === tIso ? ' today' : '') + (k === ui.calDay ? ' sel' : '');
+    cells += '<button class="' + cls + '" data-act="day" data-day="' + k + '" aria-label="' + MONTHS[ui.calM] + ' ' + d + (L.length ? ', ' + L.length + (L.length === 1 ? ' deadline' : ' deadlines') : '') + '">' + d + '<i style="background:' + (worst ? worst.i.dot : 'transparent') + '"></i></button>';
+  }
+  var sel = parse(ui.calDay), items = byDay[ui.calDay] || [];
+  var h = '<header class="head" style="gap:14px"><div class="headrow"><button class="iconbtn" data-act="month" data-step="-1" aria-label="Previous month">' + ic('back', 20, 2.2) + '</button>' +
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><h1 style="font-size:24px">' + MONTHS[ui.calM] + ' ' + ui.calY + '</h1><span class="sub" style="font-size:12.5px">' + count + (count === 1 ? ' deadline' : ' deadlines') + '</span></div>' +
+    '<button class="iconbtn" data-act="month" data-step="1" aria-label="Next month">' + ic('next', 20, 2.2) + '</button></div>' +
+    '<div class="dow"><span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span></div></header>';
+  h += '<div class="cal">' + cells + '</div>';
+  h += '<div class="legend"><span><i style="background:var(--dot-red)"></i>Overdue</span><span><i style="background:var(--dot-orange)"></i>Due</span><span><i style="background:var(--dot-green)"></i>Upcoming</span><span><i style="background:var(--dot-grey)"></i>Snoozed</span>' +
+    (ui.calY !== T.getFullYear() || ui.calM !== T.getMonth() ? '<button class="link" style="min-height:24px;margin-left:auto;font-size:12.5px" data-act="cal-today">Today</button>' : '') + '</div>';
+  h += '<div class="section"><h2 style="font-size:19px">' + (sel ? DAYS[sel.getDay()] + ', ' + fmt(sel, false) : '') + '</h2></div><div class="stack">';
+  h += items.length ? items.map(function (r) { return taskRow(r, false); }).join('') : '<p class="note" style="text-align:left;padding:4px">No deadlines this day. Tap a day with a dot.</p>';
+  return h + '</div><div class="pad-b"></div>';
+}
+function contactMatches(c, q) {
+  if (!q) return true;
+  if ((c.name + ' ' + c.email + ' ' + c.role).toLowerCase().indexOf(q) >= 0) return true;
+  var dq = q.replace(/\D/g, '');
+  return dq.length >= 3 && c.phone.replace(/\D/g, '').indexOf(dq) >= 0;
+}
+function contactResults() {
+  var q = ui.cq.trim().toLowerCase();
+  var list = db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).filter(function (c) { return contactMatches(c, q); });
+  if (!list.length) return '<p class="empty">' + (q ? 'No contacts match that search.' : 'No contacts yet. Tap + to add one.') + '</p>';
+  return list.map(function (c, i) {
+    var n = db.tasks.filter(function (t) { return t.contact === c.id; }).length;
+    return '<button class="row' + (i % 2 ? ' alt' : '') + '" data-act="contact" data-id="' + esc(c.id) + '"><span class="avatar">' + esc(initials(c.name)) + '</span><span class="col"><span class="name">' + esc(c.name) + '</span><span class="meta">' + esc(c.role || c.phone || c.email) + '</span></span><span style="font-size:12.5px;color:var(--rose);font-weight:600">' + (n ? n + (n === 1 ? ' task' : ' tasks') : '') + '</span></button>';
+  }).join('');
+}
+function scrContacts() {
+  var h = '<header class="head" style="gap:12px"><div class="headrow"><h1>Contacts</h1><button class="iconbtn" data-act="new-contact" aria-label="Add a contact">' + ic('plus', 22) + '</button></div>' +
+    searchBox('cq', ui.cq, 'Search name, phone or email', 'Search contacts') + '</header>';
+  return h + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:24px">' + contactResults() + '</div>';
+}
+function telHref(p) { var d = String(p).replace(/[^\d+]/g, ''); if (/^\d{10}$/.test(d)) d = '+1' + d; return d; }
+function contactActions(c, soft) {
+  var cls = soft ? 'act soft' : 'act', sz = soft ? 16 : 20, out = '';
+  if (c.phone) out += '<a class="' + cls + '" href="tel:' + esc(telHref(c.phone)) + '">' + ic('phone', sz) + 'Call</a><a class="' + cls + '" href="sms:' + esc(telHref(c.phone)) + '">' + ic('text', sz) + 'Text</a>';
+  if (c.email) out += '<a class="' + cls + '" href="mailto:' + esc(c.email) + '">' + ic('mail', sz) + 'Email</a>';
+  if (c.address && !soft) out += '<a class="' + cls + '" href="https://maps.apple.com/?q=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener">' + ic('pin', sz) + 'Map</a>';
+  if (c.web) out += '<a class="' + cls + '" href="' + esc(webHref(c.web)) + '" target="_blank" rel="noopener">' + ic('web', sz) + 'Website</a>';
+  return out;
+}
+function webHref(w) { return /^https?:\/\//i.test(w) ? w : 'https://' + w; }
+function scrContact() {
+  var c = db.contacts.find(function (x) { return x.id === ui.conId; });
+  if (!c) { ui.screen = 'contacts'; return scrContacts(); }
+  var h = '<header class="head" style="gap:12px">' + '<div class="headrow">' + backBtn() + '<button class="textbtn" data-act="edit-contact">Edit</button></div>' +
+    '<div style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:56px;height:56px;flex-basis:56px;font-size:19px">' + esc(initials(c.name)) + '</span><span class="col"><h1 style="font-size:24px">' + esc(c.name) + '</h1>' + (c.role ? '<span class="sub">' + esc(c.role) + '</span>' : '') + '</span></div></header>';
+  h += flashHtml();
+  var acts = contactActions(c, false);
+  if (acts) h += '<div class="actions">' + acts + '</div>';
+  var f = [];
+  if (c.phone) f.push(['Phone', c.phone]); if (c.email) f.push(['Email', c.email]); if (c.address) f.push(['Address', c.address]);
+  if (c.web) f.push(['Website', c.web.replace(/^https?:\/\//, '')]); if (c.notes) f.push(['Notes', c.notes]);
+  if (f.length) h += '<div class="listcard"' + (acts ? '' : ' style="margin-top:16px"') + '>' + f.map(function (x) { return '<div class="lrow" style="flex-direction:column;align-items:flex-start;gap:3px"><span class="s">' + x[0] + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(x[1]) + '</span></div>'; }).join('') + '</div>';
+  var linked = rows().filter(function (r) { return r.t.contact === c.id; });
+  h += '<div class="section"><h2 style="font-size:19px">Linked tasks</h2></div><div class="stack">' +
+    (linked.length ? linked.map(function (r) { return taskRow(r, false, 'contact'); }).join('') : '<p class="note" style="text-align:left;padding:4px">No tasks linked yet. Open a task, tap Edit, and pick this contact.</p>') + '</div>';
+  return h + '<div class="pad-b"></div>';
+}
+function scheduleText(t) {
+  if (t.freq === 'Well-child (by age)') return 'By age: the next visit follows the pediatric schedule from the birth date (newborn, 2 weeks, 1, 2, 4, 6, 9, 12, 15, 18, 24, 30 months, then yearly).';
+  if (t.freq === 'One-time') return 'One-time: once it\u2019s done, it\u2019s finished.';
+  if (FREQ[t.freq].dy) return 'Repeats ' + t.freq.toLowerCase() + ' from the day you finish it.';
+  return t.fixed ? 'Fixed calendar date: stays on the same date every cycle, so finishing early won\u2019t shift it.' : 'From last done: the next due date counts forward from the day you finish it.';
+}
+function scrTask() {
+  var t = db.tasks.find(function (x) { return x.id === ui.taskId; });
+  if (!t) { ui.screen = 'list'; return scrList(); }
+  var i = info(t), con = t.contact ? db.contacts.find(function (c) { return c.id === t.contact; }) : null, kid = t.freq === 'Well-child (by age)';
+  var h = '<header class="head" style="gap:10px;padding-bottom:24px"><div class="headrow">' + backBtn() + '<button class="textbtn" data-act="edit-task">Edit</button></div>' +
+    '<span class="eyebrow">' + esc(t.cat) + (t.who ? ' \u00b7 ' + esc(t.who) : '') + '</span><h1>' + esc(t.name) + '</h1><span class="pill" style="color:' + i.color + '">' + esc(i.long) + '</span></header>';
+  h += flashHtml();
+  h += '<div class="grid2">' +
+    '<div class="tile"><span class="k">Next due</span><span class="v">' + (i.due ? fmt(i.due, true) : '\u2014') + '</span></div>' +
+    '<div class="tile"><span class="k">Can start on</span><span class="v" style="color:var(--rose)">' + (i.start ? fmt(i.start, true) : '\u2014') + '</span></div>' +
+    '<div class="tile"><span class="k">Last completed</span><span class="v">' + (t.last ? fmt(parse(t.last), true) : 'Not yet') + '</span></div>' +
+    '<div class="tile"><span class="k">' + (kid ? 'Schedule' : 'Repeats') + '</span><span class="v">' + esc(kid ? 'By age' : t.freq) + '</span></div></div>';
+  h += '<div class="stack">';
+  if (t.active && i.status !== 'done') {
+    h += '<button class="btn primary" data-act="done">' + ic('check', 20, 2.4) + 'Mark done today</button>';
+    h += '<div class="btns2"><button class="btn secondary" data-act="done-other">Done another day</button>' +
+      (i.due && i.status !== 'overdue' ? '<button class="btn secondary" data-act="snooze">' + ic('snooze', 18) + (i.status === 'snoozed' ? 'Unsnooze' : 'Snooze 1 week') + '</button>' : '<button class="btn secondary" data-act="ics"' + (i.due ? '' : ' disabled') + '>' + ic('bell', 18) + 'Add to Calendar</button>') + '</div>';
+    if (i.due && i.status !== 'overdue') h += '<button class="btn secondary" data-act="ics">' + ic('bell', 18) + 'Add reminder to my Calendar</button>';
+    h += '<input type="date" id="otherDate" class="sr" max="' + iso(today()) + '" aria-label="Date it was done">';
+    h += '<span class="note">Logged as ' + esc(db.user) + '.</span>';
+  } else if (!t.active) {
+    h += '<p class="note">This task is paused. Tap Edit to turn it back on.</p>';
+  }
+  h += '</div>';
+  if (con) {
+    h += '<div class="card" style="margin:8px 16px 0;padding:12px 14px;display:flex;flex-direction:column;gap:12px"><span style="font-size:12.5px;color:var(--muted)">Contact</span>' +
+      '<button data-act="contact" data-id="' + esc(con.id) + '" style="display:flex;align-items:center;gap:12px;text-align:left;min-height:44px"><span class="avatar" style="width:40px;height:40px;flex-basis:40px;font-size:13px">' + esc(initials(con.name)) + '</span><span class="col"><span style="font-weight:600">' + esc(con.name) + '</span>' + (con.role ? '<span style="font-size:12.5px;color:var(--muted)">' + esc(con.role) + '</span>' : '') + '</span><span style="color:#8C7B75">' + ic('next', 18) + '</span></button>';
+    var a = contactActions(con, true); if (a) h += '<div style="display:flex;gap:8px">' + a + '</div>';
+    h += '</div>';
+  }
+  h += '<div class="section"><h2 style="font-size:19px">History</h2></div><div class="listcard">';
+  h += t.history.length ? t.history.map(function (x, idx) {
+    var armed = ui.armed === 'hist' + idx;
+    return '<div class="lrow"><span class="col"><span class="t">' + fmt(parse(x.date), true) + '</span>' + (x.by ? '<span class="s">by ' + esc(x.by) + '</span>' : '') + '</span>' +
+      '<button class="link" style="color:' + (armed ? 'var(--red)' : '#8C7B75') + ';font-size:13px" data-act="del-hist" data-idx="' + idx + '" aria-label="Remove this entry">' + (armed ? 'Tap to remove' : ic('x', 16)) + '</button></div>';
+  }).join('') : '<p class="note" style="text-align:left;margin:12px 0">No completions logged yet.</p>';
+  h += '</div>';
+  h += '<div class="card" style="margin:10px 16px 0;padding:14px;display:flex;flex-direction:column;gap:6px">' +
+    (t.notes ? '<span style="font-size:12.5px;color:var(--muted)">Notes</span><span style="line-height:1.45;white-space:pre-wrap">' + esc(t.notes) + '</span>' : '') +
+    '<span style="font-size:12.5px;color:var(--muted);line-height:1.4">' + esc(scheduleText(t)) + (t.early ? ' Opens ' + t.early + ' days before it\u2019s due.' : '') + '</span></div>';
+  return h + '<div class="pad-b"></div>';
+}
+
+/* ---------- forms ---------- */
+function opt(v, cur, label) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label || v) + '</option>'; }
+function scrEditTask() {
+  var f = ui.form, isNew = !f.id, kid = f.freq === 'Well-child (by age)', simple = kid || f.freq === 'One-time' || (FREQ[f.freq] && FREQ[f.freq].dy);
+  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New task' : 'Edit task') + '</span><button class="textbtn" data-act="save-task">Save</button></div></header>';
+  h += flashHtml();
+  h += '<form class="form" id="taskForm" autocomplete="off" novalidate>' +
+    '<label class="field"><span>Task</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Replace furnace filter" required></label>' +
+    '<div class="two"><label class="field"><span>Category</span><select class="input" name="cat">' + CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
+    '<label class="field"><span>' + (kid ? 'Child' : 'For / where') + '</span><input class="input" name="who" value="' + esc(f.who) + '" placeholder="' + (kid ? 'Name' : 'e.g. Basement') + '"></label></div>' +
+    '<label class="field"><span>How often</span><select class="input" name="freq" data-rerender="1">' + FREQS.map(function (x) { return opt(x[0], f.freq); }).join('') + '</select></label>' +
+    (simple ? '' : '<label class="field"><span>Schedule</span><select class="input" name="fixed">' + opt('0', f.fixed ? '1' : '0', 'From last done') + opt('1', f.fixed ? '1' : '0', 'Fixed calendar date') + '</select><small>From last done counts from when you finish it. Fixed date stays on the calendar (like a plate renewal).</small></label>') +
+    '<div class="two"><label class="field"><span>' + (kid ? 'Birth date' : (f.freq === 'One-time' ? 'Due date' : 'First due date')) + '</span><input class="input" type="date" name="first" value="' + esc(f.first || '') + '"></label>' +
+    '<label class="field"><span>Last completed</span><input class="input" type="date" name="last" value="' + esc(f.last || '') + '"></label></div>' +
+    '<label class="field"><span>Start early (days)</span><input class="input" type="number" inputmode="numeric" min="0" max="365" name="early" value="' + esc(f.early) + '"><small>How many days before the deadline it can be done. Use 0 if it only applies on the day.</small></label>' +
+    '<label class="field"><span>Contact</span><select class="input" name="contact"><option value="">None</option>' + db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (c) { return opt(c.id, f.contact || '', c.name); }).join('') + '</select></label>' +
+    '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea></label>' +
+    '<div class="switchrow"><span class="col"><span style="font-weight:600">Active</span><span style="font-size:12.5px;color:var(--muted)">Turn off to pause it without deleting.</span></span><button type="button" class="switch" data-act="toggle-active" aria-pressed="' + (f.active ? 'true' : 'false') + '" aria-label="Active"><i></i></button></div>' +
+    '<button type="submit" class="btn primary">Save</button>' +
+    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-task' ? ' armed' : '') + '" data-act="del-task">' + (ui.armed === 'del-task' ? 'Tap again to delete for good' : 'Delete task') + '</button>') +
+    '</form>';
+  return h;
+}
+function scrEditContact() {
+  var f = ui.form, isNew = !f.id;
+  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New contact' : 'Edit contact') + '</span><button class="textbtn" data-act="save-contact">Save</button></div></header>';
+  h += flashHtml();
+  h += '<form class="form" id="contactForm" autocomplete="off" novalidate>' +
+    '<label class="field"><span>Name</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="Person or business" required></label>' +
+    '<label class="field"><span>What they help with</span><input class="input" name="role" value="' + esc(f.role) + '" placeholder="e.g. Furnace and A/C service"></label>' +
+    '<label class="field"><span>Phone</span><input class="input" type="tel" inputmode="tel" name="phone" value="' + esc(f.phone) + '" placeholder="(630) 555-0100"></label>' +
+    '<label class="field"><span>Email</span><input class="input" type="email" inputmode="email" autocapitalize="off" name="email" value="' + esc(f.email) + '"></label>' +
+    '<label class="field"><span>Address</span><input class="input" name="address" value="' + esc(f.address) + '"></label>' +
+    '<label class="field"><span>Website</span><input class="input" type="url" inputmode="url" autocapitalize="off" name="web" value="' + esc(f.web) + '"></label>' +
+    '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea></label>' +
+    '<button type="submit" class="btn primary">Save</button>' +
+    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-contact' ? ' armed' : '') + '" data-act="del-contact">' + (ui.armed === 'del-contact' ? 'Tap again to delete for good' : 'Delete contact') + '</button>') +
+    '</form>';
+  return h;
+}
+function readForm(id) {
+  var el = document.getElementById(id); if (!el) return;
+  Array.prototype.forEach.call(el.elements, function (x) { if (x.name) ui.form[x.name] = x.value; });
+  if (id === 'taskForm' && ui.form.fixed != null) ui.form.fixed = ui.form.fixed === true || ui.form.fixed === '1';
+}
+
+/* ---------- settings ---------- */
+function scrSettings() {
+  var counts = {}; db.members.forEach(function (m) { counts[m] = 0; });
+  db.tasks.forEach(function (t) { t.history.forEach(function (x) { if (counts[x.by] != null) counts[x.by]++; }); });
+  var lb = db.lastBackup ? new Date(db.lastBackup) : null;
+  var h = '<header class="head" style="gap:10px">' + '<div class="headrow">' + backBtn() + '</div><h1>Settings</h1></header>';
+  h += flashHtml();
+  h += '<div class="section"><h2 style="font-size:19px">Who\u2019s using this phone?</h2></div><div style="padding:0 16px"><div class="seg">' +
+    db.members.map(function (m) { return '<button data-act="user" data-name="' + esc(m) + '" aria-pressed="' + (db.user === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
+    '<p class="note" style="text-align:left;padding:8px 4px 0">Completions you log are marked with this name. ' + db.members.map(function (m) { return esc(m) + ': ' + counts[m]; }).join(' \u00b7 ') + ' logged.</p></div>';
+  h += '<div class="section"><h2 style="font-size:19px">Backup</h2></div><div class="stack">' +
+    '<div class="tip" style="margin:0">Your list is saved on this phone only. Save a backup file to iCloud Drive or Files about once a month, and before you change phones. ' + (lb ? '<br><strong>Last backup:</strong> ' + fmt(lb, true) + '.' : '<br><strong>No backup yet.</strong>') + '</div>' +
+    '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a backup file</button>' +
+    '<button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Restore from a backup file</button></div>';
+  h += '<div class="section"><h2 style="font-size:19px">Reminders</h2></div><div class="tip" style="margin:0 16px">This version can\u2019t send notifications on its own. On any task, tap <strong>Add reminder to my Calendar</strong>: your phone\u2019s Calendar will alert you when the task opens and the day before it\u2019s due.</div>';
+  h += '<div class="section"><h2 style="font-size:19px">About</h2></div><div class="listcard"><div class="lrow"><span class="s">Tasks</span><span class="t">' + db.tasks.length + '</span></div><div class="lrow"><span class="s">Contacts</span><span class="t">' + db.contacts.length + '</span></div><div class="lrow"><span class="s">Saved on phone</span><span class="t" style="color:' + (storageOk ? 'var(--green)' : 'var(--red)') + '">' + (storageOk ? 'Yes' : 'Problem: back up now') + '</span></div></div>';
+  return h + '<div class="pad-b"></div>';
+}
+function scrWelcome() {
+  return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Welcome to Tend</h1><p>Your household\u2019s recurring tasks, kids\u2019 visits and the people you call for them, all in one place on this phone.</p>' +
+    '<p>If you have a Tend file (your starting list or a backup), load it now. You can also start with an empty list.</p>' +
+    '<button class="btn primary" data-act="restore">' + ic('upload', 20) + 'Load my Tend file</button><button class="btn secondary" data-act="start-empty">Start with an empty list</button>' +
+    (storageOk ? '' : '<p style="color:var(--red)">This browser is blocking storage, so nothing will be saved. Add Tend to your Home Screen and open it from there.</p>') + '</div>';
+}
+
+/* ---------- render ---------- */
+var view = document.getElementById('view'), tabs = document.getElementById('tabs');
+function render() {
+  if (!db) { view.innerHTML = scrWelcome(); tabs.hidden = true; return; }
+  tabs.hidden = ui.screen === 'edit-task' || ui.screen === 'edit-contact';
+  var s = ui.screen;
+  view.innerHTML = s === 'home' ? scrHome() : s === 'list' ? scrList() : s === 'calendar' ? scrCal() : s === 'contacts' ? scrContacts()
+    : s === 'contact' ? scrContact() : s === 'task' ? scrTask() : s === 'settings' ? scrSettings() : s === 'edit-task' ? scrEditTask() : s === 'edit-contact' ? scrEditContact() : scrHome();
+  var tabOf = { home: 'home', settings: 'home', list: 'tasks', task: 'tasks', 'edit-task': 'tasks', calendar: 'cal', contacts: 'people', contact: 'people', 'edit-contact': 'people' };
+  var cur = tabOf[ui.screen];
+  tabs.innerHTML = [['home', 'Home', 'tab-home'], ['tasks', 'Tasks', 'tab-tasks'], ['cal', 'Calendar', 'tab-cal'], ['people', 'Contacts', 'tab-people']].map(function (x) {
+    return '<button data-act="' + x[2] + '"' + (cur === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[0], 24) + x[1] + '</button>';
+  }).join('');
+}
+
+/* ---------- actions ---------- */
+function snapshot() { return JSON.stringify(db.tasks); }
+function markDone(dateIso) {
+  var t = db.tasks.find(function (x) { return x.id === ui.taskId; }); if (!t) return;
+  var before = snapshot();
+  t.history.unshift({ date: dateIso, by: db.user });
+  t.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+  t.last = t.history[0].date; t.snooze = null;
+  save();
+  var n = nextDue(t);
+  ui.flash = 'Done' + (dateIso !== iso(today()) ? ' on ' + fmt(parse(dateIso)) : '') + '. ' + (n ? 'Next due ' + fmt(n, true) + '.' : t.freq === 'One-time' ? 'All finished.' : '');
+  ui.undo = before; render();
+}
+function downloadFile(name, text, type) {
+  var file;
+  try { file = new File([text], name, { type: type }); } catch (e) { file = null; }
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    return navigator.share({ files: [file], title: name }).then(function () { return true; }, function (e) { return e && e.name === 'AbortError' ? false : fallback(); });
+  }
+  return Promise.resolve(fallback());
+  function fallback() {
+    var url = URL.createObjectURL(new Blob([text], { type: type })), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000); return true;
+  }
+}
+function backup() {
+  var data = JSON.parse(JSON.stringify(db)); data.exportedAt = new Date().toISOString();
+  var name = 'Tend-backup-' + iso(today()) + '.json';
+  downloadFile(name, JSON.stringify(data, null, 1), 'application/json').then(function (ok) {
+    if (ok) { db.lastBackup = new Date().toISOString(); save(); toast('Backup saved. Keep it in iCloud Drive or Files.'); }
+  });
+}
+function icsFor(t) {
+  var i = info(t); if (!i.due) return null;
+  var d = function (x) { return iso(x).replace(/-/g, ''); };
+  var txt = function (s) { return String(s).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, function (c) { return '\\' + c; }); };
+  var con = t.contact ? db.contacts.find(function (c) { return c.id === t.contact; }) : null;
+  var desc = 'Due ' + fmt(i.due, true) + (t.early ? '. Can start ' + fmt(i.start, true) : '') + '.' + (t.notes ? '\n' + t.notes : '') + (con ? '\nContact: ' + con.name + (con.phone ? ' ' + con.phone : '') : '');
+  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Tend//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    'UID:tend-' + t.id + '-' + d(i.due) + '@tend.local', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''),
+    'DTSTART;VALUE=DATE:' + d(i.due), 'DTEND;VALUE=DATE:' + d(addDays(i.due, 1)), 'SUMMARY:' + txt('Due: ' + t.name + (t.who ? ' (' + t.who + ')' : '')),
+    'DESCRIPTION:' + txt(desc), 'TRANSP:TRANSPARENT'];
+  var startGap = Math.max(0, daysBetween(today(), i.due));
+  if (t.early > 1 && t.early <= startGap) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + txt(t.name + ' can be done now'), 'TRIGGER:-P' + (t.early - 1) + 'DT15H', 'END:VALARM');
+  lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + txt(t.name + ' is due tomorrow'), 'TRIGGER:-PT15H', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR');
+  return lines.join('\r\n') + '\r\n';
+}
+function restoreFrom(text) {
+  var d;
+  try { d = JSON.parse(text); } catch (e) { toast('That file isn\u2019t a Tend file.'); return; }
+  if (!d || !Array.isArray(d.tasks)) { toast('That file isn\u2019t a Tend file.'); return; }
+  var had = !!db, prev = db;
+  db = normalize(d);
+  if (prev) { db.user = prev.user; }
+  save(); ui.stack = []; ui.screen = 'home';
+  ui.flash = null; render(); view.scrollTop = 0;
+  if (had) { ui.screen = 'settings'; toast('Restored ' + db.tasks.length + ' tasks and ' + db.contacts.length + ' contacts.'); }
+}
+var fileInput = document.getElementById('restoreFile');
+fileInput.addEventListener('change', function () {
+  var f = fileInput.files && fileInput.files[0]; if (!f) return;
+  var r = new FileReader(); r.onload = function () { restoreFrom(String(r.result)); fileInput.value = ''; }; r.readAsText(f);
+});
+
+document.addEventListener('click', function (e) {
+  var el = e.target.closest('[data-act]'); if (!el) return;
+  var a = el.getAttribute('data-act'), T = today();
+  if (a !== 'del-hist' && a !== 'del-task' && a !== 'del-contact' && ui.armed) { ui.armed = null; }
+  switch (a) {
+    case 'tab-home': go('home'); break;
+    case 'tab-tasks': go('list', { filter: 'all', cat: '', q: '' }); break;
+    case 'tab-cal': go('calendar', { calY: T.getFullYear(), calM: T.getMonth(), calDay: iso(T) }); break;
+    case 'tab-people': go('contacts', { cq: '' }); break;
+    case 'settings': go('settings', {}, true); break;
+    case 'list': go('list', { filter: el.getAttribute('data-filter') || 'all', cat: el.getAttribute('data-cat') || '', q: '' }); break;
+    case 'filter': ui.filter = el.getAttribute('data-filter'); render(); break;
+    case 'task': go('task', { taskId: el.getAttribute('data-id') }, true); break;
+    case 'contact': go('contact', { conId: el.getAttribute('data-id') }, true); break;
+    case 'back': back(); break;
+    case 'clear-q': ui.q = ''; render(); break;
+    case 'clear-cq': ui.cq = ''; render(); break;
+    case 'day': ui.calDay = el.getAttribute('data-day'); render(); break;
+    case 'cal-today': ui.calY = T.getFullYear(); ui.calM = T.getMonth(); ui.calDay = iso(T); render(); break;
+    case 'month': var m = new Date(ui.calY, ui.calM + (+el.getAttribute('data-step')), 1); ui.calY = m.getFullYear(); ui.calM = m.getMonth(); ui.calDay = iso(m); render(); break;
+    case 'done': markDone(iso(T)); break;
+    case 'done-other': var di = document.getElementById('otherDate'); if (di) { if (di.showPicker) { try { di.showPicker(); } catch (x) { di.focus(); di.click(); } } else { di.focus(); di.click(); } } break;
+    case 'undo': if (ui.undo) { db.tasks = JSON.parse(ui.undo); save(); ui.undo = null; ui.flash = 'Undone.'; render(); } break;
+    case 'snooze':
+      var st = db.tasks.find(function (x) { return x.id === ui.taskId; });
+      if (st) { var on = st.snooze && parse(st.snooze) > T; st.snooze = on ? null : iso(addDays(T, 7)); save(); toast(on ? 'Snooze removed.' : 'Snoozed until ' + fmt(addDays(T, 7)) + '. It still turns red if the deadline passes.'); }
+      break;
+    case 'ics':
+      var it = db.tasks.find(function (x) { return x.id === ui.taskId; }), ics = it && icsFor(it);
+      if (ics) downloadFile(it.name.replace(/[^\w ]+/g, '').trim().replace(/\s+/g, '-') + '.ics', ics, 'text/calendar');
+      break;
+    case 'del-hist':
+      var k = 'hist' + el.getAttribute('data-idx');
+      if (ui.armed !== k) { ui.armed = k; render(); break; }
+      var ht = db.tasks.find(function (x) { return x.id === ui.taskId; });
+      if (ht) { var before = snapshot(); ht.history.splice(+el.getAttribute('data-idx'), 1); ht.last = ht.history[0] ? ht.history[0].date : null; save(); ui.armed = null; ui.flash = 'Entry removed.'; ui.undo = before; render(); }
+      break;
+    case 'edit-task':
+      var et = db.tasks.find(function (x) { return x.id === ui.taskId; });
+      go('edit-task', { form: Object.assign({}, et, { early: String(et.early) }) }, true); break;
+    case 'new-task': go('edit-task', { form: { id: null, name: '', cat: ui.cat || 'Home', who: '', freq: 'Yearly', fixed: false, first: '', last: '', early: '14', notes: '', contact: '', active: true } }, true); break;
+    case 'toggle-active': readForm('taskForm'); ui.form.active = !ui.form.active; render(); break;
+    case 'cancel': ui.form = null; back(); break;
+    case 'save-task': saveTask(); break;
+    case 'del-task':
+      if (ui.armed !== 'del-task') { readForm('taskForm'); ui.armed = 'del-task'; render(); break; }
+      db.tasks = db.tasks.filter(function (x) { return x.id !== ui.form.id; }); save(); ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); toast('Task deleted.'); break;
+    case 'edit-contact':
+      var ec = db.contacts.find(function (x) { return x.id === ui.conId; }); go('edit-contact', { form: Object.assign({}, ec) }, true); break;
+    case 'new-contact': go('edit-contact', { form: { id: null, name: '', role: '', phone: '', email: '', address: '', web: '', notes: '' } }, true); break;
+    case 'save-contact': saveContact(); break;
+    case 'del-contact':
+      if (ui.armed !== 'del-contact') { readForm('contactForm'); ui.armed = 'del-contact'; render(); break; }
+      var cid = ui.form.id; db.contacts = db.contacts.filter(function (x) { return x.id !== cid; });
+      db.tasks.forEach(function (t) { if (t.contact === cid) t.contact = null; }); save(); ui.form = null; go('contacts', { cq: '' }); toast('Contact deleted.'); break;
+    case 'user': db.user = el.getAttribute('data-name'); save(); render(); break;
+    case 'backup': backup(); break;
+    case 'restore': fileInput.click(); break;
+    case 'start-empty': db = blank(); save(); go('home'); break;
+  }
+});
+document.addEventListener('submit', function (e) {
+  e.preventDefault();
+  if (e.target.id === 'taskForm') saveTask(); else if (e.target.id === 'contactForm') saveContact();
+});
+document.addEventListener('change', function (e) {
+  var el = e.target;
+  if (el.id === 'catSel') { ui.cat = el.value; render(); }
+  else if (el.id === 'otherDate' && el.value) { if (el.value > iso(today())) { toast('Pick today or an earlier day.'); return; } markDone(el.value); }
+  else if (el.getAttribute && el.getAttribute('data-rerender')) { readForm('taskForm'); render(); }
+});
+document.addEventListener('input', function (e) {
+  var el = e.target;
+  if (el.id === 'q' || el.id === 'cq') {
+    ui[el.id] = el.value;
+    var res = document.getElementById('results'); if (res) res.innerHTML = el.id === 'q' ? taskResults() : contactResults();
+    var clr = el.parentNode.querySelector('.clear'); if (clr) clr.hidden = !el.value;
+  }
+});
+function saveTask() {
+  readForm('taskForm'); var f = ui.form;
+  f.name = (f.name || '').trim();
+  if (!f.name) { toast('Give the task a name.'); return; }
+  if (f.first && !parse(f.first)) f.first = '';
+  if (f.last && f.last > iso(today())) { toast('Last completed can\u2019t be in the future.'); return; }
+  var early = parseInt(f.early, 10); early = isNaN(early) ? 0 : Math.max(0, Math.min(365, early));
+  var rec = { name: f.name, cat: f.cat, who: (f.who || '').trim(), freq: f.freq, fixed: !!f.fixed, first: f.first || null, early: early, notes: (f.notes || '').trim(), contact: f.contact || null, active: !!f.active };
+  var t;
+  if (f.id) { t = db.tasks.find(function (x) { return x.id === f.id; }); }
+  if (!t) { t = { id: newId('t'), history: [], snooze: null, last: null }; db.tasks.push(t); }
+  Object.assign(t, rec);
+  var newLast = f.last || null;
+  if (newLast !== t.last) {
+    if (newLast && !t.history.some(function (h) { return h.date === newLast; })) { t.history.push({ date: newLast, by: '' }); }
+    t.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    t.last = newLast;
+  }
+  save(); ui.form = null; ui.stack.pop();
+  go('task', { taskId: t.id }, false); ui.stack = [{ screen: 'list', scroll: 0 }];
+  toast('Saved.');
+}
+function saveContact() {
+  readForm('contactForm'); var f = ui.form;
+  f.name = (f.name || '').trim();
+  if (!f.name) { toast('Give the contact a name.'); return; }
+  var c;
+  if (f.id) c = db.contacts.find(function (x) { return x.id === f.id; });
+  if (!c) { c = { id: newId('c') }; db.contacts.push(c); }
+  ['name', 'role', 'phone', 'email', 'address', 'web', 'notes'].forEach(function (k) { c[k] = (f[k] || '').trim(); });
+  save(); ui.form = null; ui.stack.pop();
+  go('contact', { conId: c.id }, false); ui.stack = [{ screen: 'contacts', scroll: 0 }];
+  toast('Saved.');
+}
+
+/* ---------- start ---------- */
+(function start() {
+  var T = today(); ui.calY = T.getFullYear(); ui.calM = T.getMonth(); ui.calDay = iso(T);
+  load(); render();
+  if (navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) {} }
+  // re-check the date when the app comes back, so statuses roll over at midnight
+  var lastDay = iso(T);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && db && iso(today()) !== lastDay) { lastDay = iso(today()); if (ui.screen !== 'edit-task' && ui.screen !== 'edit-contact') render(); }
+  });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+})();
+</script>
+</body>
+</html>
