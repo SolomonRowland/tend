@@ -125,6 +125,8 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .seg button{border:1px solid var(--dusty);border-radius:12px;min-height:44px;font-weight:700;background:#fff;color:var(--rose)}
 .seg button[aria-pressed="true"]{background:var(--rose);color:#fff;border-color:var(--rose)}
 .tip{margin:14px 16px 0;background:var(--blush);border-radius:14px;padding:14px;font-size:13.5px;line-height:1.45}
+.addbtn{flex:0 0 auto;display:flex;align-items:center;gap:5px;min-height:40px;padding:0 14px 0 10px;border-radius:999px;background:#fff;color:var(--espresso);font-size:14.5px;font-weight:700}
+.titlerow{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .fab{position:absolute;right:16px;bottom:calc(var(--safe-bot) + 76px);height:52px;padding:0 20px 0 16px;border-radius:999px;background:var(--rose);color:#fff;display:flex;align-items:center;gap:6px;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(59,42,42,.28);z-index:3}
 .toprow{display:flex;gap:8px}.toprow .search{flex:1 1 56%;min-width:0}.toprow .selectwrap{flex:1 1 44%;min-width:0}
 .headselect{background:#fff!important;color:var(--ink)!important;border:0!important;min-height:44px!important}
@@ -528,6 +530,7 @@ function taskResults() {
   });
   return out;
 }
+function titleRow(title, act, label) { return '<div class="titlerow"><h1>' + title + '</h1><button class="addbtn" data-act="' + act + '">' + ic('plus', 18, 2.6) + label + '</button></div>'; }
 function scrList() {
   var R = rows(), counts = {}; R.forEach(function (r) { counts[r.i.status] = (counts[r.i.status] || 0) + 1; });
   var chips = [['all', 'All'], ['overdue', 'Overdue'], ['due', 'Due'], ['upcoming', 'Upcoming']];
@@ -535,7 +538,7 @@ function scrList() {
   if (counts.paused) chips.push(['paused', 'Paused']);
   var f = ui.filter === 'due-all' ? 'all' : ui.filter;
   var need = (counts.overdue || 0) + (counts.due || 0);
-  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + R.length + ' tasks' + (need ? ' \u00b7 ' + need + ' need attention' : ' \u00b7 all on track') + '</span><h1>' + (ui.filter === 'due-all' ? 'Needs attention' : 'Tasks') + '</h1>' +
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + R.length + ' tasks' + (need ? ' \u00b7 ' + need + ' need attention' : ' \u00b7 all on track') + '</span>' + titleRow(ui.filter === 'due-all' ? 'Needs attention' : 'Tasks', 'new-task', 'Task') +
     '<div class="toprow">' + searchBox('q', ui.q, 'Search tasks', 'Search tasks') +
     '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></div>' +
     '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { var n = c[0] === 'all' ? R.length : (counts[c[0]] || 0); return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '<span class="n">' + n + '</span></button>'; }).join('') + '</div></header>';
@@ -582,9 +585,9 @@ function contactResults() {
 }
 function scrContacts() {
   var n = db.contacts.length;
-  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' contact' : ' contacts') + '</span><h1>People</h1>' + dirSwitch('contacts') +
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' contact' : ' contacts') + '</span>' + titleRow('People', 'new-contact', 'Contact') + dirSwitch('contacts') +
     searchBox('cq', ui.cq, 'Search name, phone or email', 'Search contacts') + '</header>';
-  return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:96px">' + contactResults() + '</div>';
+  return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:28px">' + contactResults() + '</div>';
 }
 function telHref(p) { var d = String(p).replace(/[^\d+]/g, ''); if (/^\d{10}$/.test(d)) d = '+1' + d; return d; }
 function contactActions(c, soft) {
@@ -905,9 +908,9 @@ function itemResults() {
 }
 function scrItems() {
   var n = db.items.length;
-  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' belonging' : ' belongings') + '</span><h1>Belongings</h1>' + dirSwitch('items') +
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' belonging' : ' belongings') + '</span>' + titleRow('Belongings', 'new-item', 'Belonging') + dirSwitch('items') +
     searchBox('bq', ui.bq, 'Search name, VIN, plate, model #', 'Search belongings') + '</header>';
-  return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:96px">' + itemResults() + '</div>';
+  return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:28px">' + itemResults() + '</div>';
 }
 function scrItem() {
   var b = itemById(ui.itemId);
@@ -1266,7 +1269,7 @@ function render() {
   var tabOf = { home: 'home', settings: 'home', list: 'tasks', task: 'tasks', 'edit-task': 'tasks', calendar: 'cal', contacts: 'people', contact: 'people', 'edit-contact': 'people', items: 'people', item: 'people', 'edit-item': 'people' };
   var cur = tabOf[ui.screen];
   var fab = document.getElementById('fab');
-  fab.innerHTML = s === 'list' ? '<button class="fab" data-act="new-task">' + ic('plus', 20, 2.4) + 'Task</button>' : s === 'contacts' ? '<button class="fab" data-act="new-contact">' + ic('plus', 20, 2.4) + 'Contact</button>' : s === 'items' ? '<button class="fab" data-act="new-item">' + ic('plus', 20, 2.4) + 'Belonging</button>' : '';
+  fab.innerHTML = '';
   tabs.innerHTML = [['home', 'Home', 'tab-home'], ['tasks', 'Tasks', 'tab-tasks'], ['cal', 'Calendar', 'tab-cal'], ['people', 'Directory', 'tab-people']].map(function (x) {
     return '<button data-act="' + x[2] + '"' + (cur === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[0], 24) + x[1] + '</button>';
   }).join('');
