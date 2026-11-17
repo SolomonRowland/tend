@@ -553,7 +553,7 @@ function taskResults() {
   });
   return out;
 }
-function titleRow(title, act, label) { return '<div class="titlerow"><h1>' + title + '</h1><button class="addbtn" data-act="' + act + '">' + ic('plus', 18, 2.6) + label + '</button></div>'; }
+function titleRow(title, act, label) { return '<div class="titlerow"><h1>' + title + '</h1><button class="addbtn" data-act="' + act + '" aria-label="Add ' + label + '">' + ic('plus', 18, 2.6) + 'Add</button></div>'; }
 function scrList() {
   var R = rows(), counts = {}; R.forEach(function (r) { counts[r.i.status] = (counts[r.i.status] || 0) + 1; });
   var chips = [['all', 'All'], ['overdue', 'Overdue'], ['due', 'Due'], ['upcoming', 'Upcoming']];
