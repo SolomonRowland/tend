@@ -1,5 +1,5 @@
 // Tend offline cache. Bump VERSION whenever index.html changes so phones pick up the update.
-var VERSION = 'tend-v8';
+var VERSION = 'tend-v9';
 var FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
