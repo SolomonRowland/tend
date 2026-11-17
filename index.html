@@ -458,10 +458,6 @@ function scrHome() {
   h += '<div class="stats">' + [['overdue', 'Overdue', 'var(--red)'], ['due', 'Due now', 'var(--orange)'], ['upcoming', 'Upcoming', 'var(--green)']].map(function (s) {
     return '<button class="stat" data-act="list" data-filter="' + s[0] + '"><span class="n" style="color:' + s[2] + '">' + c[s[0]] + '</span><span class="l">' + s[1] + '</span></button>';
   }).join('') + '</div>';
-  var lb = parse(db.lastBackup ? db.lastBackup.slice(0, 10) : null);
-  if (db.tasks.length && (!lb || daysBetween(lb, T) > 30)) {
-    h += '<div class="tip" style="display:flex;gap:12px;align-items:center"><span style="flex:1 1 auto">' + (lb ? 'Your last backup was ' + fmt(lb) + '.' : 'You haven\u2019t saved a backup yet.') + ' It takes 10 seconds and protects your list.</span><button class="btn primary" style="width:auto;min-height:44px;padding:0 14px;font-size:14px;border-radius:12px;white-space:nowrap;flex:0 0 auto" data-act="backup">Back up</button></div>';
-  }
   h += flashHtml();
   var nod = R.filter(function (r) { return r.i.status === 'nodate'; }).length;
   if (nod) h += '<button class="tip" data-act="list" data-filter="nodate" style="display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left"><span style="flex:1 1 auto">' + nod + (nod === 1 ? ' task needs' : ' tasks need') + ' a date before Tend can track ' + (nod === 1 ? 'it' : 'them') + '. Tap to review.</span><span style="color:var(--rose)">' + ic('next', 18) + '</span></button>';
