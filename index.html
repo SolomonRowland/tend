@@ -578,7 +578,7 @@ function contactMatches(c, q) {
 function contactResults() {
   var q = ui.cq.trim().toLowerCase();
   var list = db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).filter(function (c) { return contactMatches(c, q); });
-  if (!list.length) return '<p class="empty">' + (q ? 'No contacts match that search.' : 'No contacts yet. Tap + to add one.') + '</p>';
+  if (!list.length) return '<p class="empty">' + (q ? 'No contacts match that search.' : 'No contacts yet. Tap + Contact to add one.') + '</p>';
   return list.map(function (c, i) {
     var n = db.tasks.filter(function (t) { return t.contact === c.id; }).length;
     return '<button class="row' + (i % 2 ? ' alt' : '') + '" data-act="contact" data-id="' + esc(c.id) + '"><span class="avatar">' + esc(initials(c.name)) + '</span><span class="col"><span class="name">' + esc(c.name) + '</span>' + (c.role ? '<span class="meta">' + esc(c.role) + '</span>' : '') + '</span><span style="font-size:12.5px;color:var(--rose);font-weight:600">' + (n ? n + (n === 1 ? ' task' : ' tasks') : '') + '</span></button>';
@@ -586,7 +586,7 @@ function contactResults() {
 }
 function scrContacts() {
   var n = db.contacts.length;
-  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' contact' : ' contacts') + '</span>' + titleRow('People', 'new-contact', 'Contact') + dirSwitch('contacts') +
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' contact' : ' contacts') + '</span>' + titleRow('Contacts', 'new-contact', 'Contact') + dirSwitch('contacts') +
     searchBox('cq', ui.cq, 'Search name, phone or email', 'Search contacts') + '</header>';
   return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:28px">' + contactResults() + '</div>';
 }
@@ -877,7 +877,7 @@ function keyRows(b) {
   return fieldRows(b, ITEM_TYPES[b.type].fields.filter(function (x) { return b.fields[x[0]]; }).slice(0, 4).map(function (x) { return x[0]; }));
 }
 function dirSwitch(cur) {
-  return '<div class="segdark" role="tablist" aria-label="Directory">' + [['contacts', 'People'], ['items', 'Belongings']].map(function (x) {
+  return '<div class="segdark" role="tablist" aria-label="Directory">' + [['contacts', 'Contacts'], ['items', 'Belongings']].map(function (x) {
     return '<button role="tab" data-act="dir" data-to="' + x[0] + '" aria-selected="' + (cur === x[0]) + '">' + x[1] + '</button>';
   }).join('') + '</div>';
 }
