@@ -196,12 +196,17 @@ html[data-theme="lavender"]{--espresso:#3A3150;--rose:#6A5A9A;--mauve:#A497C9;--
 .chiprow{display:flex;flex-wrap:wrap;gap:8px}
 .rchip{display:inline-flex;align-items:center;gap:6px;background:var(--blush);color:var(--rose);border-radius:999px;padding:4px 4px 4px 12px;font-weight:700;font-size:14px;min-height:36px}
 .rchip button{width:28px;height:28px;border-radius:999px;background:#fff;color:var(--rose);display:flex;align-items:center;justify-content:center}
+.modal{position:fixed;inset:0;background:rgba(20,15,15,.5);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50}
+.sheet{background:#fff;border-radius:20px;padding:22px 18px 18px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.25);cursor:default}
+.sheet h3{margin:0;font-family:var(--serif);font-size:21px}.sheet p{margin:0 0 6px;color:var(--muted);line-height:1.45;font-size:14.5px}
+.btn.solid-danger{background:var(--red);color:#fff;min-height:48px;font-size:15px;border-radius:14px}
 </style>
 </head>
 <body>
 <div id="app">
   <main id="view" aria-live="polite"></main>
   <div id="fab"></div>
+  <div id="modal"></div>
   <nav class="tabs" id="tabs" aria-label="Main"></nav>
 </div>
 <input type="file" id="restoreFile" accept=".json,application/json" class="sr" tabindex="-1" aria-hidden="true">
@@ -1488,9 +1493,42 @@ fileInput.addEventListener('change', function () {
   var r = new FileReader(); r.onload = function () { restoreFrom(String(r.result)); fileInput.value = ''; }; r.readAsText(f);
 });
 
+var CONFIRM = {
+  'del-task': ['Delete This Task?', 'Its completion history goes with it. This can\u2019t be undone.', 'Delete'],
+  'del-contact': ['Delete This Contact?', 'Tasks and belongings that use this contact will stay, without it.', 'Delete'],
+  'del-item': ['Delete This Belonging?', 'Its saved details are removed. Related tasks stay.', 'Delete'],
+  'del-hist': ['Remove This Completion?', 'Tend will recalculate the next due date.', 'Remove'],
+  wipe: ['Erase All Data?', 'Every task, contact and belonging on this phone will be erased. Save a backup first if you might want it back.', 'Erase Everything'],
+  mylist: ['Load Your Household List?', 'This replaces everything currently on this phone with your household list.', 'Replace'],
+  example: ['Load Example Data?', 'This replaces everything currently on this phone with example data.', 'Replace']
+};
+function modalHtml() {
+  var c = ui.confirm; if (!c) return '';
+  var t = CONFIRM[c.act];
+  return '<div class="modal" data-act="confirm-cancel"><div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="mdlT" data-act="noop"><h3 id="mdlT">' + t[0] + '</h3><p>' + t[1] + '</p>' +
+    '<div class="btns2"><button class="btn secondary" data-act="confirm-cancel">Cancel</button><button class="btn solid-danger" data-act="confirm-ok">' + t[2] + '</button></div></div></div>';
+}
+function showModal() { document.getElementById('modal').innerHTML = modalHtml(); }
 document.addEventListener('click', function (e) {
   var el = e.target.closest('[data-act]'); if (!el) return;
   var a = el.getAttribute('data-act'), T = today();
+  if (a === 'noop') return;
+  if (a === 'confirm-cancel') { ui.confirm = null; ui.armed = null; showModal(); return; }
+  if (a === 'confirm-ok') {
+    var cf = ui.confirm; ui.confirm = null; showModal(); if (!cf) return;
+    ui.armed = cf.act === 'del-hist' ? 'hist' + cf.idx : cf.act;
+    var fx = document.createElement('button'); fx.setAttribute('data-act', cf.act); if (cf.idx != null) fx.setAttribute('data-idx', cf.idx);
+    fx.hidden = true; document.body.appendChild(fx); fx.click(); fx.remove(); return;
+  }
+  if (CONFIRM[a] && !(a === 'example' || a === 'mylist') || ((a === 'example' || a === 'mylist') && db && db.tasks.length)) {
+    var key = a === 'del-hist' ? 'hist' + el.getAttribute('data-idx') : a;
+    if (ui.armed !== key) {
+      if (a === 'del-task') readForm('taskForm'); if (a === 'del-contact') readForm('contactForm'); if (a === 'del-item') readForm('itemForm');
+      ui.confirm = { act: a, idx: el.getAttribute('data-idx') }; showModal();
+      var okb = document.querySelector('[data-act="confirm-ok"]'); if (okb) okb.focus();
+      return;
+    }
+  }
   if (['del-hist', 'del-task', 'del-contact', 'del-item', 'example', 'wipe', 'mylist'].indexOf(a) < 0 && ui.armed) { ui.armed = null; }
   switch (a) {
     case 'tab-home': go('home'); break;
