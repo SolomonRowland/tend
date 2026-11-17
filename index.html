@@ -183,6 +183,7 @@ nav.tabs button[aria-current="page"]{color:var(--rose)}
 .ent .input[type=date]{flex:0 0 46%}
 .entx{flex:0 0 40px;height:40px;border-radius:999px;background:var(--blush);color:var(--rose);display:flex;align-items:center;justify-content:center}
 
+html[data-theme="mono"]{--espresso:#111111;--rose:#111111;--mauve:#8A8A8A;--dusty:#D4D4D4;--blush:#F0F0F0;--cream:#FAFAFA;--ink:#111111;--muted:#5E5E5E;--line:#E6E6E6;--head-sub:#CFCFCF}
 html[data-theme="midnight"]{--espresso:#14171C;--rose:#2563A8;--mauve:#6B93C7;--dusty:#C9D6E6;--blush:#EAF1F9;--cream:#F6F7F9;--ink:#15181C;--muted:#5B6470;--line:#E1E5EA;--head-sub:#C3CCD8}
 html[data-theme="sunrise"]{--espresso:#9A4410;--rose:#B0500E;--mauve:#E39A3B;--dusty:#F1D29B;--blush:#FCF0D9;--cream:#FFFBF3;--ink:#3A2A14;--muted:#6E5A3E;--line:#F2E3C4;--head-sub:#FBE1C4}
 html[data-theme="sage"]{--espresso:#2F3E34;--rose:#4F6F57;--mauve:#86A38C;--dusty:#C7D6C9;--blush:#E9F0EA;--cream:#F7F9F6;--ink:#23302A;--muted:#5A6A60;--line:#DEE7DF;--head-sub:#CFDDD2}
@@ -219,17 +220,17 @@ var WHERE_GROUPS = [
   ['Inside', ['Whole house', 'Kitchen', 'Bathrooms', 'Kitchen & baths', 'Bedrooms', 'All beds', 'Living areas', 'Laundry', 'Laundry / Kitchen', 'Basement', 'Attic', 'HVAC', 'Utility', 'Home office', 'Home']],
   ['Outside', ['Exterior', 'Roof & gutters', 'Garage', 'Yard', 'Patio', 'Deck', 'Pool', 'Driveway']],
   ['Vehicles', ['All vehicles', "Kids' car seats"]],
-  ['Tech & accounts', ['Home network', 'Online', 'Phones & computers']]
+  ['Tech & Accounts', ['Home network', 'Online', 'Phones & computers']]
 ];
 var USE_GROUPS = [
   ['Health', ['Pediatrician', 'Family doctor', 'OB-GYN', 'Specialist', 'Dentist', 'Orthodontist', 'Eye doctor', 'Chiropractor', 'Physical therapist', 'Counselor / therapist', 'Pharmacy', 'Urgent care', 'Hospital', 'Veterinarian']],
-  ['Home services', ['Heating & cooling (HVAC)', 'Plumber', 'Electrician', 'Handyman', 'Roofer', 'Gutter cleaning', 'Appliance repair', 'Water softener / water treatment', 'Septic service', 'Well service', 'Chimney sweep', 'Garage door', 'Locksmith', 'Pest control', 'Security / alarm', 'House cleaning', 'Carpet cleaning', 'Window cleaning', 'Painter', 'General contractor', 'Flooring', 'Moving / storage']],
-  ['Yard & outdoor', ['Lawn care / landscaping', 'Tree service', 'Snow removal', 'Irrigation / sprinklers', 'Pool service', 'Fence / deck']],
+  ['Home Services', ['Heating & cooling (HVAC)', 'Plumber', 'Electrician', 'Handyman', 'Roofer', 'Gutter cleaning', 'Appliance repair', 'Water softener / water treatment', 'Septic service', 'Well service', 'Chimney sweep', 'Garage door', 'Locksmith', 'Pest control', 'Security / alarm', 'House cleaning', 'Carpet cleaning', 'Window cleaning', 'Painter', 'General contractor', 'Flooring', 'Moving / storage']],
+  ['Yard & Outdoor', ['Lawn care / landscaping', 'Tree service', 'Snow removal', 'Irrigation / sprinklers', 'Pool service', 'Fence / deck']],
   ['Vehicles', ['Auto mechanic', 'Tire shop', 'Car dealer', 'Car wash / detailing', 'Body shop', 'Towing / roadside', 'Secretary of State / DMV']],
-  ['Money & legal', ['Insurance agent', 'Bank / credit union', 'Mortgage lender', 'Financial advisor', 'Accountant / tax preparer', 'Attorney', 'HOA / property manager', 'Employer / HR benefits']],
-  ['Utilities & tech', ['Electric company', 'Gas company', 'Water / sewer', 'Trash & recycling', 'Internet / cable', 'Cell phone carrier', 'Tech support']],
-  ['Family & kids', ['School', 'Daycare / preschool', 'Babysitter', 'Coach / activities', 'Church', 'Family', 'Friend', 'Neighbor']],
-  ['Personal care', ['Hair salon / barber', 'Gym / fitness', 'Dry cleaner / tailor']],
+  ['Money & Legal', ['Insurance agent', 'Bank / credit union', 'Mortgage lender', 'Financial advisor', 'Accountant / tax preparer', 'Attorney', 'HOA / property manager', 'Employer / HR benefits']],
+  ['Utilities & Tech', ['Electric company', 'Gas company', 'Water / sewer', 'Trash & recycling', 'Internet / cable', 'Cell phone carrier', 'Tech support']],
+  ['Family & Kids', ['School', 'Daycare / preschool', 'Babysitter', 'Coach / activities', 'Church', 'Family', 'Friend', 'Neighbor']],
+  ['Personal Care', ['Hair salon / barber', 'Gym / fitness', 'Dry cleaner / tailor']],
   ['Government', ['City / village hall', 'Post office', 'Passport office']]
 ];
 var STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
@@ -337,7 +338,7 @@ var STATUS = {
   due: { text: 'Due', color: 'var(--orange)', dot: 'var(--dot-orange)', rank: 4 },
   upcoming: { text: 'Upcoming', color: 'var(--green)', dot: 'var(--dot-green)', rank: 3 },
   snoozed: { text: 'Snoozed', color: 'var(--grey)', dot: 'var(--dot-grey)', rank: 2 },
-  nodate: { text: 'Needs date', color: 'var(--grey)', dot: 'transparent', rank: 1 },
+  nodate: { text: 'Needs Date', color: 'var(--grey)', dot: 'transparent', rank: 1 },
   done: { text: 'Done', color: 'var(--grey)', dot: 'transparent', rank: 0 },
   paused: { text: 'Paused', color: 'var(--grey)', dot: 'transparent', rank: 0 }
 };
@@ -455,22 +456,22 @@ function scrHome() {
   var h = '<header class="head round"><div class="headrow"><span class="eyebrow">' + DAYS[T.getDay()] + ', ' + MON[T.getMonth()] + ' ' + T.getDate() + '</span>' +
     '<button class="iconbtn" data-act="settings" aria-label="Settings and backup">' + ic('gear') + '</button></div>' +
     '<h1>Hi, ' + esc(db.user) + '</h1><span class="sub">' + (need ? need + (need === 1 ? ' thing needs' : ' things need') + ' attention' : 'Everything is on track') + '</span></header>';
-  h += '<div class="stats">' + [['overdue', 'Overdue', 'var(--red)'], ['due', 'Due now', 'var(--orange)'], ['upcoming', 'Upcoming', 'var(--green)']].map(function (s) {
+  h += '<div class="stats">' + [['overdue', 'Overdue', 'var(--red)'], ['due', 'Due Now', 'var(--orange)'], ['upcoming', 'Upcoming', 'var(--green)']].map(function (s) {
     return '<button class="stat" data-act="list" data-filter="' + s[0] + '"><span class="n" style="color:' + s[2] + '">' + c[s[0]] + '</span><span class="l">' + s[1] + '</span></button>';
   }).join('') + '</div>';
   h += flashHtml();
   var nod = R.filter(function (r) { return r.i.status === 'nodate'; }).length;
   if (nod) h += '<button class="tip" data-act="list" data-filter="nodate" style="display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left"><span style="flex:1 1 auto">' + nod + (nod === 1 ? ' task needs' : ' tasks need') + ' a date before Tend can track ' + (nod === 1 ? 'it' : 'them') + '. Tap to review.</span><span style="color:var(--rose)">' + ic('next', 18) + '</span></button>';
-  if (!db.tasks.length) h += '<button class="tip" data-act="starter" style="display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left"><span style="flex:1 1 auto"><strong>Get started:</strong> tell Tend what you tend to, and pick from tasks people often forget.</span><span style="color:var(--rose)">' + ic('next', 18) + '</span></button>';
-  h += '<div class="section"><h2>Needs attention</h2><button class="link" data-act="list" data-filter="all">See all</button></div><div class="stack">';
+  if (!db.tasks.length) h += '<button class="tip" data-act="starter" style="display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left"><span style="flex:1 1 auto"><strong>Get Started:</strong> tell Tend what you tend to, and pick from tasks people often forget.</span><span style="color:var(--rose)">' + ic('next', 18) + '</span></button>';
+  h += '<div class="section"><h2>Needs Attention</h2><button class="link" data-act="list" data-filter="all">See All</button></div><div class="stack">';
   h += attn.length ? attn.slice(0, 6).map(attnRow).join('') : '<p class="note" style="text-align:left;padding:4px">All caught up. Nothing needs attention right now.</p>';
   if (attn.length > 6) h += '<button class="link" data-act="list" data-filter="due-all" style="align-self:flex-start">See ' + (attn.length - 6) + ' more</button>';
   h += '</div>';
   var kids = R.filter(function (r) { return r.t.freq === 'Well-child (by age)' && r.t.active; });
   if (kids.length) {
-    h += '<div class="section"><h2>Kids\u2019 well visits</h2></div><div class="listcard">' + kids.map(function (r) {
+    h += '<div class="section"><h2>Kids\u2019 Well Visits</h2></div><div class="listcard">' + kids.map(function (r) {
       var age = kidAge(r.t, r.i.due);
-      return '<button class="lrow" data-act="task" data-id="' + esc(r.t.id) + '"><span class="col"><span class="t">' + esc(r.t.who) + '</span><span class="s">' + esc(age) + '</span></span><span class="r" style="color:' + (r.i.status === 'overdue' ? 'var(--red)' : 'var(--rose)') + '">' + (r.i.due ? fmt(r.i.due) : 'Needs date') + '</span></button>';
+      return '<button class="lrow" data-act="task" data-id="' + esc(r.t.id) + '"><span class="col"><span class="t">' + esc(r.t.who) + '</span><span class="s">' + esc(age) + '</span></span><span class="r" style="color:' + (r.i.status === 'overdue' ? 'var(--red)' : 'var(--rose)') + '">' + (r.i.due ? fmt(r.i.due) : 'Needs Date') + '</span></button>';
     }).join('') + '</div>';
   }
   var recent = [];
@@ -478,19 +479,19 @@ function scrHome() {
   recent.sort(function (a, b) { return a.h.date < b.h.date ? 1 : -1; });
   recent = recent.filter(function (x) { return daysBetween(parse(x.h.date), T) <= 60; }).slice(0, 4);
   if (recent.length) {
-    h += '<div class="section"><h2>Recently done</h2></div><div class="listcard">' + recent.map(function (x) {
+    h += '<div class="section"><h2>Recently Done</h2></div><div class="listcard">' + recent.map(function (x) {
       return '<button class="lrow" data-act="task" data-id="' + esc(x.t.id) + '"><span class="col"><span class="t ellip">' + esc(x.t.name) + '</span><span class="s">' + (x.h.by ? 'by ' + esc(x.h.by) : esc(x.t.cat)) + '</span></span><span class="r">' + fmt(parse(x.h.date)) + '</span></button>';
     }).join('') + '</div>';
   }
   var soon = db.items.map(function (b) { return { b: b, e: itemExpiry(b) }; }).filter(function (x) { return x.e && x.e.days <= 60 && x.e.days >= -30; }).sort(function (a, b) { return a.e.days - b.e.days; });
-  if (soon.length) h += '<div class="section"><h2>Expiring soon</h2></div><div class="stack">' + soon.map(function (x) { return itemRow(x.b, false); }).join('') + '</div>';
+  if (soon.length) h += '<div class="section"><h2>Expiring Soon</h2></div><div class="stack">' + soon.map(function (x) { return itemRow(x.b, false); }).join('') + '</div>';
   var max = 1, cats = CATS.map(function (cn) {
     var mine = R.filter(function (r) { return r.t.cat === cn && r.t.active; });
     max = Math.max(max, mine.length);
     return { name: cn, n: mine.length, open: mine.filter(function (r) { return r.i.status === 'overdue' || r.i.status === 'due'; }).length };
   }).filter(function (x) { return x.n; });
   if (cats.length) {
-    h += '<div class="section"><h2>By category</h2></div><div class="cats">' + cats.map(function (x) {
+    h += '<div class="section"><h2>By Category</h2></div><div class="cats">' + cats.map(function (x) {
       return '<button class="cat" data-act="list" data-filter="all" data-cat="' + esc(x.name) + '"><span style="font-weight:600">' + esc(x.name) + '</span><span class="bar"><i style="width:' + Math.round(x.n / max * 100) + '%"></i></span><span class="meta" style="font-size:12.5px;color:var(--muted)">' + x.n + (x.n === 1 ? ' task' : ' tasks') + (x.open ? ' \u00b7 ' + x.open + ' need attention' : ' \u00b7 all clear') + '</span></button>';
     }).join('') + '</div>';
   }
@@ -520,7 +521,7 @@ function taskResults() {
   var list = filteredTasks();
   if (!list.length) return '<p class="empty">' + (ui.q.trim() ? 'No tasks match \u201C' + esc(ui.q.trim()) + '\u201D.' : 'Nothing here. Nice work.') + '</p>';
   if (ui.filter !== 'all' && ui.filter !== 'due-all') return list.map(function (r, i) { return taskRow(r, i % 2 === 1); }).join('');
-  var order = [['overdue', 'Overdue'], ['due', 'Due now'], ['snoozed', 'Snoozed'], ['upcoming', 'Upcoming'], ['nodate', 'Needs a date'], ['paused', 'Paused'], ['done', 'Done']], out = '';
+  var order = [['overdue', 'Overdue'], ['due', 'Due Now'], ['snoozed', 'Snoozed'], ['upcoming', 'Upcoming'], ['nodate', 'Needs a date'], ['paused', 'Paused'], ['done', 'Done']], out = '';
   order.forEach(function (g) {
     var part = list.filter(function (r) { return r.i.status === g[0]; });
     if (part.length) out += '<div class="grp">' + g[1] + ' \u00b7 ' + part.length + '</div>' + part.map(function (r, i) { return taskRow(r, i % 2 === 1); }).join('');
@@ -531,13 +532,13 @@ function titleRow(title, act, label) { return '<div class="titlerow"><h1>' + tit
 function scrList() {
   var R = rows(), counts = {}; R.forEach(function (r) { counts[r.i.status] = (counts[r.i.status] || 0) + 1; });
   var chips = [['all', 'All'], ['overdue', 'Overdue'], ['due', 'Due'], ['upcoming', 'Upcoming']];
-  if (counts.nodate) chips.push(['nodate', 'Needs date']);
+  if (counts.nodate) chips.push(['nodate', 'Needs Date']);
   if (counts.paused) chips.push(['paused', 'Paused']);
   var f = ui.filter === 'due-all' ? 'all' : ui.filter;
   var need = (counts.overdue || 0) + (counts.due || 0);
-  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + R.length + ' tasks' + (need ? ' \u00b7 ' + need + ' need attention' : ' \u00b7 all on track') + '</span>' + titleRow(ui.filter === 'due-all' ? 'Needs attention' : 'Tasks', 'new-task', 'Task') +
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + R.length + ' tasks' + (need ? ' \u00b7 ' + need + ' need attention' : ' \u00b7 all on track') + '</span>' + titleRow(ui.filter === 'due-all' ? 'Needs Attention' : 'Tasks', 'new-task', 'Task') +
     '<div class="toprow">' + searchBox('q', ui.q, 'Search task', 'Search tasks') +
-    '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></div>' +
+    '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All Categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></div>' +
     '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { var n = c[0] === 'all' ? R.length : (counts[c[0]] || 0); return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '<span class="n">' + n + '</span></button>'; }).join('') + '</div></header>';
   return h + flashHtml() + '<div class="stack" id="results" style="padding-top:8px;padding-bottom:96px">' + taskResults() + '</div>';
 }
@@ -611,7 +612,7 @@ function scrContact() {
   if (c.web) f.push(['Website', c.web.replace(/^https?:\/\//, '')]); if (c.login) f.push(['Login', c.login]); if (c.notes) f.push(['Notes', c.notes]);
   if (f.length) h += '<div class="listcard"' + (acts ? '' : ' style="margin-top:16px"') + '>' + f.map(function (x) { return '<div class="lrow" style="flex-direction:column;align-items:flex-start;gap:3px"><span class="s">' + x[0] + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(x[1]) + '</span></div>'; }).join('') + '</div>';
   var linked = rows().filter(function (r) { return r.t.contact === c.id; });
-  h += '<div class="section"><h2 style="font-size:19px">Linked tasks</h2></div><div class="stack">' +
+  h += '<div class="section"><h2 style="font-size:19px">Linked Tasks</h2></div><div class="stack">' +
     (linked.length ? linked.map(function (r) { return taskRow(r, false, 'contact'); }).join('') : '<p class="note" style="text-align:left;padding:4px">No tasks linked yet. Open a task, tap Edit, and pick this contact.</p>') + '</div>';
   return h + '<div class="pad-b"></div>';
 }
@@ -629,16 +630,16 @@ function scrTask() {
     '<span class="eyebrow">' + esc(t.cat) + (t.who ? ' \u00b7 ' + esc(t.who) : '') + '</span><h1>' + esc(t.name) + '</h1><span class="pill" style="color:' + i.color + '">' + esc(i.long) + '</span></header>';
   h += flashHtml();
   h += '<div class="grid2">' +
-    '<div class="tile"><span class="k">Next due</span><span class="v">' + (i.due ? fmt(i.due, true) : '\u2014') + '</span></div>' +
-    '<div class="tile"><span class="k">Can start on</span><span class="v" style="color:var(--rose)">' + (i.start ? fmt(i.start, true) : '\u2014') + '</span></div>' +
-    '<div class="tile"><span class="k">Last completed</span><span class="v">' + (t.last ? fmt(parse(t.last), true) : 'Not yet') + '</span></div>' +
+    '<div class="tile"><span class="k">Next Due</span><span class="v">' + (i.due ? fmt(i.due, true) : '\u2014') + '</span></div>' +
+    '<div class="tile"><span class="k">Can Start On</span><span class="v" style="color:var(--rose)">' + (i.start ? fmt(i.start, true) : '\u2014') + '</span></div>' +
+    '<div class="tile"><span class="k">Last Completed</span><span class="v">' + (t.last ? fmt(parse(t.last), true) : 'Not yet') + '</span></div>' +
     '<div class="tile"><span class="k">' + (kid ? 'Schedule' : 'Repeats') + '</span><span class="v">' + esc(kid ? 'By age' : t.freq) + '</span></div></div>';
   h += '<div class="stack">';
   if (t.active && i.status !== 'done') {
-    h += '<button class="btn primary" data-act="done">' + ic('check', 20, 2.4) + 'Mark done today</button>';
-    h += '<div class="btns2"><label class="btn secondary" style="position:relative;overflow:hidden">Done another day<input type="date" id="otherDate" max="' + iso(today()) + '" aria-label="Done another day: pick the date" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none"></label>' +
-      (i.due && i.status !== 'overdue' ? '<button class="btn secondary" data-act="snooze">' + ic('snooze', 18) + (i.status === 'snoozed' ? 'Unsnooze' : 'Snooze 1 week') + '</button>' : '<button class="btn secondary" data-act="ics"' + (i.due ? '' : ' disabled') + '>' + ic('bell', 18) + 'Add to Calendar</button>') + '</div>';
-    if (i.due && i.status !== 'overdue') h += '<button class="btn secondary" data-act="ics">' + ic('bell', 18) + 'Add reminder to my Calendar</button>';
+    h += '<button class="btn primary" data-act="done">' + ic('check', 20, 2.4) + 'Mark Done Today</button>';
+    h += '<div class="btns2"><label class="btn secondary" style="position:relative;overflow:hidden">Done Another Day<input type="date" id="otherDate" max="' + iso(today()) + '" aria-label="Done another day: pick the date" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none"></label>' +
+      (i.due && i.status !== 'overdue' ? '<button class="btn secondary" data-act="snooze">' + ic('snooze', 18) + (i.status === 'snoozed' ? 'Unsnooze' : 'Snooze 1 Week') + '</button>' : '<button class="btn secondary" data-act="ics"' + (i.due ? '' : ' disabled') + '>' + ic('bell', 18) + 'Add to Calendar</button>') + '</div>';
+    if (i.due && i.status !== 'overdue') h += '<button class="btn secondary" data-act="ics">' + ic('bell', 18) + 'Add Reminder to My Calendar</button>';
     h += '<span class="note">Logged as ' + esc(db.user) + '.</span>';
   } else if (!t.active) {
     h += '<p class="note">This task is paused. Tap Edit to turn it back on.</p>';
@@ -661,7 +662,7 @@ function scrTask() {
   h += t.history.length ? t.history.map(function (x, idx) {
     var armed = ui.armed === 'hist' + idx;
     return '<div class="lrow"><span class="col"><span class="t">' + fmt(parse(x.date), true) + '</span>' + (x.by ? '<span class="s">by ' + esc(x.by) + '</span>' : '') + '</span>' +
-      '<button class="link" style="color:' + (armed ? 'var(--red)' : 'var(--muted)') + ';font-size:13px" data-act="del-hist" data-idx="' + idx + '" aria-label="Remove this entry">' + (armed ? 'Tap to remove' : ic('x', 16)) + '</button></div>';
+      '<button class="link" style="color:' + (armed ? 'var(--red)' : 'var(--muted)') + ';font-size:13px" data-act="del-hist" data-idx="' + idx + '" aria-label="Remove this entry">' + (armed ? 'Tap to Remove' : ic('x', 16)) + '</button></div>';
   }).join('') : '<p class="note" style="text-align:left;margin:12px 0">No completions logged yet.</p>';
   h += '</div>';
   h += '<div class="card" style="margin:10px 16px 0;padding:14px;display:flex;flex-direction:column;gap:6px">' +
@@ -698,30 +699,30 @@ function whereGroups() {
   });
   db.members.forEach(function (m) { if (groups[0][1].indexOf(m) < 0) groups[0][1].push(m); });
   groups[0][1] = groups[0][1].concat(kids.sort());
-  if (extra.length) groups.push(['Your other places', extra.sort()]);
+  if (extra.length) groups.push(['Your Other Places', extra.sort()]);
   return groups;
 }
 function opt(v, cur, label) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label || v) + '</option>'; }
 function scrEditTask() {
   var f = ui.form, isNew = !f.id, kid = f.freq === 'Well-child (by age)', simple = kid || f.freq === 'One-time' || (FREQ[f.freq] && FREQ[f.freq].dy);
-  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New task' : 'Edit task') + '</span><button class="textbtn" data-act="save-task">Save</button></div></header>';
+  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New Task' : 'Edit Task') + '</span><button class="textbtn" data-act="save-task">Save</button></div></header>';
   h += flashHtml();
   h += '<form class="form" id="taskForm" autocomplete="off" novalidate>' +
     '<label class="field"><span>Task</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Replace furnace filter" required></label>' +
     '<div class="two"><label class="field"><span>Category</span><select class="input" name="cat">' + CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
-    '<label class="field"><span>' + (kid ? 'Child' : 'Applies to') + '</span>' + groupedSelect('who', whereGroups(), f.who, 'Choose\u2026') + '</label></div>' +
-    (f.who === '__other' ? '<label class="field"><span>Type the ' + (kid ? 'child\u2019s name' : 'place or person') + '</span><input class="input" name="whoOther" value="' + esc(f.whoOther || '') + '" placeholder="' + (kid ? 'Name' : 'e.g. Shed') + '"></label>' : '') +
-    '<label class="field"><span>How often</span><select class="input" name="freq" data-rerender="1">' + FREQS.map(function (x) { return opt(x[0], f.freq); }).join('') + '</select></label>' +
+    '<label class="field"><span>' + (kid ? 'Child' : 'Applies To') + '</span>' + groupedSelect('who', whereGroups(), f.who, 'Choose\u2026') + '</label></div>' +
+    (f.who === '__other' ? '<label class="field"><span>Type the ' + (kid ? 'Child\u2019s Name' : 'Place or Person') + '</span><input class="input" name="whoOther" value="' + esc(f.whoOther || '') + '" placeholder="' + (kid ? 'Name' : 'e.g. Shed') + '"></label>' : '') +
+    '<label class="field"><span>How Often</span><select class="input" name="freq" data-rerender="1">' + FREQS.map(function (x) { return opt(x[0], f.freq); }).join('') + '</select></label>' +
     (simple ? '' : '<label class="field"><span>Schedule</span><select class="input" name="fixed">' + opt('0', f.fixed ? '1' : '0', 'From last done') + opt('1', f.fixed ? '1' : '0', 'Fixed calendar date') + '</select><small>From last done counts from when you finish it. Fixed date stays on the calendar (like a plate renewal).</small></label>') +
-    '<div class="two"><label class="field"><span>' + (kid ? 'Birth date' : (f.freq === 'One-time' ? 'Due date' : 'First due date')) + '</span><input class="input" type="date" name="first" value="' + esc(f.first || '') + '"></label>' +
-    '<label class="field"><span>Last completed</span><input class="input" type="date" name="last" value="' + esc(f.last || '') + '"></label></div>' +
-    '<label class="field"><span>Can start early</span><select class="input" name="early">' + earlyOptions(f.early) + '</select><small>How long before the deadline it can be done. Choose \u201COn the due date only\u201D if there\u2019s no window.</small></label>' +
+    '<div class="two"><label class="field"><span>' + (kid ? 'Birth Date' : (f.freq === 'One-time' ? 'Due Date' : 'First Due Date')) + '</span><input class="input" type="date" name="first" value="' + esc(f.first || '') + '"></label>' +
+    '<label class="field"><span>Last Completed</span><input class="input" type="date" name="last" value="' + esc(f.last || '') + '"></label></div>' +
+    '<label class="field"><span>Can Start Early</span><select class="input" name="early">' + earlyOptions(f.early) + '</select><small>How long before the deadline it can be done. Choose \u201COn the due date only\u201D if there\u2019s no window.</small></label>' +
     '<label class="field"><span>Contact</span><select class="input" name="contact"><option value="">None</option>' + db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (c) { return opt(c.id, f.contact || '', c.name); }).join('') + '</select></label>' +
     '<label class="field"><span>Belonging</span><select class="input" name="item" data-rerender="1">' + itemOptions(f.item) + '</select>' + itemCaption(f.item) + '</label>' +
     '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea></label>' +
     '<div class="switchrow"><span class="col"><span style="font-weight:600">Active</span><span style="font-size:12.5px;color:var(--muted)">Turn off to pause it without deleting.</span></span><button type="button" class="switch" data-act="toggle-active" aria-pressed="' + (f.active ? 'true' : 'false') + '" aria-label="Active"><i></i></button></div>' +
     '<button type="submit" class="btn primary">Save</button>' +
-    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-task' ? ' armed' : '') + '" data-act="del-task">' + (ui.armed === 'del-task' ? 'Tap again to delete for good' : 'Delete task') + '</button>') +
+    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-task' ? ' armed' : '') + '" data-act="del-task">' + (ui.armed === 'del-task' ? 'Tap Again to Delete for Good' : 'Delete Task') + '</button>') +
     '</form>';
   return h;
 }
@@ -734,25 +735,25 @@ function earlyOptions(cur) {
 }
 function scrEditContact() {
   var f = ui.form, isNew = !f.id;
-  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New contact' : 'Edit contact') + '</span><button class="textbtn" data-act="save-contact">Save</button></div></header>';
+  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New Contact' : 'Edit Contact') + '</span><button class="textbtn" data-act="save-contact">Save</button></div></header>';
   h += flashHtml();
   h += '<form class="form" id="contactForm" autocomplete="off" novalidate>' +
     '<label class="field"><span>Name</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="Person or business" required></label>' +
-    '<label class="field"><span>Used for</span>' + groupedSelect('role', USE_GROUPS, f.role, 'Choose what they help with\u2026') + '<small>This shows under their name in your contacts.</small></label>' +
-    (f.role === '__other' ? '<label class="field"><span>Type what they help with</span><input class="input" name="roleOther" value="' + esc(f.roleOther || '') + '" placeholder="e.g. Piano teacher"></label>' : '') +
-    '<div class="two"><label class="field"><span>Call phone</span><input class="input" type="tel" inputmode="tel" name="phone" value="' + esc(f.phone) + '" placeholder="(630) 555-0100"></label>' +
-    '<label class="field"><span>Text phone</span><input class="input" type="tel" inputmode="tel" name="text" value="' + esc(f.text) + '" placeholder="Same as call"></label></div>' +
+    '<label class="field"><span>Used For</span>' + groupedSelect('role', USE_GROUPS, f.role, 'Choose what they help with\u2026') + '<small>This shows under their name in your contacts.</small></label>' +
+    (f.role === '__other' ? '<label class="field"><span>Type What They Help With</span><input class="input" name="roleOther" value="' + esc(f.roleOther || '') + '" placeholder="e.g. Piano teacher"></label>' : '') +
+    '<div class="two"><label class="field"><span>Call Phone</span><input class="input" type="tel" inputmode="tel" name="phone" value="' + esc(f.phone) + '" placeholder="(630) 555-0100"></label>' +
+    '<label class="field"><span>Text Phone</span><input class="input" type="tel" inputmode="tel" name="text" value="' + esc(f.text) + '" placeholder="Same as call"></label></div>' +
     '<small style="margin-top:-8px;font-size:12px;color:var(--muted)">Leave Text phone blank to text the call number.</small>' +
     '<label class="field"><span>Email</span><input class="input" type="email" inputmode="email" autocapitalize="off" name="email" value="' + esc(f.email) + '" placeholder="name@example.com"></label>' +
-    '<label class="field"><span>Street address</span><input class="input" name="street" value="' + esc(f.street) + '" placeholder="123 Main St"></label>' +
+    '<label class="field"><span>Street Address</span><input class="input" name="street" value="' + esc(f.street) + '" placeholder="123 Main St"></label>' +
     '<label class="field"><span>City</span><input class="input" name="city" value="' + esc(f.city) + '" placeholder="Oak Brook"></label>' +
     '<div class="two"><label class="field"><span>State</span><select class="input" name="state"><option value="">\u2014</option>' + STATES.map(function (s) { return opt(s, f.state); }).join('') + '</select></label>' +
     '<label class="field"><span>ZIP</span><input class="input" inputmode="numeric" name="zip" maxlength="10" value="' + esc(f.zip) + '" placeholder="60523"></label></div>' +
     '<label class="field"><span>Website</span><input class="input" type="url" inputmode="url" autocapitalize="off" name="web" value="' + esc(f.web) + '" placeholder="www.example.com"></label>' +
-    '<label class="field"><span>Login (username or account #)</span><input class="input" autocapitalize="off" autocorrect="off" spellcheck="false" name="login" value="' + esc(f.login) + '" placeholder="e.g. rowland.family"><small>For patient portals and online accounts. Keep passwords in your iPhone\u2019s Passwords app, not here.</small></label>' +
+    '<label class="field"><span>Login (Username or Account #)</span><input class="input" autocapitalize="off" autocorrect="off" spellcheck="false" name="login" value="' + esc(f.login) + '" placeholder="e.g. rowland.family"><small>For patient portals and online accounts. Keep passwords in your iPhone\u2019s Passwords app, not here.</small></label>' +
     '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea></label>' +
     '<button type="submit" class="btn primary">Save</button>' +
-    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-contact' ? ' armed' : '') + '" data-act="del-contact">' + (ui.armed === 'del-contact' ? 'Tap again to delete for good' : 'Delete contact') + '</button>') +
+    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-contact' ? ' armed' : '') + '" data-act="del-contact">' + (ui.armed === 'del-contact' ? 'Tap Again to Delete for Good' : 'Delete Contact') + '</button>') +
     '</form>';
   return h;
 }
@@ -769,36 +770,36 @@ function scrSettings() {
   var lb = db.lastBackup ? new Date(db.lastBackup) : null;
   var h = '<header class="head" style="gap:10px">' + '<div class="headrow">' + backBtn() + '</div><h1>Settings</h1></header>';
   h += flashHtml();
-  h += '<div class="section"><h2 style="font-size:19px">Who\u2019s using this phone?</h2></div><div style="padding:0 16px"><div class="seg">' +
+  h += '<div class="section"><h2 style="font-size:19px">Who\u2019s Using This Phone?</h2></div><div style="padding:0 16px"><div class="seg">' +
     db.members.map(function (m) { return '<button data-act="user" data-name="' + esc(m) + '" aria-pressed="' + (db.user === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
     '<p class="note" style="text-align:left;padding:8px 4px 0">Completions you log are marked with this name. ' + db.members.map(function (m) { return esc(m) + ': ' + counts[m]; }).join(' \u00b7 ') + ' logged.</p></div>';
   h += '<div class="section"><h2 style="font-size:19px">Backup</h2></div><div class="stack">' +
     '<div class="tip" style="margin:0">Your list is saved on this phone only. Save a backup file to iCloud Drive or Files about once a month, and before you change phones. ' + (lb ? '<br><strong>Last backup:</strong> ' + fmt(lb, true) + '.' : '<br><strong>No backup yet.</strong>') + '</div>' +
-    '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a backup file</button>' +
-    '<button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Restore from a backup file</button></div>';
-  h += '<div class="section"><h2 style="font-size:19px">Reminders</h2></div><div class="tip" style="margin:0 16px">This version can\u2019t send notifications on its own. On any task, tap <strong>Add reminder to my Calendar</strong>: your phone\u2019s Calendar will alert you when the task opens and the day before it\u2019s due.</div>';
+    '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a Backup File</button>' +
+    '<button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Restore from a Backup File</button></div>';
+  h += '<div class="section"><h2 style="font-size:19px">Reminders</h2></div><div class="tip" style="margin:0 16px">This version can\u2019t send notifications on its own. On any task, tap <strong>Add Reminder to My Calendar</strong>: your phone\u2019s Calendar will alert you when the task opens and the day before it\u2019s due.</div>';
   var ct = curTheme();
-  h += '<div class="section"><h2 style="font-size:19px">Color theme</h2></div><div class="themes" role="group" aria-label="Color theme">' + THEMES.map(function (x) {
+  h += '<div class="section"><h2 style="font-size:19px">Color Theme</h2></div><div class="themes" role="group" aria-label="Color Theme">' + THEMES.map(function (x) {
     return '<button class="themebtn" data-act="theme" data-t="' + x[0] + '" aria-pressed="' + (ct === x[0]) + '"><span class="sw"><i style="background:' + x[2] + '"></i><i style="background:' + x[3] + '"></i></span>' + x[1] + '</button>';
   }).join('') + '</div><p class="note" style="text-align:left;padding:8px 20px 0">Changes colors on this phone only.</p>';
-  h += '<div class="section"><h2 style="font-size:19px">Suggested tasks</h2></div><div class="stack"><button class="btn secondary" data-act="starter">' + ic('plus', 18) + 'What do you tend to? Add suggestions</button><p class="note" style="text-align:left;padding:0 4px">Tasks already on your list are skipped.</p></div>';
-  h += '<div class="section"><h2 style="font-size:19px">Your data</h2></div><div class="stack">' +
-    '<button class="btn secondary" data-act="mylist"' + (ui.armed === 'mylist' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'mylist' ? 'Tap again: replaces your current list' : 'Load our household list') + '</button>' +
-    '<button class="btn secondary" data-act="example"' + (ui.armed === 'example' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'example' ? 'Tap again: replaces your current list' : 'Load example data') + '</button>' +
-    '<button class="btn danger' + (ui.armed === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (ui.armed === 'wipe' ? 'Tap again to erase everything' : 'Erase all data and start over') + '</button></div>';
-  h += '<div class="section"><h2 style="font-size:19px">About</h2></div><div class="listcard"><div class="lrow"><span class="s">Tasks</span><span class="t">' + db.tasks.length + '</span></div><div class="lrow"><span class="s">Contacts</span><span class="t">' + db.contacts.length + '</span></div><div class="lrow"><span class="s">Belongings</span><span class="t">' + db.items.length + '</span></div><div class="lrow"><span class="s">Saved on phone</span><span class="t" style="color:' + (storageOk ? 'var(--green)' : 'var(--red)') + '">' + (storageOk ? 'Yes' : 'Problem: back up now') + '</span></div></div>';
+  h += '<div class="section"><h2 style="font-size:19px">Suggested Tasks</h2></div><div class="stack"><button class="btn secondary" data-act="starter">' + ic('plus', 18) + 'What Do You Tend To? Add Suggestions</button><p class="note" style="text-align:left;padding:0 4px">Tasks already on your list are skipped.</p></div>';
+  h += '<div class="section"><h2 style="font-size:19px">Your Data</h2></div><div class="stack">' +
+    '<button class="btn secondary" data-act="mylist"' + (ui.armed === 'mylist' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'mylist' ? 'Tap Again: Replaces Your Current List' : 'Load Our Household List') + '</button>' +
+    '<button class="btn secondary" data-act="example"' + (ui.armed === 'example' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'example' ? 'Tap Again: Replaces Your Current List' : 'Load Example Data') + '</button>' +
+    '<button class="btn danger' + (ui.armed === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (ui.armed === 'wipe' ? 'Tap Again to Erase Everything' : 'Erase All Data and Start Over') + '</button></div>';
+  h += '<div class="section"><h2 style="font-size:19px">About</h2></div><div class="listcard"><div class="lrow"><span class="s">Tasks</span><span class="t">' + db.tasks.length + '</span></div><div class="lrow"><span class="s">Contacts</span><span class="t">' + db.contacts.length + '</span></div><div class="lrow"><span class="s">Belongings</span><span class="t">' + db.items.length + '</span></div><div class="lrow"><span class="s">Saved on Phone</span><span class="t" style="color:' + (storageOk ? 'var(--green)' : 'var(--red)') + '">' + (storageOk ? 'Yes' : 'Problem: back up now') + '</span></div></div>';
   return h + '<div class="pad-b"></div>';
 }
 function scrWelcome() {
   return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Welcome to Tend</h1><p>Your household\u2019s recurring tasks, kids\u2019 visits and the people you call for them, all in one place on this phone.</p>' +
     '<p>New here? Tell Tend what you tend to and pick from tasks people often forget. Or load your household list. You can change it any time in Settings.</p>' +
-    '<button class="btn primary" data-act="start-starter">What do you tend to?</button><button class="btn secondary" data-act="mylist">Load our household list</button><button class="btn secondary" data-act="example">Try it with example data</button><button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Load my Tend file</button><button class="btn secondary" data-act="start-empty">Start with an empty list</button>' +
+    '<button class="btn primary" data-act="start-starter">What Do You Tend To?</button><button class="btn secondary" data-act="mylist">Load Our Household List</button><button class="btn secondary" data-act="example">Try It with Example Data</button><button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Load My Tend File</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button>' +
     (storageOk ? '' : '<p style="color:var(--red)">This browser is blocking storage, so nothing will be saved. Add Tend to your Home Screen and open it from there.</p>') + '</div>';
 }
 
 
 /* ---------- color themes (fills and text only) ---------- */
-var THEMES = [['mocha', 'Mocha', '#3B2A2A', '#A8777C'], ['midnight', 'Midnight', '#14171C', '#2563A8'], ['sunrise', 'Sunrise', '#9A4410', '#E39A3B'], ['sage', 'Sage', '#2F3E34', '#86A38C'], ['lavender', 'Lavender', '#3A3150', '#A497C9']];
+var THEMES = [['mono', 'Black & White', '#111111', '#FFFFFF'], ['mocha', 'Mocha', '#3B2A2A', '#A8777C'], ['midnight', 'Midnight', '#14171C', '#2563A8'], ['sunrise', 'Sunrise', '#9A4410', '#E39A3B'], ['sage', 'Sage', '#2F3E34', '#86A38C'], ['lavender', 'Lavender', '#3A3150', '#A497C9']];
 var THEME_KEY = 'tend.theme';
 function curTheme() { var t = 'mocha'; try { t = localStorage.getItem(THEME_KEY) || 'mocha'; } catch (e) {} return THEMES.some(function (x) { return x[0] === t; }) ? t : 'mocha'; }
 function applyTheme(t) {
@@ -811,12 +812,12 @@ applyTheme(curTheme());
 
 /* ---------- belongings ---------- */
 var ITEM_TYPES = {
-  Vehicle: { icon: 'car', ph: 'e.g. 2017 Tahoe', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [['year', 'Year', 'num'], ['make', 'Make'], ['model', 'Model'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate number', 'code'], ['plateExp', 'Plates expire', 'date'], ['insurer', 'Insurance company'], ['policy', 'Policy number', 'code'], ['tires', 'Tire size', 'code'], ['oil', 'Oil type', 'code'], ['bought', 'Purchased', 'date']] },
-  Home: { icon: 'home', ph: 'e.g. Home', key: ['furnaceFilter', 'fridgeFilter', 'shutoff', 'policy'], fields: [['address', 'Address'], ['built', 'Year built', 'num'], ['furnaceFilter', 'Furnace filter size', 'code'], ['fridgeFilter', 'Fridge water filter #', 'code'], ['waterHeater', 'Water heater installed (year)', 'num'], ['roof', 'Roof replaced (year)', 'num'], ['shutoff', 'Main water shutoff location'], ['paint', 'Paint colors', 'long'], ['insurer', 'Insurance company'], ['policy', 'Policy number', 'code']] },
-  Appliance: { icon: 'plug', ph: 'e.g. Dishwasher', key: ['model', 'serial', 'part', 'warranty'], fields: [['kind', 'Appliance', 'sel', ['Dishwasher', 'Refrigerator', 'Freezer', 'Range / oven', 'Cooktop', 'Microwave', 'Range hood', 'Garbage disposal', 'Washer', 'Dryer', 'Water heater', 'Furnace', 'Air conditioner', 'Heat pump', 'Water softener', 'Sump pump', 'Dehumidifier', 'Humidifier', 'Garage door opener', 'Generator', 'Grill', 'Lawn mower', 'Snow blower', 'Other']], ['brand', 'Brand'], ['model', 'Model number', 'code'], ['serial', 'Serial number', 'code'], ['where', 'Where it is'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty ends', 'date'], ['part', 'Filter / part number', 'code'], ['store', 'Bought from']] },
-  Pet: { icon: 'paw', ph: 'e.g. Max', key: ['chip', 'tag', 'tagExp'], fields: [['species', 'Animal', 'sel', ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Guinea pig / hamster', 'Reptile', 'Horse', 'Other']], ['breed', 'Breed'], ['born', 'Birthday', 'date'], ['chip', 'Microchip number', 'code'], ['tag', 'License / rabies tag #', 'code'], ['tagExp', 'Tag expires', 'date'], ['food', 'Food & amount'], ['meds', 'Medicines']] },
-  Document: { icon: 'doc', ph: 'e.g. Kelly’s passport', key: ['number', 'expires'], fields: [['kind', 'Document', 'sel', ['Driver’s license', 'Passport', 'State ID', 'Birth certificate', 'Social Security card', 'Insurance card', 'Vehicle title', 'Deed', 'Will / trust', 'Other']], ['holder', 'Whose'], ['number', 'Number', 'code'], ['issued', 'Issued', 'date'], ['expires', 'Expires', 'date'], ['kept', 'Where it’s kept']] },
-  Other: { icon: 'box', ph: 'e.g. Generator', key: ['model', 'serial', 'warranty'], fields: [['brand', 'Brand'], ['model', 'Model number', 'code'], ['serial', 'Serial number', 'code'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty ends', 'date']] }
+  Vehicle: { icon: 'car', ph: 'e.g. 2017 Tahoe', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [['year', 'Year', 'num'], ['make', 'Make'], ['model', 'Model'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate Number', 'code'], ['plateExp', 'Plates Expire', 'date'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['tires', 'Tire Size', 'code'], ['oil', 'Oil Type', 'code'], ['bought', 'Purchased', 'date']] },
+  Home: { icon: 'home', ph: 'e.g. Home', key: ['furnaceFilter', 'fridgeFilter', 'shutoff', 'policy'], fields: [['address', 'Address'], ['built', 'Year Built', 'num'], ['furnaceFilter', 'Furnace Filter Size', 'code'], ['fridgeFilter', 'Fridge Water Filter #', 'code'], ['waterHeater', 'Water Heater Installed (Year)', 'num'], ['roof', 'Roof Replaced (Year)', 'num'], ['shutoff', 'Main Water Shutoff Location'], ['paint', 'Paint Colors', 'long'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code']] },
+  Appliance: { icon: 'plug', ph: 'e.g. Dishwasher', key: ['model', 'serial', 'part', 'warranty'], fields: [['kind', 'Appliance', 'sel', ['Dishwasher', 'Refrigerator', 'Freezer', 'Range / oven', 'Cooktop', 'Microwave', 'Range hood', 'Garbage disposal', 'Washer', 'Dryer', 'Water heater', 'Furnace', 'Air conditioner', 'Heat pump', 'Water softener', 'Sump pump', 'Dehumidifier', 'Humidifier', 'Garage door opener', 'Generator', 'Grill', 'Lawn mower', 'Snow blower', 'Other']], ['brand', 'Brand'], ['model', 'Model Number', 'code'], ['serial', 'Serial Number', 'code'], ['where', 'Where It Is'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date'], ['part', 'Filter / Part Number', 'code'], ['store', 'Bought From']] },
+  Pet: { icon: 'paw', ph: 'e.g. Max', key: ['chip', 'tag', 'tagExp'], fields: [['species', 'Animal', 'sel', ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Guinea pig / hamster', 'Reptile', 'Horse', 'Other']], ['breed', 'Breed'], ['born', 'Birthday', 'date'], ['chip', 'Microchip Number', 'code'], ['tag', 'License / Rabies Tag #', 'code'], ['tagExp', 'Tag Expires', 'date'], ['food', 'Food & Amount'], ['meds', 'Medicines']] },
+  Document: { icon: 'doc', ph: 'e.g. Kelly’s passport', key: ['number', 'expires'], fields: [['kind', 'Document', 'sel', ['Driver’s license', 'Passport', 'State ID', 'Birth certificate', 'Social Security card', 'Insurance card', 'Vehicle title', 'Deed', 'Will / trust', 'Other']], ['holder', 'Whose'], ['number', 'Number', 'code'], ['issued', 'Issued', 'date'], ['expires', 'Expires', 'date'], ['kept', 'Where It’s Kept']] },
+  Other: { icon: 'box', ph: 'e.g. Generator', key: ['model', 'serial', 'warranty'], fields: [['brand', 'Brand'], ['model', 'Model Number', 'code'], ['serial', 'Serial Number', 'code'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date']] }
 };
 var ITEM_ORDER = ['Vehicle', 'Home', 'Appliance', 'Pet', 'Document', 'Other'];
 var ITEM_PLURAL = { Vehicle: 'Vehicles', Home: 'Homes', Appliance: 'Appliances', Pet: 'Pets', Document: 'Documents', Other: 'Other' };
@@ -895,7 +896,7 @@ function itemResults() {
   var q = ui.bq.trim().toLowerCase(), out = '';
   var list = db.items.filter(function (b) { return itemMatches(b, q); });
   var vn = q ? [] : vehicleNamesInTasks();
-  if (vn.length) out += '<div class="tip" style="margin:0 0 4px;display:flex;flex-direction:column;gap:10px"><span>Your tasks mention <strong>' + vn.map(esc).join('</strong> and <strong>') + '</strong>. Add ' + (vn.length === 1 ? 'it' : 'them') + ' here so plate #, VIN and insurance show up on those tasks.</span><button class="btn primary" style="min-height:44px;font-size:14.5px;border-radius:12px" data-act="auto-vehicles">Add ' + (vn.length === 1 ? 'this vehicle' : 'these ' + vn.length + ' vehicles') + '</button></div>';
+  if (vn.length) out += '<div class="tip" style="margin:0 0 4px;display:flex;flex-direction:column;gap:10px"><span>Your tasks mention <strong>' + vn.map(esc).join('</strong> and <strong>') + '</strong>. Add ' + (vn.length === 1 ? 'it' : 'them') + ' here so plate #, VIN and insurance show up on those tasks.</span><button class="btn primary" style="min-height:44px;font-size:14.5px;border-radius:12px" data-act="auto-vehicles">Add ' + (vn.length === 1 ? 'This Vehicle' : 'These ' + vn.length + ' Vehicles') + '</button></div>';
   if (!list.length) return out + (q ? '<p class="empty">Nothing matches that search.</p>' : '<div class="tip" style="margin:0">Save the details you always have to dig for: VIN and plate number, appliance model #, filter sizes, microchip #, passport expiration. Link a belonging to a task and its details show up right on that task.</div>');
   ITEM_ORDER.forEach(function (ty) {
     var part = list.filter(function (b) { return b.type === ty; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
@@ -919,7 +920,7 @@ function scrItem() {
   h += '<div class="listcard" style="margin-top:16px">' + (rowsH || '<p class="note" style="text-align:left;margin:12px 0">No details saved yet. Tap Edit to add them.</p>') + '</div>';
   if (b.notes) h += '<div class="card" style="margin:10px 16px 0;padding:14px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;color:var(--muted)">Notes</span><span style="line-height:1.45;white-space:pre-wrap">' + esc(b.notes) + '</span></div>';
   var linked = rows().filter(function (r) { return r.t.item === b.id; });
-  h += '<div class="section"><h2 style="font-size:19px">Linked tasks</h2><button class="link" data-act="new-task-item">+ Add task</button></div><div class="stack">' +
+  h += '<div class="section"><h2 style="font-size:19px">Linked Tasks</h2><button class="link" data-act="new-task-item">+ Add Task</button></div><div class="stack">' +
     (linked.length ? linked.map(function (r) { return taskRow(r, false, 'contact'); }).join('') : '<p class="note" style="text-align:left;padding:4px">No tasks linked yet. Open a task, tap Edit, and pick this under Belonging.</p>') + '</div>';
   return h + '<div class="pad-b"></div>';
 }
@@ -933,7 +934,7 @@ function itemOptions(cur) {
 }
 function scrEditItem() {
   var f = ui.form, isNew = !f.id, T = ITEM_TYPES[f.type] || ITEM_TYPES.Other;
-  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New belonging' : 'Edit belonging') + '</span><button class="textbtn" data-act="save-item">Save</button></div></header>';
+  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New Belonging' : 'Edit Belonging') + '</span><button class="textbtn" data-act="save-item">Save</button></div></header>';
   h += flashHtml();
   h += '<form class="form" id="itemForm" autocomplete="off" novalidate>' +
     '<label class="field"><span>Category</span><select class="input" name="type" data-rerender="1">' + ITEM_ORDER.map(function (ty) { return opt(ty, f.type); }).join('') + '</select><small>The category decides which details you can save.</small></label>' +
@@ -955,7 +956,7 @@ function scrEditItem() {
   if (pair.length) h += pair[0];
   h += '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea><small>Keep passwords and full ID numbers you’d worry about losing in your iPhone’s Passwords app, not here.</small></label>' +
     '<button type="submit" class="btn primary">Save</button>' +
-    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-item' ? ' armed' : '') + '" data-act="del-item">' + (ui.armed === 'del-item' ? 'Tap again to delete for good' : 'Delete belonging') + '</button>') +
+    (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-item' ? ' armed' : '') + '" data-act="del-item">' + (ui.armed === 'del-item' ? 'Tap Again to Delete for Good' : 'Delete Belonging') + '</button>') +
     '</form>';
   return h;
 }
@@ -995,7 +996,7 @@ function copyText(v, btn) {
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done, legacy); else legacy();
 }
 
-/* ---------- starter picker: "What do you tend to?" ----------
+/* ---------- starter picker: "What Do You Tend To?" ----------
    Each suggestion: [name, category, who, how often, flags, early days, MM-DD, tip]
    flags: F fixed date · ! often forgotten · - unchecked to start · ? you set the date
           C per vehicle · K per child · P per pet · A per adult · H links to your home */
@@ -1016,7 +1017,7 @@ var ROLES = [
     ['Clean gutters & downspouts', 'Home', 'Exterior', 'Every 6 months', 'F', 14, '10-15', 'Spring, and fall after the leaves drop.'],
     ['Shut off & drain outdoor faucets', 'Home', 'Exterior', 'Yearly', 'F!', 14, '10-20', 'Prevents frozen, burst pipes.'],
     ['Lubricate garage door & test auto-reverse', 'Home', 'Garage', 'Every 6 months', '!', 14, '', 'Lay a board under the door: it should reverse when it touches it.']] },
-  { k: 'car', t: 'Car owner', d: 'Oil, tires, plates, insurance', ic: 'car', s: [
+  { k: 'car', t: 'Car Owner', d: 'Oil, tires, plates, insurance', ic: 'car', s: [
     ['Oil change', 'Vehicle', '', 'Every 6 months', 'C', 14, '', 'Or by the mileage on your windshield sticker, whichever comes first.'],
     ['Rotate tires', 'Vehicle', '', 'Every 6 months', 'C!', 14, '', 'Most shops will do it with an oil change if you ask.'],
     ['Replace engine & cabin air filters', 'Vehicle', '', 'Yearly', 'C!', 30, '', 'The cabin filter sits behind the glove box and often goes years without a change.'],
@@ -1044,7 +1045,7 @@ var ROLES = [
     ['Practice fire escape plan with kids', 'Personal', 'Family', 'Every 6 months', '!', 14, '', 'Pick a meeting spot outside and walk the route together.'],
     ['Sanitize kids’ toys, high chairs & car seats', 'Cleaning', 'Kids', 'Monthly', '-', 7, '', ''],
     ['Renew passports (kids under 16)', 'Personal', 'Kids', 'Every 5 years', 'F?-', 180, '', 'Kids’ passports last only 5 years. Set the due date to the expiration.']] },
-  { k: 'pet', t: 'Pet owner', d: 'Vet, prevention, tags', ic: 'paw', s: [
+  { k: 'pet', t: 'Pet Owner', d: 'Vet, prevention, tags', ic: 'paw', s: [
     ['Annual vet checkup & vaccines', 'Pets', '', 'Yearly', 'P', 30, '', ''],
     ['Flea, tick & heartworm prevention', 'Pets', '', 'Monthly', 'P!', 5, '', 'Easy to miss a month, and a missed dose can let heartworm in.'],
     ['Renew pet license / rabies tag', 'Pets', '', 'Yearly', 'PF?!', 30, '', 'Set the due date to the tag’s expiration.'],
@@ -1054,7 +1055,7 @@ var ROLES = [
     ['Wash pet beds, bowls & toys', 'Pets', 'Pets', 'Monthly', '!', 7, '', ''],
     ['Pet dental cleaning', 'Pets', '', 'Yearly', 'P-', 30, '', ''],
     ['Restock pet food & meds', 'Pets', 'Pets', 'Monthly', '-', 7, '', '']] },
-  { k: 'yard', t: 'Yard & pool', d: 'Lawn, sprinklers, mower, grill', ic: 'leaf', s: [
+  { k: 'yard', t: 'Yard & Pool', d: 'Lawn, sprinklers, mower, grill', ic: 'leaf', s: [
     ['Lawn mower service (blade, oil, plug)', 'Yard & Pool', 'Garage', 'Yearly', 'F', 30, '03-15', 'Sharp blades cut cleaner and keep grass healthier.'],
     ['Spring lawn fertilizer & pre-emergent', 'Yard & Pool', 'Yard', 'Yearly', 'F', 14, '04-15', 'Apply when the soil warms up, around when forsythia blooms.'],
     ['Fall lawn fertilizer (winterizer)', 'Yard & Pool', 'Yard', 'Yearly', 'F!', 14, '10-15', 'The most important feeding of the year.'],
@@ -1068,7 +1069,7 @@ var ROLES = [
     ['Snow blower service & fuel', 'Yard & Pool', 'Garage', 'Yearly', 'F-', 14, '10-31', ''],
     ['Open pool', 'Yard & Pool', 'Pool', 'Yearly', 'F-', 30, '05-15', ''],
     ['Close / winterize pool', 'Yard & Pool', 'Pool', 'Yearly', 'F-', 30, '09-15', '']] },
-  { k: 'clean', t: 'Keeping house', d: 'The deep-clean jobs that slip', ic: 'spark', s: [
+  { k: 'clean', t: 'Keeping House', d: 'The deep-clean jobs that slip', ic: 'spark', s: [
     ['Clean washing machine (tub + gasket)', 'Cleaning', 'Laundry', 'Monthly', '!', 7, '', 'Run an empty hot cycle with cleaner and wipe the door seal.'],
     ['Clean garbage disposal', 'Cleaning', 'Kitchen', 'Monthly', '', 7, '', 'Ice cubes and a little dish soap, then citrus peels.'],
     ['Descale coffee maker', 'Cleaning', 'Kitchen', 'Monthly', '!', 7, '', ''],
@@ -1083,7 +1084,7 @@ var ROLES = [
     ['Clean trash & recycling bins', 'Cleaning', 'Garage', 'Every 3 months', '!', 14, '', ''],
     ['Wash windows & screens', 'Cleaning', 'Whole house', 'Yearly', 'F', 30, '05-01', ''],
     ['Shampoo carpets & rugs', 'Cleaning', 'Whole house', 'Yearly', '', 30, '', '']] },
-  { k: 'health', t: 'Your health', d: 'Dentist, physicals, checkups', ic: 'heart', s: [
+  { k: 'health', t: 'Your Health', d: 'Dentist, physicals, checkups', ic: 'heart', s: [
     ['Dentist cleaning', 'Health', '', 'Every 6 months', 'A', 30, '', ''],
     ['Annual physical', 'Health', '', 'Yearly', 'A', 30, '', 'Preventive visits are usually free with insurance.'],
     ['Eye exam', 'Health', 'Family', 'Yearly', '', 30, '', ''],
@@ -1092,7 +1093,7 @@ var ROLES = [
     ['Replace toothbrushes', 'Health', 'Family', 'Every 3 months', '!', 7, '', 'And after anyone has been sick.'],
     ['Restock first-aid kit & toss expired meds', 'Health', 'Home', 'Yearly', '!', 14, '', ''],
     ['Review prescriptions & refills', 'Health', 'Family', 'Every 3 months', '-', 14, '', '']] },
-  { k: 'money', t: 'Money & paperwork', d: 'Taxes, insurance, IDs, wills', ic: 'money', s: [
+  { k: 'money', t: 'Money & Paperwork', d: 'Taxes, insurance, IDs, wills', ic: 'money', s: [
     ['Gather tax documents', 'Finance & Insurance', 'Family', 'Yearly', 'F', 14, '02-15', ''],
     ['File taxes', 'Finance & Insurance', 'Family', 'Yearly', 'F', 45, '04-15', ''],
     ['Homeowners insurance renewal', 'Finance & Insurance', 'Home', 'Yearly', 'F?H', 45, '', 'Set the due date to your policy renewal. It opens early so you can shop rates.'],
@@ -1105,7 +1106,7 @@ var ROLES = [
     ['Renew passports (adults)', 'Personal', 'Adults', 'Every 10 years', 'F?-', 180, '', 'Many countries want 6 months left on it before you travel.'],
     ['Update home inventory (photos/video)', 'Finance & Insurance', 'Whole house', 'Yearly', '!', 30, '', 'A quick video of every room makes insurance claims much easier.'],
     ['Review retirement contributions & rebalance', 'Finance & Insurance', 'Family', 'Yearly', 'F-', 30, '01-15', '']] },
-  { k: 'tech', t: 'Tech & digital', d: 'Backups, passwords, router', ic: 'laptop', s: [
+  { k: 'tech', t: 'Tech & Digital', d: 'Backups, passwords, router', ic: 'laptop', s: [
     ['Back up phones, photos & computers', 'Tech & Digital', 'Family', 'Every 3 months', '!', 14, '', ''],
     ['Update router firmware & reboot', 'Tech & Digital', 'Home network', 'Every 6 months', '!', 14, '', ''],
     ['Review passwords & 2-factor', 'Tech & Digital', 'Family', 'Yearly', '', 14, '', ''],
@@ -1113,7 +1114,7 @@ var ROLES = [
     ['Replace batteries (thermostat, locks, remotes)', 'Tech & Digital', 'Whole house', 'Yearly', 'F!', 14, '11-01', 'Smart locks and thermostats always die at the worst time.'],
     ['Test security cameras, doorbell & alarm', 'Tech & Digital', 'Home', 'Every 6 months', '-', 14, '', ''],
     ['Renew software & antivirus subscriptions', 'Tech & Digital', 'Family', 'Yearly', 'F?-', 30, '', '']] },
-  { k: 'partner', t: 'Spouse / partner', d: 'Anniversary, date night, plans', ic: 'ring', s: [
+  { k: 'partner', t: 'Spouse / Partner', d: 'Anniversary, date night, plans', ic: 'ring', s: [
     ['Plan anniversary (gift & reservation)', 'Personal', 'Adults', 'Yearly', 'F?', 30, '', 'Set the due date to your anniversary. It opens a month early so you can plan.'],
     ['Date night', 'Personal', 'Adults', 'Monthly', '', 7, '', ''],
     ['Budget & goals check-in', 'Finance & Insurance', 'Adults', 'Every 3 months', '', 14, '', ''],
@@ -1175,11 +1176,11 @@ function stPlan() {
 function scrStarter() {
   var st = ui.st, n = ROLES.filter(function (r) { return st.roles[r.k]; }).length;
   var h = '<header class="head round" style="gap:8px">' + (st.fresh ? '<div class="headrow"><button class="backbtn" data-act="st-cancel">' + ic('back', 18, 2.2) + 'Back</button></div>' : '<div class="headrow">' + backBtn() + '</div>') +
-    '<span class="eyebrow">Step 1 of 2</span><h1>What do you tend to?</h1><span class="sub">Pick everything that fits. Next, you’ll choose from tasks people often forget.</span></header>';
+    '<span class="eyebrow">Step 1 of 2</span><h1>What Do You Tend To?</h1><span class="sub">Pick everything that fits. Next, you’ll choose from tasks people often forget.</span></header>';
   h += '<div class="roles">' + ROLES.map(function (r) {
     return '<button class="role" data-act="st-role" data-k="' + r.k + '" aria-pressed="' + !!st.roles[r.k] + '"><span class="ri">' + ic(r.ic, 22) + '</span><span class="ck">' + ic('check', 14, 3) + '</span><b>' + esc(r.t) + '</b><small>' + esc(r.d) + '</small></button>';
   }).join('') + '</div>';
-  h += '<div class="stickybar"><button class="btn primary" data-act="st-next"' + (n ? '' : ' disabled') + '>' + (n ? 'Next: choose tasks' : 'Pick at least one') + '</button></div>';
+  h += '<div class="stickybar"><button class="btn primary" data-act="st-next"' + (n ? '' : ' disabled') + '>' + (n ? 'Next: Choose Tasks' : 'Pick at Least One') + '</button></div>';
   return h;
 }
 function entEditor(kind) {
@@ -1192,17 +1193,17 @@ function entEditor(kind) {
     if (kind === 'kid') h += '<div class="ent"><input class="input" data-st="kid" data-i="' + i + '" data-f="n" value="' + esc(v.n) + '" placeholder="Name"><input class="input" type="date" data-st="kid" data-i="' + i + '" data-f="b" value="' + esc(v.b) + '" aria-label="Birthday" max="' + iso(today()) + '">' + del + '</div>';
     else h += '<div class="ent"><input class="input" data-st="' + kind + '" data-i="' + i + '" value="' + esc(v) + '" placeholder="' + (kind === 'car' ? 'Year and model, e.g. 2017 Tahoe' : 'Name') + '">' + del + '</div>';
   });
-  if (list.length < 8) h += '<button type="button" class="link" style="align-self:flex-start" data-act="st-add" data-kind="' + kind + '">+ Add ' + (kind === 'car' ? 'a vehicle' : kind === 'pet' ? 'a pet' : 'a child') + '</button>';
+  if (list.length < 8) h += '<button type="button" class="link" style="align-self:flex-start" data-act="st-add" data-kind="' + kind + '">+ Add ' + (kind === 'car' ? 'a Vehicle' : kind === 'pet' ? 'a Pet' : 'a Child') + '</button>';
   return h + '</div>';
 }
 function freqLabel(f) { return f === 'Well-child (by age)' ? 'By age' : f; }
 function scrStarterPick() {
   var st = ui.st, have = existingKeys(), plan = stPlan();
-  var h = '<header class="head" style="gap:8px"><div class="headrow">' + backBtn() + '</div><span class="eyebrow">Step 2 of 2</span><h1>Choose your tasks</h1><span class="sub">Uncheck anything that doesn’t apply. You can change any task later.</span></header>';
+  var h = '<header class="head" style="gap:8px"><div class="headrow">' + backBtn() + '</div><span class="eyebrow">Step 2 of 2</span><h1>Choose Your Tasks</h1><span class="sub">Uncheck anything that doesn’t apply. You can change any task later.</span></header>';
   ROLES.forEach(function (r) {
     if (!st.roles[r.k]) return;
     var picked = r.s.filter(function (x, i) { return st.picks[r.k + ':' + i]; }).length;
-    h += '<div class="section"><h2 style="font-size:19px;display:flex;align-items:center;gap:8px"><span style="color:var(--rose);display:flex">' + ic(r.ic, 20) + '</span>' + esc(r.t) + '</h2><button class="link" data-act="st-all" data-k="' + r.k + '">' + (picked === r.s.length ? 'Uncheck all' : 'Check all') + '</button></div>';
+    h += '<div class="section"><h2 style="font-size:19px;display:flex;align-items:center;gap:8px"><span style="color:var(--rose);display:flex">' + ic(r.ic, 20) + '</span>' + esc(r.t) + '</h2><button class="link" data-act="st-all" data-k="' + r.k + '">' + (picked === r.s.length ? 'Uncheck All' : 'Check All') + '</button></div>';
     if (r.k === 'car') h += entEditor('car');
     if (r.k === 'kids') h += entEditor('kid');
     if (r.k === 'pet') h += entEditor('pet');
@@ -1210,11 +1211,11 @@ function scrStarterPick() {
       var s = sug(r, i), tg = sugTargets(s), fresh = tg.filter(function (t) { return !have[taskKey(s.name, t.who)]; }).length, on = !!st.picks[s.key];
       var per = tg.length > 1 || tg[0].per ? (fresh < tg.length ? fresh + ' of ' + tg.length + ' new' : tg.length > 1 ? '× ' + tg.length : 'for ' + tg[0].who) : '';
       var meta = [freqLabel(s.freq), s.fl.indexOf('?') >= 0 ? 'you set the date' : '', per].filter(Boolean).join(' · ');
-      if (!fresh) return '<div class="pick" aria-disabled="true"><span class="box done">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(s.name) + '</span><span class="pm">Already on your list</span></span></div>';
-      return '<button class="pick" data-act="st-pick" data-key="' + s.key + '" aria-pressed="' + on + '"><span class="box">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(s.name) + (s.fl.indexOf('!') >= 0 ? '<span class="tag">Often forgotten</span>' : '') + '</span><span class="pm">' + esc(meta) + '</span>' + (s.tip ? '<span class="pt">' + esc(s.tip) + '</span>' : '') + '</span></button>';
+      if (!fresh) return '<div class="pick" aria-disabled="true"><span class="box done">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(s.name) + '</span><span class="pm">Already on Your List</span></span></div>';
+      return '<button class="pick" data-act="st-pick" data-key="' + s.key + '" aria-pressed="' + on + '"><span class="box">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(s.name) + (s.fl.indexOf('!') >= 0 ? '<span class="tag">Often Forgotten</span>' : '') + '</span><span class="pm">' + esc(meta) + '</span>' + (s.tip ? '<span class="pt">' + esc(s.tip) + '</span>' : '') + '</span></button>';
     }).join('') + '</div>';
   });
-  h += '<div class="pad-b"></div><div class="stickybar"><button class="btn primary" data-act="st-apply"' + (plan.length ? '' : ' disabled') + '>' + (plan.length ? 'Add ' + plan.length + (plan.length === 1 ? ' task' : ' tasks') : 'Nothing new selected') + '</button></div>';
+  h += '<div class="pad-b"></div><div class="stickybar"><button class="btn primary" data-act="st-apply"' + (plan.length ? '' : ' disabled') + '>' + (plan.length ? 'Add ' + plan.length + (plan.length === 1 ? ' Task' : ' Tasks') : 'Nothing New Selected') + '</button></div>';
   return h;
 }
 function starterFirst(s, n, birth) {
@@ -1472,7 +1473,7 @@ document.addEventListener('input', function (e) {
     if (sk === 'kid') { if (ui.st.kids[si]) ui.st.kids[si][el.getAttribute('data-f')] = el.value; }
     else { var sl = sk === 'car' ? ui.st.cars : ui.st.pets; if (si < sl.length) sl[si] = el.value; }
     var sb = document.querySelector('[data-act="st-apply"]'), pl = stPlan().length;
-    if (sb) { sb.disabled = !pl; sb.textContent = pl ? 'Add ' + pl + (pl === 1 ? ' task' : ' tasks') : 'Nothing new selected'; }
+    if (sb) { sb.disabled = !pl; sb.textContent = pl ? 'Add ' + pl + (pl === 1 ? ' Task' : ' Tasks') : 'Nothing New Selected'; }
     return;
   }
   if (el.id === 'q' || el.id === 'cq' || el.id === 'bq') {
