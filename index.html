@@ -587,7 +587,7 @@ function contactResults() {
 function scrContacts() {
   var n = db.contacts.length;
   var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' contact' : ' contacts') + '</span>' + titleRow('Contacts', 'new-contact', 'Contact') + dirSwitch('contacts') +
-    searchBox('cq', ui.cq, 'Search name, phone or email', 'Search contacts') + '</header>';
+    searchBox('cq', ui.cq, 'Search contacts', 'Search contacts') + '</header>';
   return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:28px">' + contactResults() + '</div>';
 }
 function telHref(p) { var d = String(p).replace(/[^\d+]/g, ''); if (/^\d{10}$/.test(d)) d = '+1' + d; return d; }
@@ -910,7 +910,7 @@ function itemResults() {
 function scrItems() {
   var n = db.items.length;
   var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' belonging' : ' belongings') + '</span>' + titleRow('Belongings', 'new-item', 'Belonging') + dirSwitch('items') +
-    searchBox('bq', ui.bq, 'Search name, VIN, plate, model #', 'Search belongings') + '</header>';
+    searchBox('bq', ui.bq, 'Search belongings', 'Search belongings') + '</header>';
   return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:28px">' + itemResults() + '</div>';
 }
 function scrItem() {
