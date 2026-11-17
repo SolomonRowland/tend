@@ -70,6 +70,7 @@ a{color:var(--rose)}
 .cat{background:#fff;border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(59,42,42,.08)}
 .bar{height:6px;border-radius:3px;background:var(--blush);overflow:hidden}.bar i{display:block;height:6px;border-radius:3px;background:var(--mauve)}
 .search{display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:0 6px 0 12px;min-height:44px;color:var(--ink)}
+.search svg{flex:0 0 auto}
 .search input{flex:1 1 auto;min-width:0;border:0;outline:none;background:transparent;font-size:16px;padding:10px 0;-webkit-appearance:none;appearance:none}
 .search .clear{width:36px;height:36px;border-radius:999px;color:var(--muted);display:flex;align-items:center;justify-content:center}
 .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:0 20px}
@@ -124,7 +125,18 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .seg button{border:1px solid var(--dusty);border-radius:12px;min-height:44px;font-weight:700;background:#fff;color:var(--rose)}
 .seg button[aria-pressed="true"]{background:var(--rose);color:#fff;border-color:var(--rose)}
 .tip{margin:14px 16px 0;background:var(--blush);border-radius:14px;padding:14px;font-size:13.5px;line-height:1.45}
-.fab{position:absolute;right:18px;bottom:calc(var(--safe-bot) + 84px);width:56px;height:56px;border-radius:999px;background:var(--rose);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(59,42,42,.28);z-index:2}
+.fab{position:absolute;right:16px;bottom:calc(var(--safe-bot) + 76px);height:52px;padding:0 20px 0 16px;border-radius:999px;background:var(--rose);color:#fff;display:flex;align-items:center;gap:6px;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(59,42,42,.28);z-index:3}
+.toprow{display:flex;gap:8px}.toprow .search{flex:1 1 56%;min-width:0}.toprow .selectwrap{flex:1 1 44%;min-width:0}
+.headselect{background:#fff!important;color:var(--ink)!important;border:0!important;min-height:44px!important}
+.selectwrap svg{color:var(--rose)!important}
+.chip .n{opacity:.7;font-weight:600;margin-left:4px}
+.grp{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 4px 2px}
+.row.split{padding:0;gap:0}
+.row.split .open{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px;padding:12px 14px 12px 4px;text-align:left;min-height:60px}
+.tick{flex:0 0 48px;height:60px;display:flex;align-items:center;justify-content:center;color:var(--mauve)}
+.tick i{width:24px;height:24px;border-radius:999px;border:2px solid currentColor;display:flex;align-items:center;justify-content:center}
+.tick:active i{background:var(--rose);border-color:var(--rose);color:#fff}
+.tick svg{opacity:0}.tick:active svg{opacity:1;color:#fff}
 nav.tabs{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:6px 8px calc(var(--safe-bot) + 6px)}
 nav.tabs button{min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:#8C7B75}
 nav.tabs button[aria-current="page"]{color:var(--rose)}
@@ -139,6 +151,7 @@ nav.tabs button[aria-current="page"]{color:var(--rose)}
 <body>
 <div id="app">
   <main id="view" aria-live="polite"></main>
+  <div id="fab"></div>
   <nav class="tabs" id="tabs" aria-label="Main"></nav>
 </div>
 <input type="file" id="restoreFile" accept=".json,application/json" class="sr" tabindex="-1" aria-hidden="true">
@@ -350,14 +363,18 @@ function flashHtml() {
   if (!ui.flash) return '';
   return '<div class="flash" role="status">' + ic('check', 20, 2.4) + '<span>' + esc(ui.flash) + '</span>' + (ui.undo ? '<button data-act="undo">Undo</button>' : '') + '</div>';
 }
+function canTick(r) { return r.t.active && r.i.status !== 'done'; }
+function tick(r) { return '<button class="tick" data-act="quick-done" data-id="' + esc(r.t.id) + '" aria-label="Mark ' + esc(r.t.name) + ' done today"><i>' + ic('check', 14, 3) + '</i></button>'; }
 function taskRow(r, alt, mode) {
   var t = r.t, i = r.i, meta = (mode === 'contact' ? [t.who, i.short] : [t.cat, t.who]).filter(Boolean).map(esc).join(' \u00b7 ');
-  return '<button class="row' + (alt ? ' alt' : '') + '" data-act="task" data-id="' + esc(t.id) + '"><span class="col"><span class="name">' + esc(t.name) + '</span><span class="meta">' + meta + '</span></span>' +
-    '<span class="st"><b style="color:' + i.color + '">' + i.text + '</b>' + (mode === 'contact' ? '' : '<span class="meta">' + esc(i.status === 'overdue' || i.status === 'due' || i.status === 'snoozed' ? i.short : (i.due ? fmt(i.due) : '')) + '</span>') + '</span></button>';
+  var inner = '<span class="col"><span class="name">' + esc(t.name) + '</span><span class="meta">' + meta + '</span></span>' +
+    '<span class="st"><b style="color:' + i.color + '">' + i.text + '</b>' + (mode === 'contact' ? '' : '<span class="meta">' + esc(i.status === 'overdue' || i.status === 'due' || i.status === 'snoozed' ? i.short : (i.due ? fmt(i.due) : '')) + '</span>') + '</span>';
+  if (!canTick(r)) return '<button class="row' + (alt ? ' alt' : '') + '" data-act="task" data-id="' + esc(t.id) + '">' + inner + '</button>';
+  return '<div class="row split' + (alt ? ' alt' : '') + '">' + tick(r) + '<button class="open" data-act="task" data-id="' + esc(t.id) + '">' + inner + '</button></div>';
 }
 function attnRow(r) {
   var t = r.t, i = r.i;
-  return '<button class="row" data-act="task" data-id="' + esc(t.id) + '"><span class="badge">' + esc(t.cat.slice(0, 2).toUpperCase()) + '</span><span class="col"><span class="name ellip">' + esc(t.name) + '</span><span class="meta">' + [t.who, i.short].filter(Boolean).map(esc).join(' \u00b7 ') + '</span></span><b style="color:' + i.color + ';font-size:12.5px">' + i.text + '</b></button>';
+  return '<div class="row split">' + tick(r) + '<button class="open" data-act="task" data-id="' + esc(t.id) + '"><span class="col"><span class="name ellip">' + esc(t.name) + '</span><span class="meta">' + [t.cat, t.who, i.short].filter(Boolean).map(esc).join(' \u00b7 ') + '</span></span><b style="color:' + i.color + ';font-size:12.5px">' + i.text + '</b></button></div>';
 }
 function searchBox(id, val, ph, label) {
   return '<label class="search">' + ic('search', 18) + '<span class="sr">' + label + '</span><input id="' + id + '" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="' + ph + '" value="' + esc(val) + '">' +
@@ -380,6 +397,9 @@ function scrHome() {
   if (db.tasks.length && (!lb || daysBetween(lb, T) > 30)) {
     h += '<div class="tip" style="display:flex;gap:12px;align-items:center"><span style="flex:1 1 auto">' + (lb ? 'Your last backup was ' + fmt(lb) + '.' : 'You haven\u2019t saved a backup yet.') + ' It takes 10 seconds and protects your list.</span><button class="btn primary" style="width:auto;min-height:44px;padding:0 14px;font-size:14px;border-radius:12px;white-space:nowrap;flex:0 0 auto" data-act="backup">Back up</button></div>';
   }
+  h += flashHtml();
+  var nod = R.filter(function (r) { return r.i.status === 'nodate'; }).length;
+  if (nod) h += '<button class="tip" data-act="list" data-filter="nodate" style="display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left"><span style="flex:1 1 auto">' + nod + (nod === 1 ? ' task needs' : ' tasks need') + ' a date before Tend can track ' + (nod === 1 ? 'it' : 'them') + '. Tap to review.</span><span style="color:var(--rose)">' + ic('next', 18) + '</span></button>';
   h += '<div class="section"><h2>Needs attention</h2><button class="link" data-act="list" data-filter="all">See all</button></div><div class="stack">';
   h += attn.length ? attn.slice(0, 6).map(attnRow).join('') : '<p class="note" style="text-align:left;padding:4px">All caught up. Nothing needs attention right now.</p>';
   if (attn.length > 6) h += '<button class="link" data-act="list" data-filter="due-all" style="align-self:flex-start">See ' + (attn.length - 6) + ' more</button>';
@@ -435,7 +455,13 @@ function filteredTasks() {
 function taskResults() {
   var list = filteredTasks();
   if (!list.length) return '<p class="empty">' + (ui.q.trim() ? 'No tasks match \u201C' + esc(ui.q.trim()) + '\u201D.' : 'Nothing here. Nice work.') + '</p>';
-  return list.map(function (r, i) { return taskRow(r, i % 2 === 1); }).join('');
+  if (ui.filter !== 'all' && ui.filter !== 'due-all') return list.map(function (r, i) { return taskRow(r, i % 2 === 1); }).join('');
+  var order = [['overdue', 'Overdue'], ['due', 'Due now'], ['snoozed', 'Snoozed'], ['upcoming', 'Upcoming'], ['nodate', 'Needs a date'], ['paused', 'Paused'], ['done', 'Done']], out = '';
+  order.forEach(function (g) {
+    var part = list.filter(function (r) { return r.i.status === g[0]; });
+    if (part.length) out += '<div class="grp">' + g[1] + ' \u00b7 ' + part.length + '</div>' + part.map(function (r, i) { return taskRow(r, i % 2 === 1); }).join('');
+  });
+  return out;
 }
 function scrList() {
   var R = rows(), counts = {}; R.forEach(function (r) { counts[r.i.status] = (counts[r.i.status] || 0) + 1; });
@@ -443,11 +469,12 @@ function scrList() {
   if (counts.nodate) chips.push(['nodate', 'Needs date']);
   if (counts.paused) chips.push(['paused', 'Paused']);
   var f = ui.filter === 'due-all' ? 'all' : ui.filter;
-  var h = '<header class="head" style="gap:12px"><div class="headrow"><h1>' + (ui.filter === 'due-all' ? 'Needs attention' : 'Tasks') + '</h1><button class="iconbtn" data-act="new-task" aria-label="Add a task">' + ic('plus', 22) + '</button></div>' +
-    searchBox('q', ui.q, 'Search tasks by name', 'Search tasks') +
-    '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '</button>'; }).join('') + '</div>' +
-    '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></header>';
-  return h + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:24px">' + taskResults() + '</div>';
+  var need = (counts.overdue || 0) + (counts.due || 0);
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + R.length + ' tasks' + (need ? ' \u00b7 ' + need + ' need attention' : ' \u00b7 all on track') + '</span><h1>' + (ui.filter === 'due-all' ? 'Needs attention' : 'Tasks') + '</h1>' +
+    '<div class="toprow">' + searchBox('q', ui.q, 'Search tasks', 'Search tasks') +
+    '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></div>' +
+    '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { var n = c[0] === 'all' ? R.length : (counts[c[0]] || 0); return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '<span class="n">' + n + '</span></button>'; }).join('') + '</div></header>';
+  return h + flashHtml() + '<div class="stack" id="results" style="padding-top:8px;padding-bottom:96px">' + taskResults() + '</div>';
 }
 function scrCal() {
   var R = rows(), byDay = {}, T = today(), tIso = iso(T);
@@ -489,9 +516,10 @@ function contactResults() {
   }).join('');
 }
 function scrContacts() {
-  var h = '<header class="head" style="gap:12px"><div class="headrow"><h1>Contacts</h1><button class="iconbtn" data-act="new-contact" aria-label="Add a contact">' + ic('plus', 22) + '</button></div>' +
+  var n = db.contacts.length;
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + n + (n === 1 ? ' contact' : ' contacts') + '</span><h1>Contacts</h1>' +
     searchBox('cq', ui.cq, 'Search name, phone or email', 'Search contacts') + '</header>';
-  return h + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:24px">' + contactResults() + '</div>';
+  return h + flashHtml() + '<div class="stack" id="results" style="padding-top:12px;padding-bottom:96px">' + contactResults() + '</div>';
 }
 function telHref(p) { var d = String(p).replace(/[^\d+]/g, ''); if (/^\d{10}$/.test(d)) d = '+1' + d; return d; }
 function contactActions(c, soft) {
@@ -543,10 +571,9 @@ function scrTask() {
   h += '<div class="stack">';
   if (t.active && i.status !== 'done') {
     h += '<button class="btn primary" data-act="done">' + ic('check', 20, 2.4) + 'Mark done today</button>';
-    h += '<div class="btns2"><button class="btn secondary" data-act="done-other">Done another day</button>' +
+    h += '<div class="btns2"><label class="btn secondary" style="position:relative;overflow:hidden">Done another day<input type="date" id="otherDate" max="' + iso(today()) + '" aria-label="Done another day: pick the date" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none"></label>' +
       (i.due && i.status !== 'overdue' ? '<button class="btn secondary" data-act="snooze">' + ic('snooze', 18) + (i.status === 'snoozed' ? 'Unsnooze' : 'Snooze 1 week') + '</button>' : '<button class="btn secondary" data-act="ics"' + (i.due ? '' : ' disabled') + '>' + ic('bell', 18) + 'Add to Calendar</button>') + '</div>';
     if (i.due && i.status !== 'overdue') h += '<button class="btn secondary" data-act="ics">' + ic('bell', 18) + 'Add reminder to my Calendar</button>';
-    h += '<input type="date" id="otherDate" class="sr" max="' + iso(today()) + '" aria-label="Date it was done">';
     h += '<span class="note">Logged as ' + esc(db.user) + '.</span>';
   } else if (!t.active) {
     h += '<p class="note">This task is paused. Tap Edit to turn it back on.</p>';
@@ -668,7 +695,7 @@ function scrSettings() {
     '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a backup file</button>' +
     '<button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Restore from a backup file</button></div>';
   h += '<div class="section"><h2 style="font-size:19px">Reminders</h2></div><div class="tip" style="margin:0 16px">This version can\u2019t send notifications on its own. On any task, tap <strong>Add reminder to my Calendar</strong>: your phone\u2019s Calendar will alert you when the task opens and the day before it\u2019s due.</div>';
-  h += '<div class="section"><h2 style="font-size:19px">Testing</h2></div><div class="stack">' +
+  h += '<div class="section"><h2 style="font-size:19px">Your data</h2></div><div class="stack">' +
     '<button class="btn secondary" data-act="mylist"' + (ui.armed === 'mylist' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'mylist' ? 'Tap again: replaces your current list' : 'Load our household list') + '</button>' +
     '<button class="btn secondary" data-act="example"' + (ui.armed === 'example' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'example' ? 'Tap again: replaces your current list' : 'Load example data') + '</button>' +
     '<button class="btn danger' + (ui.armed === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (ui.armed === 'wipe' ? 'Tap again to erase everything' : 'Erase all data and start over') + '</button></div>';
@@ -692,6 +719,8 @@ function render() {
     : s === 'contact' ? scrContact() : s === 'task' ? scrTask() : s === 'settings' ? scrSettings() : s === 'edit-task' ? scrEditTask() : s === 'edit-contact' ? scrEditContact() : scrHome();
   var tabOf = { home: 'home', settings: 'home', list: 'tasks', task: 'tasks', 'edit-task': 'tasks', calendar: 'cal', contacts: 'people', contact: 'people', 'edit-contact': 'people' };
   var cur = tabOf[ui.screen];
+  var fab = document.getElementById('fab');
+  fab.innerHTML = s === 'list' ? '<button class="fab" data-act="new-task">' + ic('plus', 20, 2.4) + 'Task</button>' : s === 'contacts' ? '<button class="fab" data-act="new-contact">' + ic('plus', 20, 2.4) + 'Contact</button>' : '';
   tabs.innerHTML = [['home', 'Home', 'tab-home'], ['tasks', 'Tasks', 'tab-tasks'], ['cal', 'Calendar', 'tab-cal'], ['people', 'Contacts', 'tab-people']].map(function (x) {
     return '<button data-act="' + x[2] + '"' + (cur === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[0], 24) + x[1] + '</button>';
   }).join('');
@@ -773,7 +802,7 @@ document.addEventListener('click', function (e) {
     case 'tab-people': go('contacts', { cq: '' }); break;
     case 'settings': go('settings', {}, true); break;
     case 'list': go('list', { filter: el.getAttribute('data-filter') || 'all', cat: el.getAttribute('data-cat') || '', q: '' }); break;
-    case 'filter': ui.filter = el.getAttribute('data-filter'); render(); break;
+    case 'filter': ui.filter = el.getAttribute('data-filter'); ui.flash = null; ui.undo = null; render(); break;
     case 'task': go('task', { taskId: el.getAttribute('data-id') }, true); break;
     case 'contact': go('contact', { conId: el.getAttribute('data-id') }, true); break;
     case 'back': back(); break;
@@ -783,8 +812,17 @@ document.addEventListener('click', function (e) {
     case 'cal-today': ui.calY = T.getFullYear(); ui.calM = T.getMonth(); ui.calDay = iso(T); render(); break;
     case 'month': var m = new Date(ui.calY, ui.calM + (+el.getAttribute('data-step')), 1); ui.calY = m.getFullYear(); ui.calM = m.getMonth(); ui.calDay = iso(m); render(); break;
     case 'done': markDone(iso(T)); break;
-    case 'done-other': var di = document.getElementById('otherDate'); if (di) { if (di.showPicker) { try { di.showPicker(); } catch (x) { di.focus(); di.click(); } } else { di.focus(); di.click(); } } break;
-    case 'undo': if (ui.undo) { db.tasks = JSON.parse(ui.undo); save(); ui.undo = null; ui.flash = 'Undone.'; render(); } break;
+    case 'quick-done':
+      var qid = el.getAttribute('data-id'), qt = db.tasks.find(function (x) { return x.id === qid; });
+      if (qt) {
+        var qb = snapshot(), keep = view.scrollTop;
+        qt.history.unshift({ date: iso(T), by: db.user }); qt.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+        qt.last = qt.history[0].date; qt.snooze = null; save();
+        var qn = nextDue(qt);
+        ui.flash = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : ''); ui.undo = qb; render(); view.scrollTop = keep;
+      }
+      break;
+    case 'undo': if (ui.undo) { var uk = view.scrollTop; db.tasks = JSON.parse(ui.undo); save(); ui.undo = null; ui.flash = 'Undone.'; render(); view.scrollTop = uk; } break;
     case 'snooze':
       var st = db.tasks.find(function (x) { return x.id === ui.taskId; });
       if (st) { var on = st.snooze && parse(st.snooze) > T; st.snooze = on ? null : iso(addDays(T, 7)); save(); toast(on ? 'Snooze removed.' : 'Snoozed until ' + fmt(addDays(T, 7)) + '. It still turns red if the deadline passes.'); }
