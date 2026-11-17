@@ -209,7 +209,7 @@ html[data-theme="lavender"]{--espresso:#3A3150;--rose:#6A5A9A;--mauve:#A497C9;--
    (localStorage), with a JSON backup file for safekeeping.
    ========================================================= */
 var KEY = 'tend.data.v1';
-var CATS = ['Home','Cleaning','Yard & Pool','Vehicle','Health','Personal','Finance & Insurance','Tech & Digital','Pets','Misc'];
+var CATS = ['Home','Cleaning','Yard & Pool','Vehicle','Health','Personal','Finance & Insurance','Tech & Digital','Pets','Celebrations','Misc'];
 var FREQS = [['Weekly',0,7],['Every 2 weeks',0,14],['Monthly',1,0],['Every 2 months',2,0],['Every 3 months',3,0],['Every 4 months',4,0],
   ['Every 6 months',6,0],['Yearly',12,0],['Every 2 years',24,0],['Every 3 years',36,0],['Every 4 years',48,0],['Every 5 years',60,0],
   ['Every 10 years',120,0],['Well-child (by age)',0,0],['One-time',0,0]];
@@ -253,7 +253,7 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function
 
 /* ---------- storage ---------- */
 var db = null, storageOk = true;
-function blank() { return { app: 'tend', version: 1, user: 'Solomon', members: ['Solomon', 'Kelly'], tasks: [], contacts: [], items: [], lastBackup: null, nextId: 1 }; }
+function blank() { return { app: 'tend', version: 1, user: '', members: [], tasks: [], contacts: [], items: [], lastBackup: null, nextId: 1 }; }
 function load() {
   try { var raw = localStorage.getItem(KEY); if (raw) { db = normalize(JSON.parse(raw)); return true; } }
   catch (e) { storageOk = false; }
@@ -266,9 +266,9 @@ function save() {
 }
 function normalize(d) {
   var out = blank();
-  out.user = d.user || 'Solomon';
-  out.members = Array.isArray(d.members) && d.members.length ? d.members.slice(0, 4) : ['Solomon', 'Kelly'];
-  out.lastBackup = d.lastBackup || null;
+  out.user = d.user || '';
+  out.members = Array.isArray(d.members) ? d.members.filter(Boolean).map(String).slice(0, 6) : [];
+  out.lastBackup = d.lastBackup || null; out.noBday = !!d.noBday;
   var n = 1;
   out.contacts = (d.contacts || []).map(function (c) {
     var street = c.street || '', city = c.city || '', state = c.state || '', zip = c.zip || '';
@@ -293,7 +293,7 @@ function normalize(d) {
       id: String(t.id || ('t' + n++)), name: String(t.name || 'Untitled'), cat: CATS.indexOf(t.cat) >= 0 ? t.cat : 'Misc', who: t.who || '',
       freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: parse(t.first) ? t.first : null, last: parse(t.last) ? t.last : (hist[0] ? hist[0].date : null),
       early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '',
-      contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, snooze: parse(t.snooze) ? t.snooze : null, history: hist
+      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, snooze: parse(t.snooze) ? t.snooze : null, history: hist
     };
   });
   var max = 0;
@@ -309,10 +309,36 @@ function joinAddr(street, city, state, zip) {
 }
 function newId(p) { var id = p + db.nextId; db.nextId++; return id; }
 
+/* ---------- holidays that move each year ---------- */
+function nthDow(y, m, dow, n) {
+  if (n > 0) { var d = new Date(y, m, 1); return new Date(y, m, 1 + ((dow - d.getDay() + 7) % 7) + (n - 1) * 7); }
+  var e = new Date(y, m + 1, 0); return new Date(y, m, e.getDate() - ((e.getDay() - dow + 7) % 7));
+}
+function easter(y) {
+  var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+    h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  return new Date(y, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+}
+var HOLIDAYS = {
+  mothers: ['Mother’s Day', function (y) { return nthDow(y, 4, 0, 2); }],
+  fathers: ['Father’s Day', function (y) { return nthDow(y, 5, 0, 3); }],
+  easter: ['Easter', easter],
+  memorial: ['Memorial Day', function (y) { return nthDow(y, 4, 1, -1); }],
+  labor: ['Labor Day', function (y) { return nthDow(y, 8, 1, 1); }],
+  thanksgiving: ['Thanksgiving', function (y) { return nthDow(y, 10, 4, 4); }]
+};
+function nextHoliday(k, ref) { var d = HOLIDAYS[k][1](ref.getFullYear()); return d < ref ? HOLIDAYS[k][1](ref.getFullYear() + 1) : d; }
+function nextAnniv(dob, from) {
+  var b = parse(dob), T = from || today(); if (!b) return null;
+  function on(y) { var last = new Date(y, b.getMonth() + 1, 0).getDate(); return new Date(y, b.getMonth(), Math.min(b.getDate(), last)); }
+  var d = on(T.getFullYear()); return d < T ? on(T.getFullYear() + 1) : d;
+}
+
 /* ---------- scheduling: same rules as the spreadsheet ---------- */
 function nextDue(t) {
   if (!t.active) return null;
   var first = parse(t.first), last = parse(t.last), f = FREQ[t.freq];
+  if (t.holiday && HOLIDAYS[t.holiday]) return nextHoliday(t.holiday, last ? addDays(last, t.early + 1) : (first || today()));
   if (t.freq === 'One-time') return last ? null : first;
   if (t.freq === 'Well-child (by age)') {
     if (!first) return null;
@@ -406,6 +432,7 @@ var I = {
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   car: '<path d="M5 16V12l2-5h10l2 5v4"/><path d="M3 16h18"/><path d="M5 12h14"/><circle cx="7.5" cy="18" r="1.6"/><circle cx="16.5" cy="18" r="1.6"/>',
+  gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9"/><path d="M12 8v13"/><path d="M12 8c-2-4-6-4-6-1.5S9 8 12 8c3 0 6 .5 6-1.5S14 4 12 8z"/>',
   plug: '<path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/>',
   paw: '<circle cx="12" cy="15.5" r="4"/><circle cx="5.5" cy="10" r="2"/><circle cx="18.5" cy="10" r="2"/><circle cx="9" cy="5.5" r="2"/><circle cx="15" cy="5.5" r="2"/>',
   doc: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/>',
@@ -617,6 +644,7 @@ function scrContact() {
   return h + '<div class="pad-b"></div>';
 }
 function scheduleText(t) {
+  if (t.holiday && HOLIDAYS[t.holiday]) return 'Every year on ' + HOLIDAYS[t.holiday][0] + '. The date moves each year and Tend works it out for you.';
   if (t.freq === 'Well-child (by age)') return 'By age: the next visit follows the pediatric schedule from the birth date (newborn, 2 weeks, 1, 2, 4, 6, 9, 12, 15, 18, 24, 30 months, then yearly).';
   if (t.freq === 'One-time') return 'One-time: once it\u2019s done, it\u2019s finished.';
   if (FREQ[t.freq].dy) return 'Repeats ' + t.freq.toLowerCase() + ' from the day you finish it.';
@@ -709,9 +737,10 @@ function scrEditTask() {
   h += flashHtml();
   h += '<form class="form" id="taskForm" autocomplete="off" novalidate>' +
     '<label class="field"><span>Task</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Replace furnace filter" required></label>' +
-    '<div class="two"><label class="field"><span>Category</span><select class="input" name="cat">' + CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
+    '<div class="two"><label class="field"><span>Category</span><select class="input" name="cat" data-rerender="1">' + CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
     '<label class="field"><span>' + (kid ? 'Child' : 'Applies To') + '</span>' + groupedSelect('who', whereGroups(), f.who, 'Choose\u2026') + '</label></div>' +
     (f.who === '__other' ? '<label class="field"><span>Type the ' + (kid ? 'Child\u2019s Name' : 'Place or Person') + '</span><input class="input" name="whoOther" value="' + esc(f.whoOther || '') + '" placeholder="' + (kid ? 'Name' : 'e.g. Shed') + '"></label>' : '') +
+    (f.cat === 'Celebrations' ? '<label class="field"><span>Holiday</span><select class="input" name="holiday" data-rerender="1"><option value="">None (use the date below)</option>' + Object.keys(HOLIDAYS).map(function (k) { return opt(k, f.holiday || '', HOLIDAYS[k][0]); }).join('') + '</select><small>For holidays that move each year. Tend finds the right date every year.</small></label>' : '') +
     '<label class="field"><span>How Often</span><select class="input" name="freq" data-rerender="1">' + FREQS.map(function (x) { return opt(x[0], f.freq); }).join('') + '</select></label>' +
     (simple ? '' : '<label class="field"><span>Schedule</span><select class="input" name="fixed">' + opt('0', f.fixed ? '1' : '0', 'From last done') + opt('1', f.fixed ? '1' : '0', 'Fixed calendar date') + '</select><small>From last done counts from when you finish it. Fixed date stays on the calendar (like a plate renewal).</small></label>') +
     '<div class="two"><label class="field"><span>' + (kid ? 'Birth Date' : (f.freq === 'One-time' ? 'Due Date' : 'First Due Date')) + '</span><input class="input" type="date" name="first" value="' + esc(f.first || '') + '"></label>' +
@@ -763,16 +792,74 @@ function readForm(id) {
   if (id === 'taskForm' && ui.form.fixed != null) ui.form.fixed = ui.form.fixed === true || ui.form.fixed === '1';
 }
 
+
+/* ---------- your profile (kept on this phone, separate from the task list) ---------- */
+var PROFILE_KEY = 'tend.profile';
+function getProfile() { try { var p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); if (p && typeof p === 'object') return p; } catch (e) {} return {}; }
+function profileDone(p) { p = p || getProfile(); return !!(p.first && p.last && p.phone && p.email && parse(p.dob)); }
+function syncUser() {
+  var p = getProfile(); if (!db || !p.first) return;
+  db.user = p.first;
+  if (db.members.indexOf(p.first) < 0) db.members.unshift(p.first);
+}
+/* your own birthday reminder, kept in step with the birthday in your profile */
+function ensureBirthday() {
+  var p = getProfile(); if (!db || !profileDone(p)) return false;
+  var t = db.tasks.find(function (x) { return x.auto === 'birthday'; }), nb = nextAnniv(p.dob), changed = false;
+  if (!t) {
+    if (db.noBday) return false;
+    db.tasks.push({ id: newId('t'), name: 'My birthday', cat: 'Celebrations', who: p.first, freq: 'Yearly', fixed: true, holiday: '', auto: 'birthday', first: iso(nb), last: null, early: 7,
+      active: true, notes: 'Added from your profile. Plan something you enjoy.', contact: null, item: null, snooze: null, history: [] });
+    changed = true;
+  } else {
+    var b = parse(p.dob), f = parse(t.first);
+    if (!f || f.getMonth() !== b.getMonth() || f.getDate() !== Math.min(b.getDate(), new Date(f.getFullYear(), b.getMonth() + 1, 0).getDate())) { t.first = iso(nb); t.last = null; t.history = []; changed = true; }
+    if (t.who !== p.first) { t.who = p.first; changed = true; }
+  }
+  return changed;
+}
+function scrProfile(setup) {
+  var f = ui.form || getProfile();
+  var h = '<header class="head" style="gap:10px">' + (setup ? '<span class="eyebrow">One Last Step</span><h1>About You</h1><span class="sub">Tend uses this to greet you, mark the tasks you finish, and remind you of your birthday. It stays on this phone.</span>'
+    : '<div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">Your Profile</span><button class="textbtn" data-act="save-profile">Save</button></div>') + '</header>';
+  h += flashHtml();
+  h += '<form class="form" id="profileForm" autocomplete="on" novalidate>' +
+    '<div class="two"><label class="field"><span>First Name</span><input class="input" name="first" autocomplete="given-name" value="' + esc(f.first || '') + '" required></label>' +
+    '<label class="field"><span>Last Name</span><input class="input" name="last" autocomplete="family-name" value="' + esc(f.last || '') + '" required></label></div>' +
+    '<label class="field"><span>Phone</span><input class="input" type="tel" inputmode="tel" autocomplete="tel" name="phone" value="' + esc(f.phone || '') + '" placeholder="(630) 555-0100" required></label>' +
+    '<label class="field"><span>Email</span><input class="input" type="email" inputmode="email" autocapitalize="off" autocomplete="email" name="email" value="' + esc(f.email || '') + '" placeholder="name@example.com" required></label>' +
+    '<label class="field"><span>Date of Birth</span><input class="input" type="date" name="dob" autocomplete="bday" max="' + iso(today()) + '" value="' + esc(f.dob || '') + '" required><small>Tend adds a yearly reminder to celebrate your birthday.</small></label>' +
+    '<p class="note" style="text-align:left;padding:0 2px">All fields are required.</p>' +
+    '<button type="submit" class="btn primary">' + (setup ? 'Continue' : 'Save') + '</button></form>';
+  return h;
+}
+function saveProfile() {
+  var el = document.getElementById('profileForm'), f = {};
+  Array.prototype.forEach.call(el.elements, function (x) { if (x.name) f[x.name] = String(x.value || '').trim(); });
+  ui.form = f;
+  var miss = [['first', 'first name'], ['last', 'last name'], ['phone', 'phone'], ['email', 'email'], ['dob', 'date of birth']].filter(function (x) { return !f[x[0]]; });
+  if (miss.length) { toast('Please add your ' + miss.map(function (x) { return x[1]; }).join(', ') + '.'); return; }
+  if (String(f.phone).replace(/\D/g, '').length < 10) { toast('That phone number looks too short.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) { toast('That email doesn’t look right.'); return; }
+  if (!parse(f.dob) || f.dob > iso(today())) { toast('Pick your date of birth.'); return; }
+  f.phone = fmtPhone(f.phone);
+  var wasSetup = !profileDone();
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(f)); } catch (e) { toast('Couldn’t save on this phone.'); return; }
+  ui.form = null; syncUser(); ensureBirthday(); save();
+  if (wasSetup) { ui.stack = []; go('home'); toast('Welcome, ' + f.first + '! Your birthday reminder is set.'); }
+  else { ui.stack = []; go('settings'); toast('Profile saved.'); }
+}
+
 /* ---------- settings ---------- */
 function scrSettings() {
-  var counts = {}; db.members.forEach(function (m) { counts[m] = 0; });
-  db.tasks.forEach(function (t) { t.history.forEach(function (x) { if (counts[x.by] != null) counts[x.by]++; }); });
   var lb = db.lastBackup ? new Date(db.lastBackup) : null;
   var h = '<header class="head" style="gap:10px">' + '<div class="headrow">' + backBtn() + '</div><h1>Settings</h1></header>';
   h += flashHtml();
-  h += '<div class="section"><h2 style="font-size:19px">Who\u2019s Using This Phone?</h2></div><div style="padding:0 16px"><div class="seg">' +
-    db.members.map(function (m) { return '<button data-act="user" data-name="' + esc(m) + '" aria-pressed="' + (db.user === m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
-    '<p class="note" style="text-align:left;padding:8px 4px 0">Completions you log are marked with this name. ' + db.members.map(function (m) { return esc(m) + ': ' + counts[m]; }).join(' \u00b7 ') + ' logged.</p></div>';
+  var pf = getProfile();
+  h += '<div class="section"><h2 style="font-size:19px">Your Profile</h2><button class="link" data-act="edit-profile">Edit</button></div><div class="listcard">' +
+    [['Name', [pf.first, pf.last].filter(Boolean).join(' ')], ['Phone', pf.phone], ['Email', pf.email], ['Date of Birth', pf.dob && parse(pf.dob) ? fmt(parse(pf.dob), true) : '']].map(function (x) {
+      return '<div class="lrow"><span class="s">' + x[0] + '</span><span class="t" style="text-align:right;word-break:break-word">' + esc(x[1] || '—') + '</span></div>';
+    }).join('') + '</div><p class="note" style="text-align:left;padding:8px 20px 0">Tasks you finish on this phone are marked with your first name.</p>';
   h += '<div class="section"><h2 style="font-size:19px">Backup</h2></div><div class="stack">' +
     '<div class="tip" style="margin:0">Your list is saved on this phone only. Save a backup file to iCloud Drive or Files about once a month, and before you change phones. ' + (lb ? '<br><strong>Last backup:</strong> ' + fmt(lb, true) + '.' : '<br><strong>No backup yet.</strong>') + '</div>' +
     '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a Backup File</button>' +
@@ -1033,6 +1120,7 @@ var ROLES = [
     ['Check spare tire, jack & roadside kit', 'Vehicle', 'All vehicles', 'Yearly', '!', 30, '', 'Spare tires slowly lose air sitting unused.']] },
   { k: 'kids', t: 'Parent', d: 'Well visits, school, car seats', ic: 'kid', s: [
     ['Well-child visit', 'Health', '', 'Well-child (by age)', 'K', 45, '', 'Follows the pediatric checkup schedule from the birth date.'],
+    ['{n}’s birthday', 'Celebrations', '', 'Yearly', 'KF', 30, '', 'Opens a month early to plan a party or gift.'],
     ['Dentist cleaning', 'Health', 'Kids', 'Every 6 months', '', 30, '', ''],
     ['Kids’ school / sports physicals & forms', 'Health', 'Kids', 'Yearly', 'F', 45, '07-15', ''],
     ['Update immunization records for school', 'Health', 'Kids', 'Yearly', 'F', 30, '07-15', ''],
@@ -1114,6 +1202,17 @@ var ROLES = [
     ['Replace batteries (thermostat, locks, remotes)', 'Tech & Digital', 'Whole house', 'Yearly', 'F!', 14, '11-01', 'Smart locks and thermostats always die at the worst time.'],
     ['Test security cameras, doorbell & alarm', 'Tech & Digital', 'Home', 'Every 6 months', '-', 14, '', ''],
     ['Renew software & antivirus subscriptions', 'Tech & Digital', 'Family', 'Yearly', 'F?-', 30, '', '']] },
+  { k: 'celebrate', t: 'Celebrations', d: 'Birthdays, holidays, anniversaries', ic: 'gift', s: [
+    ['{n}', 'Celebrations', 'Family', 'Yearly', 'BF', 14, '', 'Opens 2 weeks early so there’s time for a card or gift.'],
+    ['Valentine’s Day', 'Celebrations', 'Family', 'Yearly', 'F', 14, '02-14', ''],
+    ['Mother’s Day', 'Celebrations', 'Family', 'Yearly', 'F', 14, 'H:mothers', 'The date moves each year. Tend works it out.'],
+    ['Father’s Day', 'Celebrations', 'Family', 'Yearly', 'F', 14, 'H:fathers', 'The date moves each year. Tend works it out.'],
+    ['Easter', 'Celebrations', 'Family', 'Yearly', 'F-', 14, 'H:easter', ''],
+    ['Fourth of July plans', 'Celebrations', 'Family', 'Yearly', 'F-', 14, '07-04', ''],
+    ['Halloween costumes & candy', 'Celebrations', 'Family', 'Yearly', 'F', 30, '10-31', 'Popular costumes sell out early.'],
+    ['Thanksgiving plans', 'Celebrations', 'Family', 'Yearly', 'F', 21, 'H:thanksgiving', ''],
+    ['Holiday gifts & cards', 'Celebrations', 'Family', 'Yearly', 'F', 45, '12-25', 'Opens in early November so shopping isn’t last-minute.'],
+    ['New Year’s Eve plans', 'Celebrations', 'Family', 'Yearly', 'F-', 21, '12-31', '']] },
   { k: 'partner', t: 'Spouse / Partner', d: 'Anniversary, date night, plans', ic: 'ring', s: [
     ['Plan anniversary (gift & reservation)', 'Personal', 'Adults', 'Yearly', 'F?', 30, '', 'Set the due date to your anniversary. It opens a month early so you can plan.'],
     ['Date night', 'Personal', 'Adults', 'Monthly', '', 7, '', ''],
@@ -1123,6 +1222,7 @@ var ROLES = [
     ['Order holiday cards & family photo', 'Personal', 'Family', 'Yearly', 'F-', 21, '11-01', ''],
     ['Renew memberships (Costco, zoo, etc.)', 'Misc', 'Family', 'Yearly', 'F?-', 30, '', '']] }
 ];
+function tgName(s, tg) { return tg.name || s.name.replace('{n}', tg.who); }
 function sug(r, i) { var s = r.s[i]; return { key: r.k + ':' + i, name: s[0], cat: s[1], who: s[2], freq: s[3], fl: s[4], early: s[5], when: s[6], tip: s[7] }; }
 function taskKey(name, who) { return (name + '|' + (who || '')).toLowerCase(); }
 function existingKeys() { var k = {}; db.tasks.forEach(function (t) { k[taskKey(t.name, t.who)] = 1; }); return k; }
@@ -1135,13 +1235,14 @@ function stEntities(kind) {
 }
 /* who each suggestion becomes, one per vehicle / child / pet / adult */
 function sugTargets(s) {
+  if (s.fl.indexOf('B') >= 0) return ui.st.bdays.filter(function (x) { return (x.n || '').trim() && parse(x.b); }).map(function (x) { return { who: s.who, name: x.n.trim(), per: 'bday', birth: x.b }; });
   var per = s.fl.indexOf('C') >= 0 ? 'car' : s.fl.indexOf('K') >= 0 ? 'kid' : s.fl.indexOf('P') >= 0 ? 'pet' : s.fl.indexOf('A') >= 0 ? 'adult' : '';
   if (!per) return [{ who: s.who }];
   var names = stEntities(per);
   return names.map(function (n, i) { return { who: n, per: per, birth: per === 'kid' ? (ui.st.kids[i].b || '') : '' }; });
 }
 function startStarter(fresh) {
-  ui.st = { fresh: !!fresh, roles: {}, picks: {}, seen: {}, cars: null, kids: null, pets: null };
+  ui.st = { fresh: !!fresh, roles: {}, picks: {}, seen: {}, cars: null, kids: null, pets: null, bdays: [{ n: '', b: '' }] };
   if (fresh) { db = blank(); ui.stack = []; go('starter'); } else go('starter', {}, true);
 }
 function stPrefill() {
@@ -1168,7 +1269,7 @@ function stPlan() {
     if (!ui.st.roles[r.k]) return;
     r.s.forEach(function (x, i) {
       var s = sug(r, i); if (!ui.st.picks[s.key]) return;
-      sugTargets(s).forEach(function (tg) { var k = taskKey(s.name, tg.who); if (have[k] || seen[k]) return; seen[k] = 1; out.push({ s: s, tg: tg }); });
+      sugTargets(s).forEach(function (tg) { var k = taskKey(tgName(s, tg), tg.who); if (have[k] || seen[k]) return; seen[k] = 1; out.push({ s: s, tg: tg }); });
     });
   });
   return out;
@@ -1184,16 +1285,16 @@ function scrStarter() {
   return h;
 }
 function entEditor(kind) {
-  var st = ui.st, list = kind === 'car' ? st.cars : kind === 'pet' ? st.pets : st.kids;
-  var title = kind === 'car' ? 'Your vehicles' : kind === 'pet' ? 'Your pets' : 'Your kids';
-  var help = kind === 'car' ? 'Each vehicle gets its own oil, tire and plate reminders, and is saved under Belongings.' : kind === 'pet' ? 'Each pet gets its own vet and prevention reminders, and is saved under Belongings.' : 'Birthdays set up each child’s well-visit schedule.';
+  var st = ui.st, list = kind === 'car' ? st.cars : kind === 'pet' ? st.pets : kind === 'bday' ? st.bdays : st.kids;
+  var title = kind === 'car' ? 'Your Vehicles' : kind === 'pet' ? 'Your Pets' : kind === 'bday' ? 'Birthdays & Anniversaries' : 'Your Kids';
+  var help = kind === 'bday' ? 'Add anyone you want to celebrate, like “Mom’s birthday” or “Our anniversary”. Each gets a yearly reminder.' : kind === 'car' ? 'Each vehicle gets its own oil, tire and plate reminders, and is saved under Belongings.' : kind === 'pet' ? 'Each pet gets its own vet and prevention reminders, and is saved under Belongings.' : 'Birthdays set up each child’s well-visit schedule.';
   var h = '<div class="card ents"><span class="enth">' + title + '</span><span class="note" style="text-align:left;padding:0">' + help + '</span>';
   list.forEach(function (v, i) {
     var del = list.length > 1 ? '<button type="button" class="entx" data-act="st-del" data-kind="' + kind + '" data-i="' + i + '" aria-label="Remove">' + ic('x', 16) + '</button>' : '';
-    if (kind === 'kid') h += '<div class="ent"><input class="input" data-st="kid" data-i="' + i + '" data-f="n" value="' + esc(v.n) + '" placeholder="Name"><input class="input" type="date" data-st="kid" data-i="' + i + '" data-f="b" value="' + esc(v.b) + '" aria-label="Birthday" max="' + iso(today()) + '">' + del + '</div>';
+    if (kind === 'kid' || kind === 'bday') h += '<div class="ent"><input class="input" data-st="' + kind + '" data-i="' + i + '" data-f="n" value="' + esc(v.n) + '" placeholder="' + (kind === 'bday' ? 'e.g. Mom\u2019s birthday' : 'Name') + '"><input class="input" type="date" data-st="' + kind + '" data-i="' + i + '" data-f="b" value="' + esc(v.b) + '" aria-label="Date"' + (kind === 'kid' ? ' max="' + iso(today()) + '"' : '') + '>' + del + '</div>';
     else h += '<div class="ent"><input class="input" data-st="' + kind + '" data-i="' + i + '" value="' + esc(v) + '" placeholder="' + (kind === 'car' ? 'Year and model, e.g. 2017 Tahoe' : 'Name') + '">' + del + '</div>';
   });
-  if (list.length < 8) h += '<button type="button" class="link" style="align-self:flex-start" data-act="st-add" data-kind="' + kind + '">+ Add ' + (kind === 'car' ? 'a Vehicle' : kind === 'pet' ? 'a Pet' : 'a Child') + '</button>';
+  if (list.length < 8) h += '<button type="button" class="link" style="align-self:flex-start" data-act="st-add" data-kind="' + kind + '">+ Add ' + (kind === 'car' ? 'a Vehicle' : kind === 'pet' ? 'a Pet' : kind === 'bday' ? 'Another' : 'a Child') + '</button>';
   return h + '</div>';
 }
 function freqLabel(f) { return f === 'Well-child (by age)' ? 'By age' : f; }
@@ -1207,12 +1308,15 @@ function scrStarterPick() {
     if (r.k === 'car') h += entEditor('car');
     if (r.k === 'kids') h += entEditor('kid');
     if (r.k === 'pet') h += entEditor('pet');
+    if (r.k === 'celebrate') h += entEditor('bday');
     h += '<div class="listcard">' + r.s.map(function (x, i) {
-      var s = sug(r, i), tg = sugTargets(s), fresh = tg.filter(function (t) { return !have[taskKey(s.name, t.who)]; }).length, on = !!st.picks[s.key];
+      var s = sug(r, i), tg = sugTargets(s), fresh = tg.filter(function (t) { return !have[taskKey(tgName(s, t), t.who)]; }).length, on = !!st.picks[s.key];
+      var label = s.name.indexOf('{n}') === 0 && s.fl.indexOf('B') >= 0 ? 'Birthdays & anniversaries you add above' : s.name.replace('{n}', s.fl.indexOf('K') >= 0 ? 'Each child' : '');
+      if (s.fl.indexOf('B') >= 0 && !tg.length) return '<button class="pick" data-act="st-pick" data-key="' + s.key + '" aria-pressed="' + on + '"><span class="box">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(label) + '</span><span class="pm">Add names and dates above</span></span></button>';
       var per = tg.length > 1 || tg[0].per ? (fresh < tg.length ? fresh + ' of ' + tg.length + ' new' : tg.length > 1 ? '× ' + tg.length : 'for ' + tg[0].who) : '';
       var meta = [freqLabel(s.freq), s.fl.indexOf('?') >= 0 ? 'you set the date' : '', per].filter(Boolean).join(' · ');
-      if (!fresh) return '<div class="pick" aria-disabled="true"><span class="box done">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(s.name) + '</span><span class="pm">Already on Your List</span></span></div>';
-      return '<button class="pick" data-act="st-pick" data-key="' + s.key + '" aria-pressed="' + on + '"><span class="box">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(s.name) + (s.fl.indexOf('!') >= 0 ? '<span class="tag">Often Forgotten</span>' : '') + '</span><span class="pm">' + esc(meta) + '</span>' + (s.tip ? '<span class="pt">' + esc(s.tip) + '</span>' : '') + '</span></button>';
+      if (!fresh) return '<div class="pick" aria-disabled="true"><span class="box done">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(label) + '</span><span class="pm">Already on Your List</span></span></div>';
+      return '<button class="pick" data-act="st-pick" data-key="' + s.key + '" aria-pressed="' + on + '"><span class="box">' + ic('check', 14, 3) + '</span><span class="col"><span class="pn">' + esc(label) + (s.fl.indexOf('!') >= 0 ? '<span class="tag">Often Forgotten</span>' : '') + '</span><span class="pm">' + esc(meta) + '</span>' + (s.tip ? '<span class="pt">' + esc(s.tip) + '</span>' : '') + '</span></button>';
     }).join('') + '</div>';
   });
   h += '<div class="pad-b"></div><div class="stickybar"><button class="btn primary" data-act="st-apply"' + (plan.length ? '' : ' disabled') + '>' + (plan.length ? 'Add ' + plan.length + (plan.length === 1 ? ' Task' : ' Tasks') : 'Nothing New Selected') + '</button></div>';
@@ -1221,6 +1325,8 @@ function scrStarterPick() {
 function starterFirst(s, n, birth) {
   var T = today();
   if (s.freq === 'Well-child (by age)') return parse(birth) ? birth : null;
+  if (s.fl.indexOf('B') >= 0 || (s.fl.indexOf('K') >= 0 && s.cat === 'Celebrations')) return parse(birth) ? iso(nextAnniv(birth)) : null;
+  if (s.when && s.when.indexOf('H:') === 0) return iso(T);
   if (s.fl.indexOf('?') >= 0) return null;
   var f = FREQ[s.freq];
   if (s.when) {
@@ -1246,11 +1352,11 @@ function applyStarter() {
     if (tg.per === 'car') item = ensureItem('Vehicle', tg.who);
     else if (tg.per === 'pet') item = ensureItem('Pet', tg.who);
     else if (s.fl.indexOf('H') >= 0) { var hm = db.items.find(function (x) { return x.type === 'Home'; }); item = hm ? hm.id : ensureItem('Home', 'Home'); }
-    db.tasks.push({ id: newId('t'), name: s.name, cat: CATS.indexOf(s.cat) >= 0 ? s.cat : 'Misc', who: tg.who, freq: s.freq, fixed: s.fl.indexOf('F') >= 0,
+    db.tasks.push({ id: newId('t'), name: tgName(s, tg), cat: CATS.indexOf(s.cat) >= 0 ? s.cat : 'Misc', who: tg.who, freq: s.freq, fixed: s.fl.indexOf('F') >= 0, holiday: s.when && s.when.indexOf('H:') === 0 ? s.when.slice(2) : '', auto: '',
       first: starterFirst(s, n, tg.birth), last: null, early: s.early, active: true, notes: s.tip || '', contact: null, item: item, snooze: null, history: [] });
   });
   save(); ui.st = null; ui.stack = []; go('home');
-  var nod = plan.filter(function (p) { return p.s.fl.indexOf('?') >= 0 || (p.s.freq === 'Well-child (by age)' && !parse(p.tg.birth)); }).length;
+  var nod = db.tasks.slice(-plan.length).filter(function (t) { return !t.first; }).length;
   toast('Added ' + plan.length + (plan.length === 1 ? ' task' : ' tasks') + (madeItems ? ' and ' + madeItems + (madeItems === 1 ? ' belonging' : ' belongings') : '') + '.' + (nod ? ' ' + nod + ' need a date from you.' : ''));
 }
 
@@ -1259,12 +1365,15 @@ var view = document.getElementById('view'), tabs = document.getElementById('tabs
 function render() {
   if (!db) { view.innerHTML = scrWelcome(); tabs.hidden = true; return; }
   if ((ui.screen === 'starter' || ui.screen === 'starter-pick') && !ui.st) ui.screen = 'home';
-  tabs.hidden = ['edit-task', 'edit-contact', 'edit-item', 'starter', 'starter-pick'].indexOf(ui.screen) >= 0;
+  var inStarter = ui.screen === 'starter' || ui.screen === 'starter-pick';
+  if (!inStarter && !profileDone()) { tabs.hidden = true; document.getElementById('fab').innerHTML = ''; view.innerHTML = scrProfile(true); return; }
+  if (!inStarter) { var pfn = getProfile().first; if (db.user !== pfn || db.members.indexOf(pfn) < 0 || ensureBirthday()) { syncUser(); save(); } }
+  tabs.hidden = ['edit-task', 'edit-contact', 'edit-item', 'starter', 'starter-pick', 'profile'].indexOf(ui.screen) >= 0;
   var s = ui.screen;
   view.innerHTML = s === 'home' ? scrHome() : s === 'list' ? scrList() : s === 'calendar' ? scrCal() : s === 'contacts' ? scrContacts()
     : s === 'contact' ? scrContact() : s === 'task' ? scrTask() : s === 'settings' ? scrSettings() : s === 'edit-task' ? scrEditTask() : s === 'edit-contact' ? scrEditContact()
-    : s === 'items' ? scrItems() : s === 'item' ? scrItem() : s === 'edit-item' ? scrEditItem() : s === 'starter' ? scrStarter() : s === 'starter-pick' ? scrStarterPick() : scrHome();
-  var tabOf = { home: 'home', settings: 'home', list: 'tasks', task: 'tasks', 'edit-task': 'tasks', calendar: 'cal', contacts: 'people', contact: 'people', 'edit-contact': 'people', items: 'people', item: 'people', 'edit-item': 'people' };
+    : s === 'items' ? scrItems() : s === 'item' ? scrItem() : s === 'edit-item' ? scrEditItem() : s === 'starter' ? scrStarter() : s === 'starter-pick' ? scrStarterPick() : s === 'profile' ? scrProfile(false) : scrHome();
+  var tabOf = { home: 'home', settings: 'home', profile: 'home', list: 'tasks', task: 'tasks', 'edit-task': 'tasks', calendar: 'cal', contacts: 'people', contact: 'people', 'edit-contact': 'people', items: 'people', item: 'people', 'edit-item': 'people' };
   var cur = tabOf[ui.screen];
   var fab = document.getElementById('fab');
   fab.innerHTML = '';
@@ -1301,7 +1410,7 @@ function downloadFile(name, text, type) {
   }
 }
 function backup() {
-  var data = JSON.parse(JSON.stringify(db)); data.exportedAt = new Date().toISOString();
+  var data = JSON.parse(JSON.stringify(db)); data.exportedAt = new Date().toISOString(); data.profile = getProfile();
   var name = 'Tend-backup-' + iso(today()) + '.json';
   downloadFile(name, JSON.stringify(data, null, 1), 'application/json').then(function (ok) {
     if (ok) { db.lastBackup = new Date().toISOString(); save(); toast('Backup saved. Keep it in iCloud Drive or Files.'); }
@@ -1328,9 +1437,10 @@ function restoreFrom(text) {
   var d;
   try { d = JSON.parse(text); } catch (e) { toast('That file isn\u2019t a Tend file.'); return; }
   if (!d || !Array.isArray(d.tasks)) { toast('That file isn\u2019t a Tend file.'); return; }
-  var had = !!db, prev = db;
+  var had = !!db;
+  if (d.profile && !profileDone() && profileDone(d.profile)) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(d.profile)); } catch (e) {} }
   db = normalize(d);
-  if (prev) { db.user = prev.user; }
+  syncUser();
   save(); ui.stack = []; ui.screen = 'home';
   ui.flash = null; render(); view.scrollTop = 0;
   if (had) { ui.screen = 'settings'; toast('Restored ' + db.tasks.length + ' tasks and ' + db.contacts.length + ' contacts.'); }
@@ -1381,8 +1491,8 @@ document.addEventListener('click', function (e) {
       var ar = ROLES.find(function (r) { return r.k === el.getAttribute('data-k'); });
       var allOn = ar.s.every(function (x, i) { return ui.st.picks[ar.k + ':' + i]; });
       ar.s.forEach(function (x, i) { ui.st.picks[ar.k + ':' + i] = !allOn; }); keepRender(); break;
-    case 'st-add': var ak = el.getAttribute('data-kind'), al = ak === 'car' ? ui.st.cars : ak === 'pet' ? ui.st.pets : ui.st.kids; al.push(ak === 'kid' ? { n: '', b: '' } : ''); keepRender(); break;
-    case 'st-del': var dk = el.getAttribute('data-kind'), dl = dk === 'car' ? ui.st.cars : dk === 'pet' ? ui.st.pets : ui.st.kids; if (dl.length > 1) dl.splice(+el.getAttribute('data-i'), 1); keepRender(); break;
+    case 'st-add': var ak = el.getAttribute('data-kind'), al = ak === 'car' ? ui.st.cars : ak === 'pet' ? ui.st.pets : ak === 'bday' ? ui.st.bdays : ui.st.kids; al.push(ak === 'kid' || ak === 'bday' ? { n: '', b: '' } : ''); keepRender(); break;
+    case 'st-del': var dk = el.getAttribute('data-kind'), dl = dk === 'car' ? ui.st.cars : dk === 'pet' ? ui.st.pets : dk === 'bday' ? ui.st.bdays : ui.st.kids; if (dl.length > 1) dl.splice(+el.getAttribute('data-i'), 1); keepRender(); break;
     case 'st-apply': applyStarter(); break;
     case 'settings': go('settings', {}, true); break;
     case 'list': go('list', { filter: el.getAttribute('data-filter') || 'all', cat: el.getAttribute('data-cat') || '', q: '' }); break;
@@ -1431,6 +1541,7 @@ document.addEventListener('click', function (e) {
     case 'save-task': saveTask(); break;
     case 'del-task':
       if (ui.armed !== 'del-task') { readForm('taskForm'); ui.armed = 'del-task'; render(); break; }
+      var dt = db.tasks.find(function (x) { return x.id === ui.form.id; }); if (dt && dt.auto === 'birthday') db.noBday = true;
       db.tasks = db.tasks.filter(function (x) { return x.id !== ui.form.id; }); save(); ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); toast('Task deleted.'); break;
     case 'edit-contact':
       var ec = db.contacts.find(function (x) { return x.id === ui.conId; }); go('edit-contact', { form: Object.assign({}, ec) }, true); break;
@@ -1440,7 +1551,8 @@ document.addEventListener('click', function (e) {
       if (ui.armed !== 'del-contact') { readForm('contactForm'); ui.armed = 'del-contact'; render(); break; }
       var cid = ui.form.id; db.contacts = db.contacts.filter(function (x) { return x.id !== cid; });
       db.tasks.forEach(function (t) { if (t.contact === cid) t.contact = null; }); save(); ui.form = null; go('contacts', { cq: '' }); toast('Contact deleted.'); break;
-    case 'user': db.user = el.getAttribute('data-name'); save(); render(); break;
+    case 'edit-profile': go('profile', { form: Object.assign({}, getProfile()) }, true); break;
+    case 'save-profile': saveProfile(); break;
     case 'backup': backup(); break;
     case 'restore': fileInput.click(); break;
     case 'start-empty': db = blank(); save(); go('home'); break;
@@ -1458,10 +1570,12 @@ document.addEventListener('click', function (e) {
 });
 document.addEventListener('submit', function (e) {
   e.preventDefault();
+  if (e.target.id === 'profileForm') { saveProfile(); return; }
   if (e.target.id === 'taskForm') saveTask(); else if (e.target.id === 'contactForm') saveContact(); else if (e.target.id === 'itemForm') saveItem();
 });
 document.addEventListener('change', function (e) {
   var el = e.target;
+  if (el.getAttribute && el.getAttribute('data-st') === 'bday' && ui.st) { keepRender(); return; }
   if (el.id === 'catSel') { ui.cat = el.value; render(); }
   else if (el.id === 'otherDate' && el.value) { if (el.value > iso(today())) { toast('Pick today or an earlier day.'); return; } markDone(el.value); }
   else if (el.getAttribute && el.getAttribute('data-rerender')) { readForm(el.form ? el.form.id : 'taskForm'); render(); var nx = document.querySelector('input[name=whoOther], input[name=roleOther]'); if (nx && el.value === '__other') nx.focus(); }
@@ -1470,7 +1584,7 @@ document.addEventListener('input', function (e) {
   var el = e.target;
   if (el.getAttribute && el.getAttribute('data-st') && ui.st) {
     var sk = el.getAttribute('data-st'), si = +el.getAttribute('data-i');
-    if (sk === 'kid') { if (ui.st.kids[si]) ui.st.kids[si][el.getAttribute('data-f')] = el.value; }
+    if (sk === 'kid' || sk === 'bday') { var kl = sk === 'kid' ? ui.st.kids : ui.st.bdays; if (kl[si]) kl[si][el.getAttribute('data-f')] = el.value; }
     else { var sl = sk === 'car' ? ui.st.cars : ui.st.pets; if (si < sl.length) sl[si] = el.value; }
     var sb = document.querySelector('[data-act="st-apply"]'), pl = stPlan().length;
     if (sb) { sb.disabled = !pl; sb.textContent = pl ? 'Add ' + pl + (pl === 1 ? ' Task' : ' Tasks') : 'Nothing New Selected'; }
@@ -1490,7 +1604,9 @@ function saveTask() {
   if (f.last && f.last > iso(today())) { toast('Last completed can\u2019t be in the future.'); return; }
   var early = parseInt(f.early, 10); early = isNaN(early) ? 0 : Math.max(0, Math.min(365, early));
   if (f.who === '__other') f.who = (f.whoOther || '').trim();
-  var rec = { name: f.name, cat: f.cat, who: (f.who || '').trim(), freq: f.freq, fixed: !!f.fixed, first: f.first || null, early: early, notes: (f.notes || '').trim(), contact: f.contact || null, item: itemById(f.item) ? f.item : null, active: !!f.active };
+  var hol = f.cat === 'Celebrations' && HOLIDAYS[f.holiday] ? f.holiday : '';
+  if (hol) { f.freq = 'Yearly'; f.fixed = true; if (!f.first) f.first = iso(today()); }
+  var rec = { name: f.name, cat: f.cat, who: (f.who || '').trim(), freq: f.freq, fixed: !!f.fixed, holiday: hol, first: f.first || null, early: early, notes: (f.notes || '').trim(), contact: f.contact || null, item: itemById(f.item) ? f.item : null, active: !!f.active };
   var t;
   if (f.id) { t = db.tasks.find(function (x) { return x.id === f.id; }); }
   if (!t) { t = { id: newId('t'), history: [], snooze: null, last: null }; db.tasks.push(t); }
@@ -1539,7 +1655,7 @@ function loadMyList() { db = normalize(JSON.parse(JSON.stringify(MYLIST))); save
   // re-check the date when the app comes back, so statuses roll over at midnight
   var lastDay = iso(T);
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible' && db && iso(today()) !== lastDay) { lastDay = iso(today()); if (['edit-task', 'edit-contact', 'edit-item', 'starter-pick'].indexOf(ui.screen) < 0) render(); }
+    if (document.visibilityState === 'visible' && db && iso(today()) !== lastDay) { lastDay = iso(today()); if (['edit-task', 'edit-contact', 'edit-item', 'starter-pick', 'profile'].indexOf(ui.screen) < 0 && profileDone()) render(); }
   });
   if ('serviceWorker' in navigator && location.protocol === 'https:') { navigator.serviceWorker.register('sw.js').catch(function () {}); }
 })();
