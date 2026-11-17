@@ -402,7 +402,7 @@ var ui = { screen: 'home', stack: [], filter: 'all', cat: '', q: '', cq: '', bq:
 function go(screen, opts, push) {
   if (push) ui.stack.push({ screen: ui.screen, taskId: ui.taskId, conId: ui.conId, itemId: ui.itemId, scroll: view.scrollTop });
   else ui.stack = [];
-  ui.screen = screen; ui.flash = null; ui.undo = null; ui.armed = null;
+  ui.screen = screen; ui.flash = null; ui.undo = null; ui.armed = null; ui.completing = null;
   Object.keys(opts || {}).forEach(function (k) { ui[k] = opts[k]; });
   render(); view.scrollTop = 0;
 }
@@ -664,10 +664,16 @@ function scrTask() {
     '<div class="tile"><span class="k">' + (kid ? 'Schedule' : 'Repeats') + '</span><span class="v">' + esc(kid ? 'By age' : t.freq) + '</span></div></div>';
   h += '<div class="stack">';
   if (t.active && i.status !== 'done') {
-    h += '<button class="btn primary" data-act="done">' + ic('check', 20, 2.4) + 'Mark Done Today</button>';
-    h += '<div class="btns2"><label class="btn secondary" style="position:relative;overflow:hidden">Done Another Day<input type="date" id="otherDate" max="' + iso(today()) + '" aria-label="Done another day: pick the date" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;margin:0;font-size:16px;-webkit-appearance:none;appearance:none"></label>' +
-      (i.due && i.status !== 'overdue' ? '<button class="btn secondary" data-act="snooze">' + ic('snooze', 18) + (i.status === 'snoozed' ? 'Unsnooze' : 'Snooze 1 Week') + '</button>' : '<button class="btn secondary" data-act="ics"' + (i.due ? '' : ' disabled') + '>' + ic('bell', 18) + 'Add to Calendar</button>') + '</div>';
-    if (i.due && i.status !== 'overdue') h += '<button class="btn secondary" data-act="ics">' + ic('bell', 18) + 'Add Reminder to My Calendar</button>';
+    if (ui.completing === t.id) {
+      h += '<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:12px;border:2px solid var(--rose)"><label class="field"><span>Completed On</span><input class="input" type="date" id="doneDate" value="' + iso(today()) + '" max="' + iso(today()) + '"></label>' +
+        '<div class="btns2"><button class="btn secondary" data-act="complete-cancel">Cancel</button><button class="btn primary" style="min-height:48px;font-size:15px;border-radius:14px" data-act="complete-save">' + ic('check', 18, 2.4) + 'Save</button></div></div>';
+    } else {
+      h += '<button class="btn primary" data-act="complete-open">' + ic('check', 20, 2.4) + 'Mark Complete</button>';
+      var canSnooze = i.due && i.status !== 'overdue', extra = [];
+      if (canSnooze) extra.push('<button class="btn secondary" data-act="snooze">' + ic('snooze', 18) + (i.status === 'snoozed' ? 'Unsnooze' : 'Snooze 1 Week') + '</button>');
+      if (i.due) extra.push('<button class="btn secondary" data-act="ics">' + ic('bell', 18) + 'Add to Calendar</button>');
+      if (extra.length) h += extra.length === 2 ? '<div class="btns2">' + extra.join('') + '</div>' : extra[0];
+    }
     h += '<span class="note">Logged as ' + esc(db.user) + '.</span>';
   } else if (!t.active) {
     h += '<p class="note">This task is paused. Tap Edit to turn it back on.</p>';
@@ -864,7 +870,7 @@ function scrSettings() {
     '<div class="tip" style="margin:0">Your list is saved on this phone only. Save a backup file to iCloud Drive or Files about once a month, and before you change phones. ' + (lb ? '<br><strong>Last backup:</strong> ' + fmt(lb, true) + '.' : '<br><strong>No backup yet.</strong>') + '</div>' +
     '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a Backup File</button>' +
     '<button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Restore from a Backup File</button></div>';
-  h += '<div class="section"><h2 style="font-size:19px">Reminders</h2></div><div class="tip" style="margin:0 16px">This version can\u2019t send notifications on its own. On any task, tap <strong>Add Reminder to My Calendar</strong>: your phone\u2019s Calendar will alert you when the task opens and the day before it\u2019s due.</div>';
+  h += '<div class="section"><h2 style="font-size:19px">Reminders</h2></div><div class="tip" style="margin:0 16px">This version can\u2019t send notifications on its own. On any task, tap <strong>Add to Calendar</strong>: your phone\u2019s Calendar will alert you when the task opens and the day before it\u2019s due.</div>';
   var ct = curTheme();
   h += '<div class="section"><h2 style="font-size:19px">Color Theme</h2></div><div class="themes" role="group" aria-label="Color Theme">' + THEMES.map(function (x) {
     return '<button class="themebtn" data-act="theme" data-t="' + x[0] + '" aria-pressed="' + (ct === x[0]) + '"><span class="sw"><i style="background:' + x[2] + '"></i><i style="background:' + x[3] + '"></i></span>' + x[1] + '</button>';
@@ -1507,6 +1513,13 @@ document.addEventListener('click', function (e) {
     case 'cal-today': ui.calY = T.getFullYear(); ui.calM = T.getMonth(); ui.calDay = iso(T); render(); break;
     case 'month': var m = new Date(ui.calY, ui.calM + (+el.getAttribute('data-step')), 1); ui.calY = m.getFullYear(); ui.calM = m.getMonth(); ui.calDay = iso(m); render(); break;
     case 'done': markDone(iso(T)); break;
+    case 'complete-open': ui.completing = ui.taskId; ui.flash = null; ui.undo = null; keepRender(); break;
+    case 'complete-cancel': ui.completing = null; keepRender(); break;
+    case 'complete-save':
+      var dd = document.getElementById('doneDate'), dv = dd && dd.value;
+      if (!dv || !parse(dv)) { toast('Pick the date you finished it.'); break; }
+      if (dv > iso(T)) { toast('Pick today or an earlier day.'); break; }
+      ui.completing = null; markDone(dv); break;
     case 'quick-done':
       var qid = el.getAttribute('data-id'), qt = db.tasks.find(function (x) { return x.id === qid; });
       if (qt) {
