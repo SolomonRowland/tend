@@ -709,7 +709,7 @@ function scrEditTask() {
   h += '<form class="form" id="taskForm" autocomplete="off" novalidate>' +
     '<label class="field"><span>Task</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Replace furnace filter" required></label>' +
     '<div class="two"><label class="field"><span>Category</span><select class="input" name="cat">' + CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
-    '<label class="field"><span>' + (kid ? 'Child' : 'For / where') + '</span>' + groupedSelect('who', whereGroups(), f.who, 'Choose\u2026') + '</label></div>' +
+    '<label class="field"><span>' + (kid ? 'Child' : 'Applies to') + '</span>' + groupedSelect('who', whereGroups(), f.who, 'Choose\u2026') + '</label></div>' +
     (f.who === '__other' ? '<label class="field"><span>Type the ' + (kid ? 'child\u2019s name' : 'place or person') + '</span><input class="input" name="whoOther" value="' + esc(f.whoOther || '') + '" placeholder="' + (kid ? 'Name' : 'e.g. Shed') + '"></label>' : '') +
     '<label class="field"><span>How often</span><select class="input" name="freq" data-rerender="1">' + FREQS.map(function (x) { return opt(x[0], f.freq); }).join('') + '</select></label>' +
     (simple ? '' : '<label class="field"><span>Schedule</span><select class="input" name="fixed">' + opt('0', f.fixed ? '1' : '0', 'From last done') + opt('1', f.fixed ? '1' : '0', 'Fixed calendar date') + '</select><small>From last done counts from when you finish it. Fixed date stays on the calendar (like a plate renewal).</small></label>') +
