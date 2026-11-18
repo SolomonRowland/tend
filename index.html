@@ -136,10 +136,24 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .grp{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 4px 2px}
 .row.split{padding:0;gap:0}
 .row.split .open{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px;padding:12px 14px 12px 4px;text-align:left;min-height:60px}
-.tick{flex:0 0 48px;height:60px;display:flex;align-items:center;justify-content:center;color:var(--mauve)}
-.tick i{width:24px;height:24px;border-radius:999px;border:2px solid currentColor;display:flex;align-items:center;justify-content:center}
-.tick:active i{background:var(--rose);border-color:var(--rose);color:#fff}
-.tick svg{opacity:0}.tick:active svg{opacity:1;color:#fff}
+.tick{flex:0 0 52px;height:60px;display:flex;align-items:center;justify-content:center;color:var(--mauve)}
+.tick i{width:26px;height:26px;border-radius:999px;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,transform .15s}
+.tick:active i{transform:scale(.88)}
+.tick svg{opacity:0;transform:scale(.4);transition:opacity .15s,transform .2s}
+.row.doing .tick i{background:var(--green);border-color:var(--green);color:#fff;animation:tickpop .35s ease}
+.row.doing .tick svg{opacity:1;transform:scale(1);color:#fff}
+.row.doing .open .name{text-decoration:line-through;color:var(--muted)}
+.row.doing .open b{color:var(--green)!important}
+.row.split{transition:opacity .3s,max-height .3s,margin .3s,padding .3s;max-height:140px}
+.row.gone{opacity:0;max-height:0;margin-top:-8px;overflow:hidden;border-color:transparent}
+@keyframes tickpop{0%{transform:scale(.8)}55%{transform:scale(1.22)}100%{transform:scale(1)}}
+.hint{margin:0 16px;padding:10px 12px;border-radius:12px;background:var(--blush);color:var(--ink);font-size:13px;display:flex;gap:10px;align-items:center}
+.hint .tk{flex:0 0 auto;width:20px;height:20px;border-radius:999px;border:2px solid var(--mauve)}
+.hint span{flex:1 1 auto}.hint button{color:var(--rose);font-weight:700;font-size:13px;min-height:36px;padding:0 4px;white-space:nowrap}
+#toast{position:absolute;left:12px;right:12px;bottom:calc(var(--safe-bot) + 74px);z-index:6;pointer-events:none}
+#toast .flash{margin:0;box-shadow:0 8px 24px rgba(10,30,70,.22);pointer-events:auto;animation:toastin .25s ease}
+#toast.out .flash{opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s}
+@keyframes toastin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 nav.tabs{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:6px 8px calc(var(--safe-bot) + 6px)}
 nav.tabs button{min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted)}
 nav.tabs button[aria-current="page"]{color:var(--rose)}
@@ -208,6 +222,7 @@ html[data-theme="lavender"]{--espresso:#3A3150;--rose:#6A5A9A;--mauve:#A497C9;--
   <main id="view" aria-live="polite"></main>
   <div id="fab"></div>
   <div id="modal"></div>
+  <div id="toast"></div>
   <nav class="tabs" id="tabs" aria-label="Main"></nav>
 </div>
 <input type="file" id="restoreFile" accept=".json,application/json" class="sr" tabindex="-1" aria-hidden="true">
@@ -420,13 +435,13 @@ var ui = { screen: 'home', stack: [], filter: 'all', cat: '', q: '', cq: '', bq:
 function go(screen, opts, push) {
   if (push) ui.stack.push({ screen: ui.screen, taskId: ui.taskId, conId: ui.conId, itemId: ui.itemId, scroll: view.scrollTop });
   else ui.stack = [];
-  ui.screen = screen; ui.flash = null; ui.undo = null; ui.armed = null; ui.completing = null;
+  hideToast(); ui.screen = screen; ui.flash = null; ui.undo = null; ui.armed = null; ui.completing = null;
   Object.keys(opts || {}).forEach(function (k) { ui[k] = opts[k]; });
   render(); view.scrollTop = 0;
 }
 function back() {
   var p = ui.stack.pop(); if (!p) { go('home'); return; }
-  ui.screen = p.screen; ui.taskId = p.taskId; ui.conId = p.conId; if (p.itemId !== undefined) ui.itemId = p.itemId; ui.flash = null; ui.undo = null; ui.armed = null; ui.form = null;
+  hideToast(); ui.screen = p.screen; ui.taskId = p.taskId; ui.conId = p.conId; if (p.itemId !== undefined) ui.itemId = p.itemId; ui.flash = null; ui.undo = null; ui.armed = null; ui.form = null;
   render(); view.scrollTop = p.scroll || 0;
 }
 function toast(msg) { ui.flash = msg; ui.undo = null; render(); }
@@ -474,6 +489,22 @@ function flashHtml() {
   if (!ui.flash) return '';
   return '<div class="flash" role="status">' + ic('check', 20, 2.4) + '<span>' + esc(ui.flash) + '</span>' + (ui.undo ? '<button data-act="undo">Undo</button>' : '') + '</div>';
 }
+function tickHint() {
+  var seen = false; try { seen = localStorage.getItem('tend.tickHint') === '1'; } catch (e) {}
+  if (seen) return '';
+  return '<div class="hint"><i class="tk"></i><span>Tap the circle to mark a task done today. Open a task to pick another date or add a note.</span><button data-act="hint-ok">Got It</button></div>';
+}
+function hideHint() { try { localStorage.setItem('tend.tickHint', '1'); } catch (e) {} }
+function showToast(msg, undo) {
+  var el = document.getElementById('toast'); clearTimeout(showToast.t);
+  el.className = ''; el.innerHTML = '<div class="flash" role="status">' + ic('check', 20, 2.4) + '<span>' + esc(msg) + '</span>' + (undo ? '<button data-act="undo-toast">Undo</button>' : '') + '</div>';
+  showToast.undo = undo || null;
+  showToast.t = setTimeout(hideToast, 6000);
+}
+function hideToast() {
+  var el = document.getElementById('toast'); clearTimeout(showToast.t); showToast.undo = null;
+  if (!el.innerHTML) return; el.className = 'out'; setTimeout(function () { if (el.className === 'out') { el.innerHTML = ''; el.className = ''; } }, 260);
+}
 function canTick(r) { return r.t.active && r.i.status !== 'done'; }
 function tick(r) { return '<button class="tick" data-act="quick-done" data-id="' + esc(r.t.id) + '" aria-label="Mark ' + esc(r.t.name) + ' done today"><i>' + ic('check', 14, 3) + '</i></button>'; }
 function billTag(t) { return t.amount ? money(t.amount) + (t.autopay ? ' autopay' : '') : ''; }
@@ -509,7 +540,9 @@ function scrHome() {
   var nod = R.filter(function (r) { return r.i.status === 'nodate'; }).length;
   if (nod) h += '<button class="tip" data-act="list" data-filter="nodate" style="display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left"><span style="flex:1 1 auto">' + nod + (nod === 1 ? ' task needs' : ' tasks need') + ' a date before Tend can track ' + (nod === 1 ? 'it' : 'them') + '. Tap to review.</span><span style="color:var(--rose)">' + ic('next', 18) + '</span></button>';
   if (!db.tasks.length) h += '<button class="tip" data-act="starter" style="display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left"><span style="flex:1 1 auto"><strong>Get Started:</strong> tell Tend what you tend to, and pick from tasks people often forget.</span><span style="color:var(--rose)">' + ic('next', 18) + '</span></button>';
-  h += '<div class="section"><h2>Needs Attention</h2><button class="link" data-act="list" data-filter="all">See All</button></div><div class="stack">';
+  h += '<div class="section"><h2>Needs Attention</h2><button class="link" data-act="list" data-filter="all">See All</button></div>';
+  if (attn.length) h += tickHint();
+  h += '<div class="stack">';
   h += attn.length ? attn.slice(0, 6).map(attnRow).join('') : '<p class="note" style="text-align:left;padding:4px">All caught up. Nothing needs attention right now.</p>';
   if (attn.length > 6) h += '<button class="link" data-act="list" data-filter="due-all" style="align-self:flex-start">See ' + (attn.length - 6) + ' more</button>';
   h += '</div>';
@@ -582,7 +615,7 @@ function scrList() {
     '<div class="toprow">' + searchBox('q', ui.q, 'Search task', 'Search tasks') +
     '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All Categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></div>' +
     '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { var n = c[0] === 'all' ? R.length : (counts[c[0]] || 0); return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '<span class="n">' + n + '</span></button>'; }).join('') + '</div></header>';
-  return h + flashHtml() + '<div class="stack" id="results" style="padding-top:8px;padding-bottom:96px">' + taskResults() + '</div>';
+  return h + flashHtml() + (db.tasks.length ? '<div style="padding-top:12px">' + tickHint() + '</div>' : '') + '<div class="stack" id="results" style="padding-top:8px;padding-bottom:96px">' + taskResults() + '</div>';
 }
 /* how this month is going: finished vs. still to do vs. overdue */
 function monthDonut(R) {
@@ -1705,15 +1738,23 @@ document.addEventListener('click', function (e) {
       if (dv > iso(T)) { toast('Pick today or an earlier day.'); break; }
       var dn = document.getElementById('doneNote'); ui.completing = null; markDone(dv, dn ? dn.value.trim() : ''); break;
     case 'quick-done':
-      var qid = el.getAttribute('data-id'), qt = db.tasks.find(function (x) { return x.id === qid; });
-      if (qt) {
-        var qb = snapshot(), keep = view.scrollTop;
+      var qid = el.getAttribute('data-id'), qt = db.tasks.find(function (x) { return x.id === qid; }), qrow = el.closest('.row');
+      if (qt && qrow && !qrow.classList.contains('doing')) {
+        var qb = snapshot();
         qt.history.unshift({ date: iso(T), by: db.user }); qt.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-        qt.last = qt.history[0].date; qt.snooze = null; save();
-        var qn = nextDue(qt);
-        ui.flash = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : ''); ui.undo = qb; render(); view.scrollTop = keep;
+        qt.last = qt.history[0].date; qt.snooze = null; save(); hideHint();
+        var qn = nextDue(qt), qmsg = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : qt.freq === 'One-time' ? 'All finished.' : '');
+        qrow.classList.add('doing');
+        var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
+        var qm = qrow.querySelector('.open .st .meta'); if (qm) qm.textContent = qn ? 'Next ' + fmt(qn) : '';
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
+        ui.flash = null; ui.undo = null;
+        setTimeout(function () { qrow.classList.add('gone'); }, 900);
+        setTimeout(function () { if (ui.screen === 'home' || ui.screen === 'list') keepRender(); showToast(qmsg, qb); }, 1200);
       }
       break;
+    case 'undo-toast': if (showToast.undo) { db.tasks = JSON.parse(showToast.undo); save(); hideToast(); keepRender(); showToast('Undone.'); } break;
+    case 'hint-ok': hideHint(); keepRender(); break;
     case 'undo': if (ui.undo) { var uk = view.scrollTop; db.tasks = JSON.parse(ui.undo); save(); ui.undo = null; ui.flash = 'Undone.'; render(); view.scrollTop = uk; } break;
     case 'snooze':
       var st = db.tasks.find(function (x) { return x.id === ui.taskId; });
