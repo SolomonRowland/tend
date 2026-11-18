@@ -201,11 +201,8 @@ nav.tabs button[aria-current="page"]{color:var(--rose)}
 html[data-theme="mono"]{--espresso:#111111;--rose:#111111;--mauve:#8A8A8A;--dusty:#D4D4D4;--blush:#F0F0F0;--cream:#FAFAFA;--ink:#111111;--muted:#5E5E5E;--line:#E6E6E6;--head-sub:#CFCFCF}
 html[data-theme="midnight"]{--espresso:#0A5DD6;--rose:#0049C5;--mauve:#3D86F2;--dusty:#C4D6F5;--blush:#E7EFFD;--cream:#F4F7FC;--ink:#0A1E46;--muted:#52617D;--line:#DEE6F4;--head-sub:#D5E3FF}
 html[data-theme="midnight"] .head{background:linear-gradient(160deg,#0A5DD6 0%,#0049C5 55%,#03308F 100%)}
-html[data-theme="sunrise"]{--espresso:#9A4410;--rose:#B0500E;--mauve:#E39A3B;--dusty:#F1D29B;--blush:#FCF0D9;--cream:#FFFBF3;--ink:#3A2A14;--muted:#6E5A3E;--line:#F2E3C4;--head-sub:#FBE1C4}
-html[data-theme="sage"]{--espresso:#2F3E34;--rose:#4F6F57;--mauve:#86A38C;--dusty:#C7D6C9;--blush:#E9F0EA;--cream:#F7F9F6;--ink:#23302A;--muted:#5A6A60;--line:#DEE7DF;--head-sub:#CFDDD2}
-html[data-theme="lavender"]{--espresso:#3A3150;--rose:#6A5A9A;--mauve:#A497C9;--dusty:#D6CFEA;--blush:#EEEAF7;--cream:#F9F8FC;--ink:#2C2640;--muted:#625C75;--line:#E5E0F0;--head-sub:#D9D2EE}
-.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:0 16px}
-.themebtn{background:#fff;border:2px solid transparent;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;min-height:52px;text-align:left;font-weight:600;font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.themes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0 16px}
+.themebtn{background:#fff;border:2px solid transparent;border-radius:14px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:52px;text-align:center;font-weight:600;font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .themebtn[aria-pressed="true"]{border-color:var(--rose)}
 .sw{display:flex;flex:0 0 auto}.sw i{width:20px;height:20px;border-radius:999px;display:block;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.08)}.sw i+i{margin-left:-7px}
 .catcap{font-size:12px;color:var(--muted);opacity:.85}
@@ -909,10 +906,10 @@ function remindPrefs() {
   var p = getProfile();
   return { days: REMIND_DAYS.some(function (x) { return x[0] === +p.remindDays; }) ? +p.remindDays : 7, hour: ALERT_HOURS.some(function (x) { return x[0] === +p.alertHour; }) ? +p.alertHour : 9, cal: p.cal === 'google' ? 'google' : 'apple' };
 }
-function setupStep() { var p = getProfile(); return !profileDone(p) ? 1 : !p.prefsSet ? 2 : !p.themeSet ? 3 : 0; }
+function setupStep() { var p = getProfile(); return !profileDone(p) ? 1 : !p.prefsSet ? 2 : 0; }
 function stepHead(n, title, sub) {
-  return '<header class="head" style="gap:10px"><span class="eyebrow">Step ' + n + ' of 3</span><h1>' + title + '</h1><span class="sub">' + sub + '</span>' +
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px">' + [1, 2, 3].map(function (i) { return '<i style="height:4px;border-radius:2px;background:' + (i <= n ? '#fff' : 'rgba(255,255,255,.28)') + '"></i>'; }).join('') + '</div></header>';
+  return '<header class="head" style="gap:10px"><span class="eyebrow">Step ' + n + ' of 2</span><h1>' + title + '</h1><span class="sub">' + sub + '</span>' +
+    '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px">' + [1, 2].map(function (i) { return '<i style="height:4px;border-radius:2px;background:' + (i <= n ? '#fff' : 'rgba(255,255,255,.28)') + '"></i>'; }).join('') + '</div></header>';
 }
 function choiceList(name, list, cur) {
   return '<div class="listcard" role="radiogroup">' + list.map(function (x) {
@@ -929,7 +926,7 @@ function scrReminders(setup) {
   h += '<div class="section"><h2 style="font-size:19px">Heads-Up</h2></div><p class="note" style="text-align:left;padding:0 20px 8px">How early new tasks show up as ready to do.</p>' + choiceList('days', REMIND_DAYS, f.days);
   h += '<div class="section"><h2 style="font-size:19px">Calendar App</h2></div><p class="note" style="text-align:left;padding:0 20px 8px">Where “Add to Calendar” sends a task.</p>' + choiceList('cal', CAL_APPS, f.cal);
   h += '<div class="section"><h2 style="font-size:19px">Alert Time</h2></div><p class="note" style="text-align:left;padding:0 20px 8px">When your calendar alerts you, the day before a task is due.' + (f.cal === 'google' ? ' Google Calendar uses its own alert settings.' : '') + '</p>' + choiceList('hour', ALERT_HOURS, f.hour);
-  h += '<div class="stack" style="margin-top:18px"><button class="btn primary" data-act="save-prefs">' + (setup ? 'Continue' : 'Save') + '</button></div>';
+  h += '<div class="stack" style="margin-top:18px"><button class="btn primary" data-act="save-prefs">' + (setup ? ic('check', 20, 2.4) + 'Finish' : 'Save') + '</button></div>';
   return h + '<div class="pad-b"></div>';
 }
 function savePrefs() {
@@ -937,16 +934,7 @@ function savePrefs() {
   p.remindDays = +f.days; p.alertHour = +f.hour; p.cal = f.cal; p.prefsSet = true;
   try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) { toast('Couldn’t save on this phone.'); return; }
   ui.form = null;
-  if (setup) { ui.stack = []; go('home'); } else { ui.stack = []; go('settings'); toast('Reminder settings saved.'); }
-}
-function scrThemeSetup() {
-  var ct = curTheme();
-  var h = stepHead(3, 'Pick Your Colors', 'Only the colors change. You can switch any time in Settings.');
-  h += '<div class="themes" role="group" aria-label="Color Theme" style="margin-top:18px">' + THEMES.map(function (x) {
-    return '<button class="themebtn" data-act="theme" data-t="' + x[0] + '" aria-pressed="' + (ct === x[0]) + '"><span class="sw"><i style="background:' + x[2] + '"></i><i style="background:' + x[3] + '"></i></span>' + x[1] + '</button>';
-  }).join('') + '</div>';
-  h += '<div class="stack" style="margin-top:22px"><button class="btn primary" data-act="finish-setup">' + ic('check', 20, 2.4) + 'Finish</button></div>';
-  return h + '<div class="pad-b"></div>';
+  if (setup) { ui.stack = []; go('home'); toast('Welcome, ' + (p.first || '') + '! You’re all set.'); } else { ui.stack = []; go('settings'); toast('Reminder settings saved.'); }
 }
 function scrProfile(setup) {
   var f = ui.form || getProfile();
@@ -1003,7 +991,7 @@ function scrSettings() {
   var ct = curTheme();
   h += '<div class="section"><h2 style="font-size:19px">Color Theme</h2></div><div class="themes" role="group" aria-label="Color Theme">' + THEMES.map(function (x) {
     return '<button class="themebtn" data-act="theme" data-t="' + x[0] + '" aria-pressed="' + (ct === x[0]) + '"><span class="sw"><i style="background:' + x[2] + '"></i><i style="background:' + x[3] + '"></i></span>' + x[1] + '</button>';
-  }).join('') + '</div><p class="note" style="text-align:left;padding:8px 20px 0">Changes colors on this phone only.</p>';
+  }).join('') + '</div><p class="note" style="text-align:left;padding:8px 20px 0">Tend Blue is the standard look. This only changes colors on this phone.</p>';
   h += '<div class="section"><h2 style="font-size:19px">Suggested Tasks</h2></div><div class="stack"><button class="btn secondary" data-act="starter">' + ic('plus', 18) + 'What Do You Tend To? Add Suggestions</button><p class="note" style="text-align:left;padding:0 4px">Tasks already on your list are skipped.</p></div>';
   h += '<div class="section"><h2 style="font-size:19px">Your Data</h2></div><div class="stack">' +
     '<button class="btn secondary" data-act="mylist"' + (ui.armed === 'mylist' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'mylist' ? 'Tap Again: Replaces Your Current List' : 'Load Our Household List') + '</button>' +
@@ -1021,7 +1009,7 @@ function scrWelcome() {
 
 
 /* ---------- color themes (fills and text only) ---------- */
-var THEMES = [['midnight', 'Tend Blue', '#0049C5', '#FFFFFF'], ['mono', 'Black & White', '#111111', '#FFFFFF'], ['mocha', 'Mocha', '#3B2A2A', '#A8777C'], ['sunrise', 'Sunrise', '#9A4410', '#E39A3B'], ['sage', 'Sage', '#2F3E34', '#86A38C'], ['lavender', 'Lavender', '#3A3150', '#A497C9']];
+var THEMES = [['midnight', 'Tend Blue', '#0049C5', '#FFFFFF'], ['mono', 'Black & White', '#111111', '#FFFFFF'], ['mocha', 'Mocha', '#3B2A2A', '#A8777C']];
 var THEME_KEY = 'tend.theme';
 function curTheme() { var t = 'midnight'; try { t = localStorage.getItem(THEME_KEY) || 'midnight'; } catch (e) {} return THEMES.some(function (x) { return x[0] === t; }) ? t : 'midnight'; }
 function applyTheme(t) {
@@ -1541,7 +1529,7 @@ function render() {
   if ((ui.screen === 'starter' || ui.screen === 'starter-pick') && !ui.st) ui.screen = 'home';
   var inStarter = ui.screen === 'starter' || ui.screen === 'starter-pick';
   var stp = inStarter ? 0 : setupStep();
-  if (stp) { tabs.hidden = true; document.getElementById('fab').innerHTML = ''; view.innerHTML = stp === 1 ? scrProfile(true) : stp === 2 ? scrReminders(true) : scrThemeSetup(); return; }
+  if (stp) { tabs.hidden = true; document.getElementById('fab').innerHTML = ''; view.innerHTML = stp === 1 ? scrProfile(true) : scrReminders(true); return; }
   if (!inStarter) { var pfn = getProfile().first; if (db.user !== pfn || db.members.indexOf(pfn) < 0 || ensureBirthday()) { syncUser(); save(); } }
   tabs.hidden = ['edit-task', 'edit-contact', 'edit-item', 'prefs', 'starter', 'starter-pick', 'profile'].indexOf(ui.screen) >= 0;
   var s = ui.screen;
@@ -1702,10 +1690,6 @@ document.addEventListener('click', function (e) {
     case 'pref-pick': if (!ui.form || ui.form.days == null) ui.form = remindPrefs(); var pk = el.getAttribute('data-k'), pv = el.getAttribute('data-v'); ui.form[pk] = pk === 'cal' ? pv : +pv; keepRender(); break;
     case 'save-prefs': savePrefs(); break;
     case 'edit-prefs': go('prefs', { form: remindPrefs() }, true); break;
-    case 'finish-setup':
-      var fp = getProfile(); fp.themeSet = true; setTheme(curTheme());
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(fp)); } catch (x) {}
-      ui.stack = []; ui.form = null; go('home'); toast('Welcome, ' + (fp.first || '') + '! You’re all set.'); break;
     case 'start-starter': startStarter(true); break;
     case 'st-cancel': ui.st = null; db = null; load(); ui.stack = []; ui.screen = 'home'; render(); view.scrollTop = 0; break;
     case 'st-role': var rk = el.getAttribute('data-k'); ui.st.roles[rk] = !ui.st.roles[rk]; keepRender(); break;
