@@ -1,0 +1,397 @@
+/* Tend shared household: sign-in, household, invites and live sync (Supabase).
+   The app itself lives in index.html; this file adds the shared layer on top.
+   Each task, contact and belonging is one row in "records". A phone keeps the
+   last version it knows the server has (snap). Anything that differs is a
+   local change and gets pushed; anything newer on the server gets pulled. */
+var CLOUD_URL = 'https://mbzabezkhptjjbyzkxbw.supabase.co';
+var CLOUD_KEY = 'sb_publishable_0uqPd7iYgo98ld-CaF5M6g_AV3VAlEI';
+
+var C = {
+  on: false, ready: false, sb: null, user: null, hid: null, house: '', role: '',
+  members: [], invites: [], snap: {}, since: null, firstPull: false,
+  pushing: false, pushAgain: false, pulling: false, pullAgain: false, pushT: 0, pullT: 0,
+  online: true, lastSync: null, err: '', chan: null, joinCode: '', recovery: false,
+  auth: { mode: 'in', email: '', msg: '', busy: false }, inviteLink: '', stale: false
+};
+var CLOUD_FACTORY = window.TEND_CLOUD_FACTORY || (window.supabase && CLOUD_URL && CLOUD_KEY ? function () {
+  return window.supabase.createClient(CLOUD_URL, CLOUD_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+} : null);
+C.on = !!CLOUD_FACTORY;
+
+function cget(k) { try { return localStorage.getItem('tend.c.' + k); } catch (e) { return null; } }
+function cset(k, v) { try { if (v == null) localStorage.removeItem('tend.c.' + k); else localStorage.setItem('tend.c.' + k, v); } catch (e) {} }
+function stable(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
+  return '{' + Object.keys(v).sort().filter(function (k) { return v[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ':' + stable(v[k]); }).join(',') + '}';
+}
+function cloudMsg(e) {
+  var m = String((e && (e.message || e.error_description || e.msg)) || e || '');
+  if (/invalid login credentials/i.test(m)) return 'That email and password don’t match.';
+  if (/already registered|already been registered|user_already_exists/i.test(m)) return 'That email already has an account. Sign in instead.';
+  if (/password should be|weak password|at least/i.test(m)) return 'Use a password with at least 8 characters.';
+  if (/email not confirmed/i.test(m)) return 'Confirm your email first, then sign in.';
+  if (/failed to fetch|network|load failed|fetch/i.test(m)) return 'Can’t reach Tend right now. Check your connection and try again.';
+  if (/rate limit|too many/i.test(m)) return 'Too many tries. Wait a minute and try again.';
+  return m.replace(/^.*?:\s*/, '') || 'Something went wrong. Try again.';
+}
+
+/* ---------- start-up ---------- */
+function cloudInit() {
+  var m = /[?&]join=([A-Za-z0-9]+)/.exec(location.search);
+  if (m) { cset('join', m[1]); try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+  C.joinCode = cget('join') || '';
+  if (C.joinCode) C.auth.mode = 'up';
+  C.sb = CLOUD_FACTORY();
+  var cached = null; try { cached = JSON.parse(cget('house') || 'null'); } catch (e) {}
+  C.sb.auth.onAuthStateChange(function (ev, s) {
+    if (ev === 'PASSWORD_RECOVERY') { C.recovery = true; }
+    var u = (s && s.user) || null, changed = (u && u.id) !== (C.user && C.user.id);
+    C.user = u;
+    if (C.ready && changed) setTimeout(afterAuth, 0); else if (C.ready && ev === 'PASSWORD_RECOVERY') render();
+  });
+  C.sb.auth.getSession().then(function (r) {
+    var s = r && r.data && r.data.session; C.user = s ? s.user : null;
+    if (C.user && cached && cached.uid === C.user.id) useHousehold(cached);
+    C.ready = true; render(); afterAuth();
+  }, function () { C.ready = true; render(); });
+  window.addEventListener('online', function () { pull(); schedulePush(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && C.hid) { pull(); schedulePush(); } });
+  setInterval(function () { if (C.hid && document.visibilityState === 'visible') { pull(); if (pendingCount()) push(); } }, 60000);
+}
+function afterAuth() {
+  if (!C.user) { dropHousehold(); render(); return; }
+  refreshHousehold().then(function () {
+    if (!C.hid && C.joinCode) return joinWith(C.joinCode, true);
+  }).catch(function (e) { setOnline(false, e); }).then(function () { render(); });
+}
+function refreshHousehold() {
+  return C.sb.from('members').select('household_id, role, households(name)').eq('user_id', C.user.id).limit(1).then(function (r) {
+    if (r.error) throw r.error;
+    var row = r.data && r.data[0];
+    if (!row) { if (C.hid) dropHousehold(); return; }
+    useHousehold({ uid: C.user.id, hid: row.household_id, name: row.households ? row.households.name : 'Our Home', role: row.role });
+    return loadMembers();
+  });
+}
+function useHousehold(h) {
+  var same = C.hid === h.hid;
+  C.hid = h.hid; C.house = h.name || 'Our Home'; C.role = h.role || 'member';
+  cset('house', JSON.stringify(h));
+  if (same) return;
+  KEY = 'tend.data.h.' + h.hid;
+  var st = {}; try { st = JSON.parse(cget('sync.' + h.hid) || '{}'); } catch (e) {}
+  C.snap = st.snap || {}; C.since = st.since || null; C.lastSync = st.lastSync || null; C.firstPull = !!db || !!C.since;
+  load(); subscribe(); pull();
+}
+function dropHousehold() {
+  if (C.chan) { try { C.sb.removeChannel(C.chan); } catch (e) {} C.chan = null; }
+  C.hid = null; C.house = ''; C.role = ''; C.members = []; C.invites = []; C.snap = {}; C.since = null; C.firstPull = false;
+  cset('house', null); KEY = 'tend.data.none'; db = null;
+}
+function loadMembers() {
+  if (!C.hid) return Promise.resolve();
+  var hid = C.hid; C.membersAt = Date.now();
+  return C.sb.from('members').select('user_id, email, name, role, joined_at').eq('household_id', hid).order('joined_at').then(function (r) {
+    if (r.error) throw r.error; if (hid !== C.hid) return;
+    C.members = r.data || [];
+    var me = C.members.find(function (x) { return x.user_id === C.user.id; }), pf = getProfile().first;
+    if (me && pf && me.name !== pf) { me.name = pf; C.sb.from('members').update({ name: pf }).eq('household_id', hid).eq('user_id', C.user.id).then(function () {}); }
+    if (C.role !== 'owner') return;
+    return C.sb.from('invites').select('code, expires_at').eq('household_id', hid).order('created_at').then(function (q) {
+      if (q.error) return; C.invites = q.data || [];
+      if (C.inviteLink && !C.invites.some(function (v) { return C.inviteLink.indexOf(v.code) >= 0; })) C.inviteLink = '';
+    });
+  });
+}
+
+/* ---------- sync ---------- */
+function recMap(d) {
+  var m = {}; if (!d) return m;
+  d.tasks.forEach(function (x) { m['task:' + x.id] = x; });
+  d.contacts.forEach(function (x) { m['contact:' + x.id] = x; });
+  d.items.forEach(function (x) { m['item:' + x.id] = x; });
+  m['meta:settings'] = { members: d.members };
+  return m;
+}
+function saveSync() { if (C.hid) cset('sync.' + C.hid, JSON.stringify({ snap: C.snap, since: C.since, lastSync: C.lastSync })); }
+function pendingCount() {
+  if (!C.hid || !db) return 0;
+  var cur = recMap(db), n = 0;
+  Object.keys(cur).forEach(function (k) { if (C.snap[k] !== stable(cur[k])) n++; });
+  Object.keys(C.snap).forEach(function (k) { if (!(k in cur)) n++; });
+  return n;
+}
+function setOnline(ok, e) {
+  var was = C.online; C.online = ok; C.err = ok ? '' : cloudMsg(e);
+  if (ok) { C.lastSync = new Date().toISOString(); saveSync(); }
+  if (was !== ok && ui.screen === 'settings') refreshView();
+}
+function schedulePush() { if (!C.hid) return; clearTimeout(C.pushT); C.pushT = setTimeout(push, 600); }
+function push() {
+  if (!C.hid || !db) return Promise.resolve();
+  if (C.pushing) { C.pushAgain = true; return Promise.resolve(); }
+  var hid = C.hid, cur = recMap(db), rows = [], sent = {};
+  Object.keys(cur).forEach(function (k) {
+    var j = stable(cur[k]); if (C.snap[k] === j) return;
+    var p = k.indexOf(':'); rows.push({ household_id: hid, kind: k.slice(0, p), id: k.slice(p + 1), data: cur[k], deleted: false }); sent[k] = j;
+  });
+  Object.keys(C.snap).forEach(function (k) {
+    if (k in cur) return;
+    var p = k.indexOf(':'); rows.push({ household_id: hid, kind: k.slice(0, p), id: k.slice(p + 1), data: {}, deleted: true }); sent[k] = null;
+  });
+  if (!rows.length) return Promise.resolve();
+  C.pushing = true;
+  var chunks = []; for (var i = 0; i < rows.length; i += 400) chunks.push(rows.slice(i, i + 400));
+  var chain = Promise.resolve();
+  chunks.forEach(function (ch) {
+    chain = chain.then(function () {
+      return C.sb.from('records').upsert(ch).then(function (r) {
+        if (r.error) throw r.error;
+        if (hid !== C.hid) return;
+        ch.forEach(function (row) { var k = row.kind + ':' + row.id; if (sent[k] === null) delete C.snap[k]; else C.snap[k] = sent[k]; });
+        saveSync();
+      });
+    });
+  });
+  return chain.then(function () { setOnline(true); }, function (e) { setOnline(false, e); })
+    .then(function () { C.pushing = false; if (C.pushAgain) { C.pushAgain = false; return push(); } });
+}
+function pull() {
+  if (!C.hid) return Promise.resolve();
+  if (C.pulling) { C.pullAgain = true; return Promise.resolve(); }
+  C.pulling = true;
+  var hid = C.hid, rows = [];
+  var since = C.since ? new Date(new Date(C.since).getTime() - 10000).toISOString() : null;
+  function page(from) {
+    var q = C.sb.from('records').select('kind, id, data, deleted, updated_at').eq('household_id', hid);
+    if (since) q = q.gt('updated_at', since);
+    return q.order('updated_at', { ascending: true }).range(from, from + 999).then(function (r) {
+      if (r.error) throw r.error;
+      rows = rows.concat(r.data || []);
+      if ((r.data || []).length === 1000) return page(from + 1000);
+    });
+  }
+  return page(0).then(function () { if (hid === C.hid) { C.firstPull = true; applyRows(rows); setOnline(true); } }, function (e) { if (hid === C.hid) { C.firstPull = true; setOnline(false, e); refreshView(); } })
+    .then(function () { C.pulling = false; if (C.pullAgain) { C.pullAgain = false; return pull(); } });
+}
+function mergeHistory(a, b) {
+  var seen = {}, out = [];
+  (a || []).concat(b || []).forEach(function (h) { var k = h.date + '|' + (h.by || ''); if (!seen[k]) { seen[k] = 1; out.push(h); } });
+  return out.sort(function (x, y) { return x.date < y.date ? 1 : -1; });
+}
+function applyRows(rows) {
+  if (!rows.length) { if (!db) refreshView(); return; }
+  var base = db || blank(), cur = recMap(base), changed = {}, keepLocal = {}, any = false;
+  rows.forEach(function (r) {
+    if (!C.since || r.updated_at > C.since) C.since = r.updated_at;
+    var k = r.kind + ':' + r.id, local = cur[k], localJ = local ? stable(local) : undefined, dirty = localJ !== C.snap[k];
+    var remoteJ = r.deleted ? undefined : stable(r.data);
+    if (remoteJ === C.snap[k]) return; // already have it
+    any = true;
+    if (r.deleted) { delete cur[k]; changed[k] = 1; return; }
+    if (dirty && local) {
+      keepLocal[k] = remoteJ;
+      if (r.kind === 'task') { var m = JSON.parse(JSON.stringify(local)); m.history = mergeHistory(local.history, r.data.history); m.last = m.history[0] ? m.history[0].date : m.last; cur[k] = m; }
+      return;
+    }
+    cur[k] = r.data; changed[k] = 1;
+  });
+  if (!any) { saveSync(); return; }
+  var d = { app: 'tend', version: 1, user: base.user, lastBackup: base.lastBackup, noBday: base.noBday, nextId: base.nextId, members: base.members, tasks: [], contacts: [], items: [] };
+  Object.keys(cur).forEach(function (k) {
+    var p = k.indexOf(':'), kind = k.slice(0, p);
+    if (kind === 'task') d.tasks.push(cur[k]); else if (kind === 'contact') d.contacts.push(cur[k]); else if (kind === 'item') d.items.push(cur[k]);
+    else if (k === 'meta:settings') d.members = Array.isArray(cur[k].members) ? cur[k].members.slice() : d.members;
+  });
+  db = normalize(d);
+  var after = recMap(db);
+  Object.keys(changed).forEach(function (k) { if (k in after) C.snap[k] = stable(after[k]); else delete C.snap[k]; });
+  Object.keys(keepLocal).forEach(function (k) { C.snap[k] = keepLocal[k]; });
+  saveLocal(); saveSync();
+  if (pendingCount()) schedulePush();
+  refreshView();
+}
+function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
+function subscribe() {
+  if (!C.sb.channel) return;
+  if (C.chan) { try { C.sb.removeChannel(C.chan); } catch (e) {} }
+  C.chan = C.sb.channel('household-' + C.hid)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'records', filter: 'household_id=eq.' + C.hid }, function () { clearTimeout(C.pullT); C.pullT = setTimeout(pull, 300); })
+    .subscribe(function (status) { if (status === 'SUBSCRIBED') pull(); });
+}
+function refreshView() {
+  var busy = ['edit-task', 'edit-contact', 'edit-item', 'profile', 'prefs', 'starter', 'starter-pick'].indexOf(ui.screen) >= 0 || ui.completing || ui.confirm ||
+    document.querySelector('.row.doing') || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+  if (busy) { C.stale = true; return; }
+  C.stale = false;
+  if (ui.screen === 'task' && db && !db.tasks.some(function (t) { return t.id === ui.taskId; })) { ui.stack = []; go('home'); toast('That task was removed on another phone.'); return; }
+  keepRender();
+}
+
+/* ---------- household actions ---------- */
+function createHousehold() {
+  var nm = (document.getElementById('houseName') || {}).value || '';
+  C.auth.busy = true; C.err = ''; render();
+  C.sb.rpc('create_household', { p_name: nm.trim() || 'Our Home', p_display: getProfile().first || '' }).then(function (r) {
+    if (r.error) throw r.error; return refreshHousehold();
+  }).then(function () { C.auth.busy = false; db = null; render(); }, function (e) { C.auth.busy = false; C.err = cloudMsg(e); render(); });
+}
+function joinWith(code, auto) {
+  code = String(code || '').trim().replace(/^.*[?&]join=/, '');
+  if (!code) { C.err = 'Paste the invite link or code.'; render(); return Promise.resolve(); }
+  C.auth.busy = true; C.err = ''; if (!auto) render();
+  return C.sb.rpc('accept_invite', { p_code: code, p_display: getProfile().first || '' }).then(function (r) {
+    if (r.error) throw r.error; cset('join', null); C.joinCode = ''; return refreshHousehold();
+  }).then(function () { C.auth.busy = false; render(); if (C.hid) toast('You’ve joined ' + C.house + '.'); }, function (e) {
+    C.auth.busy = false; C.err = cloudMsg(e); cset('join', null); C.joinCode = ''; render();
+  });
+}
+function makeInvite() {
+  C.sb.rpc('create_invite', { hid: C.hid }).then(function (r) {
+    if (r.error) throw r.error;
+    C.inviteLink = location.origin + location.pathname + '?join=' + r.data;
+    loadMembers().then(function () { keepRender(); });
+    var text = 'Join our household on Tend so we share one list of what needs doing. Open this link, create an account, and you’re in:';
+    if (navigator.share) navigator.share({ title: 'Join our Tend household', text: text, url: C.inviteLink }).catch(function () {});
+    keepRender();
+  }).catch(function (e) { toast(cloudMsg(e)); });
+}
+function signOut() {
+  var hid = C.hid;
+  (C.sb.auth.signOut() || Promise.resolve()).catch(function () {}).then(function () {
+    if (hid) { try { localStorage.removeItem('tend.data.h.' + hid); } catch (e) {} cset('sync.' + hid, null); }
+    dropHousehold(); C.user = null; ui.stack = []; ui.screen = 'home'; render();
+  });
+}
+
+/* ---------- screens ---------- */
+function cloudScreen() {
+  if (!C.ready) return '<div class="welcome" style="align-items:center;justify-content:center"><p>Opening Tend…</p></div>';
+  if (C.recovery && C.user) return scrNewPassword();
+  if (!C.user) return scrSignIn();
+  if (!C.hid) return scrHousehold();
+  if (!db && !C.firstPull) return '<div class="welcome" style="align-items:center;justify-content:center"><p>Loading your household…</p></div>';
+  return '';
+}
+function authErr() { return C.err ? '<p class="cerr" role="alert">' + esc(C.err) + '</p>' : ''; }
+function scrSignIn() {
+  var up = C.auth.mode === 'up';
+  var h = '<div class="welcome"><img src="icon-192.png" alt=""><h1>' + (up ? 'Create Your Account' : 'Welcome to Tend') + '</h1>';
+  h += C.joinCode ? '<p class="cnote"><strong>You’re invited to a household.</strong> ' + (up ? 'Create your account to join.' : 'Sign in, or create an account, to join.') + '</p>'
+    : '<p>' + (up ? 'Everyone in your household uses their own email and password.' : 'Sign in to see your household’s list.') + '</p>';
+  h += C.auth.msg ? '<p class="cnote">' + esc(C.auth.msg) + '</p>' : '';
+  h += authErr();
+  h += '<form id="authForm" class="stack" style="padding:0;gap:14px" novalidate>' +
+    '<label class="field"><span>Email</span><input class="input" id="authEmail" type="email" inputmode="email" autocapitalize="off" autocomplete="username" value="' + esc(C.auth.email) + '" placeholder="name@example.com"></label>' +
+    '<label class="field"><span>Password</span><input class="input" id="authPass" type="password" autocomplete="' + (up ? 'new-password' : 'current-password') + '" placeholder="' + (up ? 'At least 8 characters' : '') + '"></label>' +
+    '<button type="submit" class="btn primary"' + (C.auth.busy ? ' disabled' : '') + '>' + (C.auth.busy ? 'One moment…' : up ? 'Create Account' : 'Sign In') + '</button></form>';
+  h += '<button class="btn secondary" data-act="auth-mode">' + (up ? 'I Already Have an Account' : 'New to Tend? Create an Account') + '</button>';
+  if (!up) h += '<button class="link" data-act="auth-forgot" style="align-self:center">Forgot your password?</button>';
+  return h + '</div>';
+}
+function scrNewPassword() {
+  return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Set a New Password</h1>' + authErr() +
+    '<form id="newPassForm" class="stack" style="padding:0;gap:14px" novalidate><label class="field"><span>New Password</span><input class="input" id="newPass" type="password" autocomplete="new-password" placeholder="At least 8 characters"></label>' +
+    '<button type="submit" class="btn primary">Save Password</button></form></div>';
+}
+function scrHousehold() {
+  var last = getProfile().last;
+  var h = '<div class="welcome"><img src="icon-192.png" alt=""><h1>Your Household</h1><p>Signed in as <strong>' + esc(C.user.email || '') + '</strong>.</p>' + authErr();
+  h += '<div class="ccard"><h2>Start a New Household</h2><p>You’ll be the owner and can invite up to 7 others.</p>' +
+    '<label class="field"><span>Household Name</span><input class="input" id="houseName" value="' + esc(last ? 'The ' + last + ' Home' : 'Our Home') + '"></label>' +
+    '<button class="btn primary" data-act="house-create"' + (C.auth.busy ? ' disabled' : '') + '>Create Household</button></div>';
+  h += '<div class="ccard"><h2>Join a Household</h2><p>Open the invite link you were sent, or paste it here.</p>' +
+    '<label class="field"><span>Invite Link or Code</span><input class="input" id="joinCode" autocapitalize="off" autocomplete="off"></label>' +
+    '<button class="btn secondary" data-act="house-join"' + (C.auth.busy ? ' disabled' : '') + '>Join</button></div>';
+  h += '<button class="link" data-act="sign-out" style="align-self:center">Sign Out</button>';
+  return h + '</div>';
+}
+function cloudSettings() {
+  if (!C.on || !C.hid) return '';
+  if (C.online && Date.now() - (C.membersAt || 0) > 10000) { C.membersAt = Date.now(); setTimeout(function () { loadMembers().then(function () { if (ui.screen === 'settings') keepRender(); }, function () {}); }, 0); }
+  var me = C.user && C.user.id, owner = C.role === 'owner';
+  var h = '<div class="section"><h2 style="font-size:19px">' + esc(C.house) + '</h2></div><div class="listcard">';
+  h += C.members.map(function (m) {
+    var you = m.user_id === me, armed = ui.armed === 'rm-' + m.user_id;
+    return '<div class="lrow"><span class="col" style="min-width:0"><span class="t">' + esc(m.name || (m.email || '').split('@')[0]) + (you ? ' <span class="cyou">You</span>' : '') + '</span><span class="s ellip">' + esc(m.email || '') + (m.role === 'owner' ? ' · Owner' : '') + '</span></span>' +
+      (owner && !you ? '<button class="link' + (armed ? ' cdanger' : '') + '" data-act="member-rm" data-uid="' + esc(m.user_id) + '">' + (armed ? 'Tap to Remove' : 'Remove') + '</button>' : '') + '</div>';
+  }).join('');
+  if (owner) h += C.invites.map(function (v) {
+    return '<div class="lrow"><span class="col"><span class="t">Invite link</span><span class="s">Not used yet · expires ' + esc(fmt(new Date(v.expires_at))) + '</span></span><button class="link" data-act="invite-cancel" data-code="' + esc(v.code) + '">Cancel</button></div>';
+  }).join('');
+  h += '</div>';
+  if (owner) {
+    h += '<div class="stack" style="margin-top:10px"><button class="btn primary" data-act="invite"' + (C.members.length >= 8 ? ' disabled' : '') + '>' + ic('plus', 18) + 'Invite Someone</button>';
+    if (C.inviteLink) h += '<div class="ccard" style="margin:0"><p style="margin:0">Text this link to the person you’re inviting. It works once and expires in 14 days.</p><div class="clink">' + esc(C.inviteLink) + '</div><button class="btn secondary" data-act="invite-copy"><span>Copy</span></button></div>';
+    h += '</div>';
+  }
+  var pend = pendingCount();
+  h += '<p class="note" style="text-align:left;padding:8px 20px 0">' + (!C.online ? 'Offline. ' + (pend ? pend + (pend === 1 ? ' change' : ' changes') + ' will sync when you’re back online.' : 'Your list will update when you’re back online.')
+    : pend ? 'Syncing ' + pend + (pend === 1 ? ' change' : ' changes') + '…' : 'Everything is synced' + (C.lastSync ? ' · ' + new Date(C.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '') + '.') + '</p>';
+  h += '<div class="stack" style="margin-top:6px">' +
+    (!owner ? '<button class="btn secondary" data-act="house-leave"' + (ui.armed === 'leave' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'leave' ? 'Tap Again to Leave' : 'Leave Household') + '</button>' : '') +
+    '<button class="btn secondary" data-act="sign-out"' + (ui.armed === 'signout' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'signout' ? (pend ? 'Tap Again: ' + pend + ' Unsynced Changes Will Be Lost' : 'Tap Again to Sign Out') : 'Sign Out') + '</button></div>';
+  return h;
+}
+
+/* ---------- events (return true when handled) ---------- */
+function cloudSubmit(id) {
+  if (id === 'authForm') {
+    var em = (document.getElementById('authEmail').value || '').trim(), pw = document.getElementById('authPass').value || '';
+    C.auth.email = em; C.auth.msg = ''; C.err = '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { C.err = 'That email doesn’t look right.'; render(); return true; }
+    if (pw.length < (C.auth.mode === 'up' ? 8 : 1)) { C.err = C.auth.mode === 'up' ? 'Use a password with at least 8 characters.' : 'Enter your password.'; render(); return true; }
+    C.auth.busy = true; render();
+    var p = C.auth.mode === 'up' ? C.sb.auth.signUp({ email: em, password: pw }) : C.sb.auth.signInWithPassword({ email: em, password: pw });
+    p.then(function (r) {
+      C.auth.busy = false;
+      if (r.error) throw r.error;
+      if (C.auth.mode === 'up' && !(r.data && r.data.session)) { C.auth.mode = 'in'; C.auth.msg = 'Check your email to confirm your account, then sign in here.'; render(); return; }
+      C.user = r.data.user; render(); afterAuth();
+    }).catch(function (e) { C.auth.busy = false; C.err = cloudMsg(e); render(); });
+    return true;
+  }
+  if (id === 'newPassForm') {
+    var np = document.getElementById('newPass').value || '';
+    if (np.length < 8) { C.err = 'Use a password with at least 8 characters.'; render(); return true; }
+    C.sb.auth.updateUser({ password: np }).then(function (r) { if (r.error) throw r.error; C.recovery = false; C.err = ''; render(); toast('Password saved.'); }).catch(function (e) { C.err = cloudMsg(e); render(); });
+    return true;
+  }
+  return false;
+}
+function cloudAct(a, el) {
+  switch (a) {
+    case 'auth-mode': C.auth.mode = C.auth.mode === 'up' ? 'in' : 'up'; C.err = ''; C.auth.msg = ''; var ee = document.getElementById('authEmail'); if (ee) C.auth.email = ee.value.trim(); render(); return true;
+    case 'auth-forgot':
+      var fe = document.getElementById('authEmail'), em = fe ? fe.value.trim() : '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { C.err = 'Type your email above first.'; render(); return true; }
+      C.auth.email = em;
+      C.sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname }).then(function (r) { if (r.error) throw r.error; C.err = ''; C.auth.msg = 'If that email has an account, a reset link is on its way.'; render(); }).catch(function (e) { C.err = cloudMsg(e); render(); });
+      return true;
+    case 'house-create': createHousehold(); return true;
+    case 'house-join': joinWith((document.getElementById('joinCode') || {}).value); return true;
+    case 'invite': makeInvite(); return true;
+    case 'invite-copy': copyText(C.inviteLink, el); return true;
+    case 'invite-cancel':
+      C.sb.from('invites').delete().eq('code', el.getAttribute('data-code')).then(function () { C.inviteLink = ''; return loadMembers(); }).then(function () { keepRender(); }, function (e) { toast(cloudMsg(e)); });
+      return true;
+    case 'member-rm':
+      var uid = el.getAttribute('data-uid');
+      if (ui.armed !== 'rm-' + uid) { ui.armed = 'rm-' + uid; keepRender(); return true; }
+      ui.armed = null;
+      C.sb.rpc('remove_member', { hid: C.hid, uid: uid }).then(function (r) { if (r.error) throw r.error; return loadMembers(); }).then(function () { keepRender(); toast('Removed from the household.'); }, function (e) { toast(cloudMsg(e)); });
+      return true;
+    case 'house-leave':
+      if (ui.armed !== 'leave') { ui.armed = 'leave'; keepRender(); return true; }
+      ui.armed = null;
+      C.sb.rpc('remove_member', { hid: C.hid, uid: C.user.id }).then(function (r) {
+        if (r.error) throw r.error; var hid = C.hid; try { localStorage.removeItem('tend.data.h.' + hid); } catch (e) {} cset('sync.' + hid, null); dropHousehold(); ui.stack = []; ui.screen = 'home'; render();
+      }).catch(function (e) { toast(cloudMsg(e)); });
+      return true;
+    case 'sign-out':
+      if (ui.screen === 'settings' && ui.armed !== 'signout') { ui.armed = 'signout'; keepRender(); return true; }
+      ui.armed = null; signOut(); return true;
+  }
+  return false;
+}
