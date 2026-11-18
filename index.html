@@ -262,7 +262,7 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function
 
 /* ---------- storage ---------- */
 var db = null, storageOk = true;
-function blank() { return { app: 'tend', version: 1, user: '', members: [], tasks: [], contacts: [], items: [], budget: [], budgetTarget: 0, lastBackup: null, nextId: 1 }; }
+function blank() { return { app: 'tend', version: 1, user: '', members: [], tasks: [], contacts: [], items: [], budget: [], lastBackup: null, nextId: 1 }; }
 function load() {
   try { var raw = localStorage.getItem(KEY); if (raw) { db = normalize(JSON.parse(raw)); return true; } }
   catch (e) { storageOk = false; }
@@ -296,10 +296,9 @@ function normalize(d) {
   });
   var bids = {}; out.items.forEach(function (b) { bids[b.id] = 1; });
   out.budget = (Array.isArray(d.budget) ? d.budget : []).filter(Boolean).map(function (e) {
-    return { id: String(e.id || ('e' + n++)), name: String(e.name || 'Expense'), amount: Math.max(0, Math.round((parseFloat(e.amount) || 0) * 100) / 100), freq: EXP_PER_YEAR[e.freq] != null ? e.freq : 'Monthly',
-      cat: EXP_CATS.indexOf(e.cat) >= 0 ? e.cat : 'Other', item: e.item && bids[e.item] ? String(e.item) : null, payee: e.payee && cids[e.payee] ? String(e.payee) : null, next: parse(e.next) ? e.next : null, autopay: !!e.autopay, remind: !!e.remind, notes: e.notes || '' };
+    return { id: String(e.id || ('e' + n++)), name: String(e.name || 'Bill'), amount: Math.max(0, Math.round((parseFloat(e.amount) || 0) * 100) / 100), freq: EXP_PER_YEAR[e.freq] != null ? e.freq : 'Monthly',
+      cat: EXP_CATS.indexOf(EXP_CAT_FIX[e.cat] || e.cat) >= 0 ? (EXP_CAT_FIX[e.cat] || e.cat) : 'Other', item: e.item && bids[e.item] ? String(e.item) : null, payee: e.payee && cids[e.payee] ? String(e.payee) : null, next: parse(e.next) ? e.next : null, autopay: !!e.autopay, remind: !!e.remind, notes: e.notes || '' };
   });
-  out.budgetTarget = Math.max(0, parseFloat(d.budgetTarget) || 0);
   var eids = {}; out.budget.forEach(function (e) { eids[e.id] = 1; });
   out.tasks = (d.tasks || []).map(function (t) {
     var hist = Array.isArray(t.history) ? t.history.filter(function (h) { return h && parse(h.date); }).map(function (h) { return { date: h.date, by: h.by || '' }; }) : [];
@@ -707,7 +706,7 @@ function scrTask() {
   }
   var be = expById(t.budget);
   if (be) {
-    h += '<button class="card" data-act="edit-exp" data-id="' + esc(be.id) + '" style="margin:8px 16px 0;padding:12px 14px;display:flex;align-items:center;gap:12px;text-align:left;width:calc(100% - 32px)"><span class="col"><span style="font-size:12.5px;color:var(--muted)">Budget</span><span style="font-family:var(--serif);font-size:24px;font-weight:700">' + money(be.amount) + '</span>' +
+    h += '<button class="card" data-act="edit-exp" data-id="' + esc(be.id) + '" style="margin:8px 16px 0;padding:12px 14px;display:flex;align-items:center;gap:12px;text-align:left;width:calc(100% - 32px)"><span class="col"><span style="font-size:12.5px;color:var(--muted)">Bill</span><span style="font-family:var(--serif);font-size:24px;font-weight:700">' + money(be.amount) + '</span>' +
       '<span style="font-size:12.5px;color:var(--muted)">' + esc([be.freq, be.cat, be.autopay ? 'Autopay' : ''].filter(Boolean).join(' \u00b7 ')) + '</span></span><span style="margin-left:auto;color:var(--muted)">' + ic('next', 18) + '</span></button>';
   }
   var bi = itemById(t.item);
@@ -1044,7 +1043,7 @@ function keyRows(b) {
   return fieldRows(b, ITEM_TYPES[b.type].fields.filter(function (x) { return b.fields[x[0]]; }).slice(0, 4).map(function (x) { return x[0]; }));
 }
 function dirSwitch(cur) {
-  return '<div class="segdark" role="tablist" aria-label="Directory">' + [['contacts', 'Contacts'], ['items', 'Belongings'], ['budget', 'Budget']].map(function (x) {
+  return '<div class="segdark" role="tablist" aria-label="Directory">' + [['contacts', 'Contacts'], ['items', 'Belongings'], ['budget', 'Bills']].map(function (x) {
     return '<button role="tab" data-act="dir" data-to="' + x[0] + '" aria-selected="' + (cur === x[0]) + '">' + x[1] + '</button>';
   }).join('') + '</div>';
 }
@@ -1093,8 +1092,8 @@ function scrItem() {
   h += '<div class="section"><h2 style="font-size:19px">Related Contacts</h2><button class="link" data-act="edit-item">' + (rc.length ? 'Edit' : '+ Add') + '</button></div><div class="stack">' +
     (rc.length ? rc.map(function (c, i) { return contactRow(c, i % 2 === 1); }).join('') : '<p class="note" style="text-align:left;padding:4px">No related contacts yet, like a mechanic or insurance agent.</p>') + '</div>';
   var costs = db.budget.filter(function (e) { return e.item === b.id; });
-  h += '<div class="section"><h2 style="font-size:19px">Costs</h2>' + (costs.length ? '<span style="font-size:13px;font-weight:700;color:var(--rose);margin-left:auto;margin-right:10px">' + money(costs.reduce(function (s, e) { return s + perMonth(e); }, 0)) + '/mo</span>' : '') + '<button class="link" data-act="new-exp-item">+ Add Cost</button></div><div class="stack">' +
-    (costs.length ? costs.map(function (e, i) { return expRow(e, i % 2 === 1, false); }).join('') : '<p class="note" style="text-align:left;padding:4px">No costs yet, like a loan payment or insurance. They add up under Directory \u2192 Budget.</p>') + '</div>';
+  h += '<div class="section"><h2 style="font-size:19px">Bills</h2><button class="link" data-act="new-exp-item">+ Add Bill</button></div><div class="stack">' +
+    (costs.length ? costs.map(function (e, i) { return expRow(e, i % 2 === 1, false); }).join('') : '<p class="note" style="text-align:left;padding:4px">No bills yet, like a loan payment or insurance.</p>') + '</div>';
   var linked = rows().filter(function (r) { return r.t.item === b.id; });
   h += '<div class="section"><h2 style="font-size:19px">Related Tasks</h2><button class="link" data-act="new-task-item">+ Add Task</button></div><div class="stack">' +
     (linked.length ? linked.map(function (r) { return taskRow(r, false, 'contact'); }).join('') : '<p class="note" style="text-align:left;padding:4px">No related tasks yet. Open a task, tap Edit, and pick this under Belonging.</p>') + '</div>';
@@ -1108,18 +1107,18 @@ function itemCaption(id) {
 function itemOptions(cur) {
   return '<option value="">None</option>' + db.items.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (b) { return opt(b.id, cur || '', b.name); }).join('');
 }
-/* ---------- budget: expenses with amounts, tied to belongings and bill reminders ---------- */
-var EXP_CATS = ['Housing', 'Utilities', 'Transportation', 'Insurance', 'Debt & Loans', 'Food & Groceries', 'Health', 'Childcare & School', 'Subscriptions', 'Pets', 'Home Upkeep', 'Savings & Investing', 'Giving', 'Personal', 'Other'];
+/* ---------- bills: amounts and due dates, tied to belongings and reminder tasks ---------- */
+var EXP_CATS = ['Housing', 'Utilities', 'Car', 'Insurance', 'Loans & Credit', 'Subscriptions', 'Other'];
+var EXP_CAT_FIX = { Transportation: 'Car', 'Debt & Loans': 'Loans & Credit' };
 var EXP_FREQS = [['Weekly', 52], ['Every 2 weeks', 26], ['Monthly', 12], ['Every 3 months', 4], ['Every 6 months', 2], ['Yearly', 1], ['One-time', 0]];
 var EXP_PER_YEAR = {}; EXP_FREQS.forEach(function (f) { EXP_PER_YEAR[f[0]] = f[1]; });
-var QUICK_EXP = [['Mortgage', 'Housing', 'Monthly'], ['Rent', 'Housing', 'Monthly'], ['Car Payment', 'Transportation', 'Monthly'], ['Electric', 'Utilities', 'Monthly'], ['Gas (Heat)', 'Utilities', 'Monthly'], ['Water & Sewer', 'Utilities', 'Monthly'], ['Internet', 'Utilities', 'Monthly'], ['Cell Phones', 'Utilities', 'Monthly'],
-  ['Car Insurance', 'Insurance', 'Every 6 months'], ['Home Insurance', 'Insurance', 'Yearly'], ['Property Tax', 'Housing', 'Every 6 months'], ['Groceries', 'Food & Groceries', 'Monthly'], ['Daycare', 'Childcare & School', 'Monthly'], ['Streaming', 'Subscriptions', 'Monthly'], ['Savings Transfer', 'Savings & Investing', 'Monthly'], ['Credit Card', 'Debt & Loans', 'Monthly']];
+var QUICK_EXP = [['Mortgage', 'Housing', 'Monthly'], ['Rent', 'Housing', 'Monthly'], ['Property Tax', 'Housing', 'Every 6 months'], ['Electric', 'Utilities', 'Monthly'], ['Gas (Heat)', 'Utilities', 'Monthly'], ['Water & Sewer', 'Utilities', 'Monthly'], ['Internet', 'Utilities', 'Monthly'], ['Cell Phones', 'Utilities', 'Monthly'],
+  ['Car Payment', 'Car', 'Monthly'], ['Car Insurance', 'Insurance', 'Every 6 months'], ['Home Insurance', 'Insurance', 'Yearly'], ['Credit Card', 'Loans & Credit', 'Monthly'], ['Streaming', 'Subscriptions', 'Monthly'], ['Daycare', 'Other', 'Monthly']];
 function money(n, cents) {
   n = Math.round((+n || 0) * 100) / 100;
   var c = cents || (n % 1 !== 0);
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: c ? 2 : 0, maximumFractionDigits: c ? 2 : 0 });
 }
-function perMonth(e) { return (+e.amount || 0) * (EXP_PER_YEAR[e.freq] || 0) / 12; }
 function expTask(e) { return e && e.id ? db.tasks.find(function (t) { return t.budget === e.id; }) || null : null; }
 function expById(id) { return id ? db.budget.find(function (e) { return e.id === id; }) || null : null; }
 /* paid this month = its reminder was marked complete during the month */
@@ -1150,51 +1149,31 @@ function expRow(e, alt, showItem) {
   return '<button class="row' + (alt ? ' alt' : '') + '" data-act="edit-exp" data-id="' + esc(e.id) + '"><span class="col"><span class="name ellip">' + esc(e.name) + '</span>' + (sub ? '<span class="meta ellip">' + esc(sub) + '</span>' : '') + '</span>' +
     '<span class="st"><b style="color:var(--ink)">' + money(e.amount) + '</b>' + right + '</span></button>';
 }
-function bars(list) {
-  var max = Math.max.apply(null, list.map(function (x) { return x[1]; }).concat([1]));
-  return '<div class="card" style="margin:0 16px;padding:6px 14px">' + list.map(function (x) {
-    return '<div style="padding:9px 0;display:flex;flex-direction:column;gap:6px' + (x[2] ? ';cursor:pointer" data-act="item" data-id="' + esc(x[2]) : '') + '"><div style="display:flex;justify-content:space-between;gap:10px;font-size:14px"><span style="font-weight:600" class="ellip">' + esc(x[0]) + '</span><span style="font-weight:700;white-space:nowrap">' + money(x[1]) + '<span style="color:var(--muted);font-weight:500">/mo</span></span></div>' +
-      '<div class="bar"><i style="width:' + Math.max(2, Math.round(x[1] / max * 100)) + '%"></i></div></div>';
-  }).join('') + '</div>';
-}
 function scrBudget() {
   var B = db.budget, T = today(), y = T.getFullYear(), m = T.getMonth();
-  var monthly = B.reduce(function (s, e) { return s + perMonth(e); }, 0);
-  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + B.length + (B.length === 1 ? ' expense' : ' expenses') + '</span>' + titleRow('Budget', 'new-exp', 'Expense') + dirSwitch('budget') + '</header>';
+  var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + B.length + (B.length === 1 ? ' bill' : ' bills') + '</span>' + titleRow('Bills', 'new-exp', 'Bill') + dirSwitch('budget') + '</header>';
   h += flashHtml();
   if (!B.length) {
-    h += '<div class="tip">Track the bills you have to tend to, like your mortgage, car payment, utilities and insurance. Each one can remind you when it’s due, and marking the reminder complete records it as paid. Link an expense to a belonging to see what each car or your home really costs per month.</div>';
+    h += '<div class="tip">Keep the bills you tend to in one place, like your mortgage, car payment, utilities and insurance. Each bill can remind you when it’s due, and marking that reminder complete records it as paid.</div>';
   } else {
-    var target = +db.budgetTarget || 0, diff = target - monthly;
-    h += '<div class="card" style="margin:14px 16px 0;padding:16px;display:flex;flex-direction:column;gap:10px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px"><span class="col"><span style="font-size:12.5px;color:var(--muted);font-weight:600">Planned Each Month</span><span style="font-family:var(--serif);font-size:32px;font-weight:700;line-height:1.1">' + money(monthly) + '</span><span style="font-size:12.5px;color:var(--muted)">' + money(monthly * 12) + ' a year</span></span>' +
-      '<label style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span style="font-size:12px;color:var(--muted);font-weight:600">Monthly Budget</span><span style="display:flex;align-items:center;gap:4px;border:1px solid var(--dusty);border-radius:10px;padding:0 10px;min-height:40px;background:#fff">$<input id="budgetTarget" inputmode="decimal" value="' + (target ? target : '') + '" placeholder="Set" style="width:72px;border:0;outline:none;font-size:16px;font-weight:700;background:transparent;text-align:right"></span></label></div>' +
-      (target ? '<div class="bar" style="height:10px;border-radius:5px"><i style="height:10px;border-radius:5px;width:' + Math.min(100, Math.round(monthly / target * 100)) + '%;background:' + (diff < 0 ? 'var(--red)' : 'var(--dot-green)') + '"></i></div><span style="font-size:13px;font-weight:600;color:' + (diff < 0 ? 'var(--red)' : 'var(--green)') + '">' + (diff < 0 ? money(-diff) + ' over your monthly budget' : money(diff) + ' left each month after these expenses') + '</span>' : '<span style="font-size:12.5px;color:var(--muted)">Set a monthly budget to see what’s left after your bills.</span>') + '</div>';
-    /* this month's bills */
     var mb = B.map(function (e) { return { e: e, s: expMonthState(e, y, m) }; }).filter(function (x) { return x.s; });
     if (mb.length) {
-      var paid = 0, togo = 0; mb.forEach(function (x) { if (x.s.paid) paid += +x.e.amount; else togo += +x.e.amount; });
+      var paid = 0, togo = 0, late = 0; mb.forEach(function (x) { if (x.s.paid) paid += +x.e.amount; else { togo += +x.e.amount; if (x.s.status === 'overdue') late++; } });
       mb.sort(function (a, b) { return (a.s.paid ? 1 : 0) - (b.s.paid ? 1 : 0) || ((a.s.due || a.s.date) - (b.s.due || b.s.date)); });
-      h += '<div class="section"><h2 style="font-size:19px">' + MONTHS[m] + ' Bills</h2><span style="font-size:13px;color:var(--muted);font-weight:600">' + money(paid) + ' paid · ' + money(togo) + ' to go</span></div>' +
-        '<div class="card" style="margin:0 16px;padding:12px 14px;display:flex;flex-direction:column;gap:10px"><div class="bar" style="height:10px;border-radius:5px"><i style="height:10px;border-radius:5px;width:' + Math.round(paid / Math.max(1, paid + togo) * 100) + '%;background:var(--dot-green)"></i></div>' +
+      h += '<div class="section"><h2 style="font-size:19px">' + MONTHS[m] + ' Bills</h2>' + (late ? '<span style="font-size:13px;font-weight:700;color:var(--red)">' + late + ' overdue</span>' : '') + '</div>' +
+        '<div class="card" style="margin:0 16px;padding:14px;display:flex;flex-direction:column;gap:10px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px"><span><b style="font-size:17px">' + money(paid) + '</b> <span style="color:var(--muted)">paid</span></span><span><b style="font-size:17px">' + money(togo) + '</b> <span style="color:var(--muted)">to go</span></span></div>' +
+        '<div class="bar" style="height:8px;border-radius:4px"><i style="height:8px;border-radius:4px;width:' + Math.round(paid / Math.max(1, paid + togo) * 100) + '%;background:var(--dot-green)"></i></div>' +
         mb.map(function (x) {
           var s = x.s, lab = s.paid ? 'Paid ' + fmt(s.date) : s.status === 'overdue' ? 'Overdue · ' + fmt(s.due) : 'Due ' + fmt(s.due);
-          return '<button data-act="task" data-id="' + esc(s.t.id) + '" style="display:flex;align-items:center;gap:10px;text-align:left;min-height:40px"><span style="width:22px;height:22px;flex:0 0 22px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (s.paid ? 'background:var(--dot-green);color:#fff' : 'border:2px solid ' + (s.status === 'overdue' ? 'var(--red)' : 'var(--dusty)')) + '">' + (s.paid ? ic('check', 12, 3) : '') + '</span>' +
+          return '<button data-act="task" data-id="' + esc(s.t.id) + '" style="display:flex;align-items:center;gap:10px;text-align:left;min-height:44px"><span style="width:22px;height:22px;flex:0 0 22px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (s.paid ? 'background:var(--dot-green);color:#fff' : 'border:2px solid ' + (s.status === 'overdue' ? 'var(--red)' : 'var(--dusty)')) + '">' + (s.paid ? ic('check', 12, 3) : '') + '</span>' +
             '<span class="col"><span style="font-weight:600;font-size:14.5px">' + esc(x.e.name) + '</span><span style="font-size:12.5px;color:' + (s.status === 'overdue' && !s.paid ? 'var(--red)' : 'var(--muted)') + '">' + lab + (x.e.autopay ? ' · Autopay' : '') + '</span></span><b style="font-size:14.5px">' + money(x.e.amount) + '</b></button>';
         }).join('') + '</div>';
     }
-    /* totals by expense category and by belonging */
-    var byCat = {}; B.forEach(function (e) { byCat[e.cat] = (byCat[e.cat] || 0) + perMonth(e); });
-    var catList = Object.keys(byCat).filter(function (k) { return byCat[k] > 0; }).map(function (k) { return [k, byCat[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
-    if (catList.length) h += '<div class="section"><h2 style="font-size:19px">By Category</h2></div>' + bars(catList);
-    var byItem = {}; B.forEach(function (e) { if (itemById(e.item)) byItem[e.item] = (byItem[e.item] || 0) + perMonth(e); });
-    var itemList = Object.keys(byItem).map(function (k) { return [itemById(k).name, byItem[k], k]; }).sort(function (a, b) { return b[1] - a[1]; });
-    if (itemList.length) h += '<div class="section"><h2 style="font-size:19px">Cost per Belonging</h2></div>' + bars(itemList);
-    /* every expense, grouped */
-    h += '<div class="section"><h2 style="font-size:19px">All Expenses</h2></div><div class="stack">';
+    h += '<div class="section"><h2 style="font-size:19px">All Bills</h2></div><div class="stack">';
     EXP_CATS.forEach(function (c) {
-      var part = B.filter(function (e) { return e.cat === c; }).sort(function (a, b) { return b.amount - a.amount; });
-      if (part.length) h += '<div class="grp">' + esc(c) + ' · ' + money(part.reduce(function (s, e) { return s + perMonth(e); }, 0)) + '/mo</div>' + part.map(function (e, i) { return expRow(e, i % 2 === 1, true); }).join('');
+      var part = B.filter(function (e) { return e.cat === c; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+      if (part.length) h += '<div class="grp">' + esc(c) + '</div>' + part.map(function (e, i) { return expRow(e, i % 2 === 1, true); }).join('');
     });
     h += '</div>';
   }
@@ -1218,30 +1197,28 @@ function expForm(e, q) {
 }
 function scrEditExp() {
   var f = ui.form, isNew = !f.id;
-  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New Expense' : 'Edit Expense') + '</span><button class="textbtn" data-act="save-exp">Save</button></div></header>';
+  var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New Bill' : 'Edit Bill') + '</span><button class="textbtn" data-act="save-exp">Save</button></div></header>';
   h += flashHtml();
-  var est = (+String(f.amount).replace(/[^\d.]/g, '') || 0) * (EXP_PER_YEAR[f.freq] || 0) / 12;
   h += '<form class="form" id="expForm" autocomplete="off" novalidate>' +
-    '<label class="field"><span>Expense</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Mortgage"></label>' +
+    '<label class="field"><span>Bill</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Mortgage"></label>' +
     '<div class="two"><label class="field"><span>Amount</span><input class="input" name="amount" inputmode="decimal" value="' + esc(f.amount) + '" placeholder="$0.00"></label>' +
     '<label class="field"><span>How Often</span><select class="input" name="freq" data-rerender="1">' + EXP_FREQS.map(function (x) { return opt(x[0], f.freq); }).join('') + '</select></label></div>' +
-    (est && f.freq !== 'Monthly' ? '<small style="margin-top:-8px;font-size:12px;color:var(--muted)">About ' + money(est) + ' a month.</small>' : '') +
-    '<label class="field"><span>Expense Category</span><select class="input" name="cat">' + EXP_CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
-    '<label class="field"><span>Belonging</span><select class="input" name="item">' + itemOptions(f.item) + '</select><small>Link the car or home this cost belongs to, to see its true monthly cost.</small></label>' +
+    '<label class="field"><span>Category</span><select class="input" name="cat">' + EXP_CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
+    '<label class="field"><span>Belonging</span><select class="input" name="item">' + itemOptions(f.item) + '</select><small>The car or home this bill is for. It shows on that belonging too.</small></label>' +
     '<label class="field"><span>Paid To</span><select class="input" name="payee"><option value="">None</option>' + db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (c) { return opt(c.id, f.payee, c.name); }).join('') + '</select></label>' +
     '<label class="field"><span>' + (f.freq === 'One-time' ? 'Due Date' : 'Next Due Date') + '</span><input class="input" type="date" name="next" value="' + esc(f.next) + '"></label>' +
     '<div class="switchrow"><span class="col"><span style="font-weight:600">Remind Me</span><span style="font-size:12.5px;color:var(--muted)">Adds a bill reminder to Tasks. Mark it complete when paid.</span></span><button type="button" class="switch" data-act="exp-toggle" data-k="remind" aria-pressed="' + !!f.remind + '" aria-label="Remind me"><i></i></button></div>' +
     '<div class="switchrow"><span class="col"><span style="font-weight:600">Autopay</span><span style="font-size:12.5px;color:var(--muted)">The reminder becomes “check it posted” on the due date.</span></span><button type="button" class="switch" data-act="exp-toggle" data-k="autopay" aria-pressed="' + !!f.autopay + '" aria-label="Autopay"><i></i></button></div>' +
     '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="2" placeholder="e.g. Loan # or how you pay it">' + esc(f.notes) + '</textarea></label>' +
     '<button type="submit" class="btn primary">Save</button>' +
-    (isNew ? '' : '<button type="button" class="btn danger" data-act="del-exp">Delete Expense</button>') + '</form>';
+    (isNew ? '' : '<button type="button" class="btn danger" data-act="del-exp">Delete Bill</button>') + '</form>';
   return h;
 }
 function saveExp() {
   readForm('expForm'); var f = ui.form;
   f.name = (f.name || '').trim();
   var amt = parseFloat(String(f.amount || '').replace(/[^\d.]/g, ''));
-  if (!f.name) { toast('Name the expense, like “Mortgage”.'); return; }
+  if (!f.name) { toast('Name the bill, like “Mortgage”.'); return; }
   if (!(amt > 0)) { toast('Enter the amount.'); return; }
   if (f.remind && !parse(f.next)) { toast('Pick the next due date, or turn off Remind Me.'); return; }
   var e = f.id ? expById(f.id) : null;
@@ -1715,7 +1692,7 @@ fileInput.addEventListener('change', function () {
 var CONFIRM = {
   'del-task': ['Delete This Task?', 'Its completion history goes with it. This can\u2019t be undone.', 'Delete'],
   'del-contact': ['Delete This Contact?', 'Tasks and belongings that use this contact will stay, without it.', 'Delete'],
-  'del-exp': ['Delete This Expense?', 'Its bill reminder is removed too. This can\u2019t be undone.', 'Delete'],
+  'del-exp': ['Delete This Bill?', 'Its bill reminder is removed too. This can\u2019t be undone.', 'Delete'],
   'del-item': ['Delete This Belonging?', 'Its saved details are removed. Related tasks stay.', 'Delete'],
   'del-hist': ['Remove This Completion?', 'Tend will recalculate the next due date.', 'Remove'],
   wipe: ['Erase All Data?', 'Every task, contact and belonging on this phone will be erased. Save a backup first if you might want it back.', 'Erase Everything'],
@@ -1766,14 +1743,14 @@ document.addEventListener('click', function (e) {
       db.tasks.forEach(function (t) { if (t.item === bid) t.item = null; }); db.budget.forEach(function (e) { if (e.item === bid) e.item = null; }); save(); ui.form = null; go('items', { bq: '' }); toast('Belonging deleted.'); break;
     case 'new-exp': go('edit-exp', { form: expForm(null) }, true); break;
     case 'quick-exp': go('edit-exp', { form: expForm(null, QUICK_EXP[+el.getAttribute('data-q')]) }, true); break;
-    case 'new-exp-item': var nei = itemById(ui.itemId); var nef = expForm(null); nef.item = nei ? nei.id : ''; if (nei) nef.cat = nei.type === 'Vehicle' ? 'Transportation' : nei.type === 'Home' ? 'Housing' : nei.type === 'Pet' ? 'Pets' : nef.cat; go('edit-exp', { form: nef }, true); break;
+    case 'new-exp-item': var nei = itemById(ui.itemId); var nef = expForm(null); nef.item = nei ? nei.id : ''; if (nei) nef.cat = nei.type === 'Vehicle' ? 'Car' : nei.type === 'Home' ? 'Housing' : 'Other'; go('edit-exp', { form: nef }, true); break;
     case 'edit-exp': var ee = expById(el.getAttribute('data-id')); if (ee) go('edit-exp', { form: expForm(ee) }, true); break;
     case 'save-exp': saveExp(); break;
     case 'exp-toggle': readForm('expForm'); var ek = el.getAttribute('data-k'); ui.form[ek] = !ui.form[ek]; keepRender(); break;
     case 'del-exp':
       if (ui.armed !== 'del-exp') { readForm('expForm'); ui.armed = 'del-exp'; render(); break; }
       var xe = expById(ui.form.id); if (xe) { xe.remind = false; syncExpenseTask(xe); db.budget = db.budget.filter(function (x) { return x !== xe; }); }
-      save(); ui.form = null; back(); toast('Expense deleted.'); break;
+      save(); ui.form = null; back(); toast('Bill deleted.'); break;
     case 'copy': copyText(el.getAttribute('data-v'), el); break;
     case 'auto-vehicles':
       var vns = vehicleNamesInTasks();
@@ -1905,7 +1882,6 @@ document.addEventListener('change', function (e) {
     var rf = el.form.id, rv = el.value; readForm(rf); var key = rf === 'itemForm' ? 'contacts' : 'items';
     ui.form[key] = (ui.form[key] || []).concat([rv]); ui.form.addRel = ''; keepRender(); return;
   }
-  if (el.id === 'budgetTarget') { var bt = parseFloat(String(el.value).replace(/[^\d.]/g, '')); db.budgetTarget = bt > 0 ? Math.round(bt) : 0; save(); keepRender(); return; }
   if (el.id === 'catSel') { ui.cat = el.value; render(); }
   else if (el.id === 'otherDate' && el.value) { if (el.value > iso(today())) { toast('Pick today or an earlier day.'); return; } markDone(el.value); }
   else if (el.getAttribute && el.getAttribute('data-rerender')) { readForm(el.form ? el.form.id : 'taskForm'); render(); var nx = document.querySelector('input[name=whoOther], input[name=roleOther]'); if (nx && el.value === '__other') nx.focus(); }
@@ -1976,15 +1952,14 @@ var EXAMPLE = {"user":"Solomon","members":["Solomon","Kelly"],"tasks":[{"id":"t1
 function exampleBudget() {
   var T = today(), y = T.getFullYear(), m = T.getMonth(), d = function (mm, dd) { return iso(new Date(y, m + mm, dd)); };
   /* [name, amount, freq, cat, belonging, payee, next due, autopay, paid this month on] */
-  [['Mortgage', 2150, 'Monthly', 'Housing', 'b203', null, d(1, 1), true, d(0, 1)], ['Car Payment', 420, 'Monthly', 'Transportation', 'b201', null, d(0, 20), false, null],
+  [['Mortgage', 2150, 'Monthly', 'Housing', 'b203', null, d(1, 1), true, d(0, 1)], ['Car Payment', 420, 'Monthly', 'Car', 'b201', null, d(0, 20), false, null],
    ['Car Insurance', 780, 'Every 6 months', 'Insurance', 'b202', null, d(0, 28), false, null], ['Electric', 140, 'Monthly', 'Utilities', 'b203', null, d(0, 12), false, null],
-   ['Internet', 80, 'Monthly', 'Utilities', 'b203', null, d(1, 5), true, d(0, 5)], ['Savings Transfer', 500, 'Monthly', 'Savings & Investing', null, null, d(0, 30), true, null],
-   ['Streaming', 45, 'Monthly', 'Subscriptions', null, null, d(1, 9), true, d(0, 9)], ['Furnace Tune-Up', 180, 'Yearly', 'Home Upkeep', 'b203', 'c3', d(5, 15), false, null]].forEach(function (x) {
+   ['Internet', 80, 'Monthly', 'Utilities', 'b203', null, d(1, 5), true, d(0, 5)], ['Water & Sewer', 95, 'Every 3 months', 'Utilities', 'b203', null, d(0, 30), false, null],
+   ['Streaming', 45, 'Monthly', 'Subscriptions', null, null, d(1, 9), true, d(0, 9)], ['Home Insurance', 1450, 'Yearly', 'Insurance', 'b203', null, d(5, 15), true, null]].forEach(function (x) {
     var e = { id: newId('e'), name: x[0], amount: x[1], freq: x[2], cat: x[3], item: itemById(x[4]) ? x[4] : null, payee: x[5], next: x[6], autopay: x[7], remind: true, notes: '' };
     db.budget.push(e); syncExpenseTask(e);
     if (x[8]) { var t = expTask(e); t.history = [{ date: x[8], by: db.user }]; t.last = x[8]; t.first = x[8]; }
   });
-  db.budgetTarget = 4800;
 }
 function loadExample() { db = normalize(JSON.parse(JSON.stringify(EXAMPLE))); exampleBudget(); save(); ui.stack = []; go('home'); toast('Example data loaded: ' + db.tasks.length + ' tasks.'); }
 
