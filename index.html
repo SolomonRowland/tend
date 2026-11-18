@@ -140,10 +140,10 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .tick i{width:26px;height:26px;border-radius:999px;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,transform .15s}
 .tick:active i{transform:scale(.88)}
 .tick svg{opacity:0;transform:scale(.4);transition:opacity .15s,transform .2s}
-.row.doing .tick i{background:var(--green);border-color:var(--green);color:#fff;animation:tickpop .35s ease}
+.row.doing .tick i{background:var(--rose);border-color:var(--rose);color:#fff;animation:tickpop .35s ease}
 .row.doing .tick svg{opacity:1;transform:scale(1);color:#fff}
 .row.doing .open .name{text-decoration:line-through;color:var(--muted)}
-.row.doing .open b{color:var(--green)!important}
+.row.doing .open b{color:var(--rose)!important}
 .row.split{transition:opacity .3s,max-height .3s,margin .3s,padding .3s;max-height:140px}
 .row.gone{opacity:0;max-height:0;margin-top:-8px;overflow:hidden;border-color:transparent}
 @keyframes tickpop{0%{transform:scale(.8)}55%{transform:scale(1.22)}100%{transform:scale(1)}}
@@ -151,8 +151,9 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .hint .tk{flex:0 0 auto;width:20px;height:20px;border-radius:999px;border:2px solid var(--mauve)}
 .hint span{flex:1 1 auto}.hint button{color:var(--rose);font-weight:700;font-size:13px;min-height:36px;padding:0 4px;white-space:nowrap}
 #toast{position:absolute;left:12px;right:12px;bottom:calc(var(--safe-bot) + 74px);z-index:6;pointer-events:none}
-#toast .flash{margin:0;box-shadow:0 8px 24px rgba(10,30,70,.22);pointer-events:auto;animation:toastin .25s ease}
+#toast .flash{background:var(--rose);color:#fff;margin:0;box-shadow:0 8px 24px rgba(10,30,70,.22);pointer-events:auto;animation:toastin .25s ease}
 #toast.out .flash{opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s}
+#toast .flash button{color:var(--rose)}
 @keyframes toastin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 nav.tabs{flex:0 0 auto;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:6px 8px calc(var(--safe-bot) + 6px)}
 nav.tabs button{min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted)}
