@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tend</title>
-<meta name="theme-color" content="#0F2357">
+<meta name="theme-color" content="#0A5DD6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -184,7 +184,8 @@ nav.tabs button[aria-current="page"]{color:var(--rose)}
 .entx{flex:0 0 40px;height:40px;border-radius:999px;background:var(--blush);color:var(--rose);display:flex;align-items:center;justify-content:center}
 
 html[data-theme="mono"]{--espresso:#111111;--rose:#111111;--mauve:#8A8A8A;--dusty:#D4D4D4;--blush:#F0F0F0;--cream:#FAFAFA;--ink:#111111;--muted:#5E5E5E;--line:#E6E6E6;--head-sub:#CFCFCF}
-html[data-theme="midnight"]{--espresso:#0F2357;--rose:#1D4FB8;--mauve:#5B86D9;--dusty:#C7D4EC;--blush:#E9EFFA;--cream:#F6F8FC;--ink:#111A2E;--muted:#56627A;--line:#E0E6F1;--head-sub:#BFCDEB}
+html[data-theme="midnight"]{--espresso:#0A5DD6;--rose:#0049C5;--mauve:#3D86F2;--dusty:#C4D6F5;--blush:#E7EFFD;--cream:#F4F7FC;--ink:#0A1E46;--muted:#52617D;--line:#DEE6F4;--head-sub:#D5E3FF}
+html[data-theme="midnight"] .head{background:linear-gradient(160deg,#0A5DD6 0%,#0049C5 55%,#03308F 100%)}
 html[data-theme="sunrise"]{--espresso:#9A4410;--rose:#B0500E;--mauve:#E39A3B;--dusty:#F1D29B;--blush:#FCF0D9;--cream:#FFFBF3;--ink:#3A2A14;--muted:#6E5A3E;--line:#F2E3C4;--head-sub:#FBE1C4}
 html[data-theme="sage"]{--espresso:#2F3E34;--rose:#4F6F57;--mauve:#86A38C;--dusty:#C7D6C9;--blush:#E9F0EA;--cream:#F7F9F6;--ink:#23302A;--muted:#5A6A60;--line:#DEE7DF;--head-sub:#CFDDD2}
 html[data-theme="lavender"]{--espresso:#3A3150;--rose:#6A5A9A;--mauve:#A497C9;--dusty:#D6CFEA;--blush:#EEEAF7;--cream:#F9F8FC;--ink:#2C2640;--muted:#625C75;--line:#E5E0F0;--head-sub:#D9D2EE}
@@ -968,7 +969,7 @@ function scrWelcome() {
 
 
 /* ---------- color themes (fills and text only) ---------- */
-var THEMES = [['midnight', 'Midnight', '#0F2357', '#1D4FB8'], ['mono', 'Black & White', '#111111', '#FFFFFF'], ['mocha', 'Mocha', '#3B2A2A', '#A8777C'], ['sunrise', 'Sunrise', '#9A4410', '#E39A3B'], ['sage', 'Sage', '#2F3E34', '#86A38C'], ['lavender', 'Lavender', '#3A3150', '#A497C9']];
+var THEMES = [['midnight', 'Tend Blue', '#0049C5', '#FFFFFF'], ['mono', 'Black & White', '#111111', '#FFFFFF'], ['mocha', 'Mocha', '#3B2A2A', '#A8777C'], ['sunrise', 'Sunrise', '#9A4410', '#E39A3B'], ['sage', 'Sage', '#2F3E34', '#86A38C'], ['lavender', 'Lavender', '#3A3150', '#A497C9']];
 var THEME_KEY = 'tend.theme';
 function curTheme() { var t = 'midnight'; try { t = localStorage.getItem(THEME_KEY) || 'midnight'; } catch (e) {} return THEMES.some(function (x) { return x[0] === t; }) ? t : 'midnight'; }
 function applyTheme(t) {
