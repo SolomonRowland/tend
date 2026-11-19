@@ -704,6 +704,7 @@ function viewSettings() {
       return '<div class="row"><div class="main"><div class="t">Invite Link</div><div class="urlbox">' + esc(inviteUrl(i.code)) + '</div></div><button class="link" data-a="copy" data-v="' + esc(inviteUrl(i.code)) + '">Copy</button><button class="link" data-a="cancel-invite" data-id="' + esc(i.code) + '">Cancel</button></div>';
     }).join('') + '</div>' : '') +
     '<p class="small muted">Each login belongs to one ministry. Someone who serves with another ministry signs up there with a different email.</p>';
+  h += secHead('Help') + '<div class="list">' + row({ act: 'tour', id: 'x', lead: '<span class="avatar ic tone-red">' + IC.cal + '</span>', title: 'Watch The Quick Tour', sub: 'Two minutes on what Tent & Table does and how to plan your first event' }) + '</div>';
   h += secHead('Account') + '<div class="list">' +
     (DB.mode === 'demo' ? row({ act: 'reset-demo', id: 'x', title: 'Reset The Demo', sub: 'Put the sample ministry back the way it started' }) : '') +
     row({ act: 'signout', id: 'x', title: 'Sign Out', sub: esc(S.user.email || '') }) +
@@ -1694,6 +1695,7 @@ var A = {
   'add-agenda': function () { editRow('ed_agenda', null, F.agenda, { title: 'Add Topic', base: { event_id: S.ev.id, done: false, sort: evRows('ed_agenda').length } }); },
   'edit-agenda': function (t, id) { editRow('ed_agenda', byId('ed_agenda', id), F.agenda, { title: 'Edit Topic' }); },
   'toggle-agenda': function (t, id) { toggle('ed_agenda', id, 'done'); },
+  tour: function () { openSheet(function () { return '<h3>Quick Tour</h3><div class="tourvid"><video src="tour.mp4" controls playsinline preload="metadata" poster="tour-poster.jpg"></video></div><p class="small muted" style="margin:10px 0 0">Under two minutes. Turn your sound on for the music.</p><div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Done</button></div>'; }); },
   'edit-debrief': function () { var f = [{ k: 'debrief', label: 'What Worked, What Didn’t, What To Change', type: 'textarea', auto: true, ph: 'Start setup an hour earlier. Order more water. The greeter team was great.' }]; editRow('ed_events', S.ev, f, { title: 'Notes For Next Year', del: false, after: function (r) { S.ev = r; } }); },
   'edit-notes': function () { var f = [{ k: 'notes', label: 'Notes, Decisions And Next Steps', type: 'textarea', auto: true }]; editRow('ed_events', S.ev, f, { title: 'Meeting Notes', del: false, required: 'notes', after: function (r) { S.ev = r; } }); },
   'add-setlist': function () { editRow('ed_setlists', null, F.setlist, { title: 'Add Set List', base: { event_id: S.ev.id, on_date: S.ev.starts_on } }); },

@@ -13,6 +13,7 @@ A phone-friendly web app for running a ministry's events, from the annual tent r
 - **Event day.** While an event is happening, its Overview opens with today's schedule and one-tap Check-In, Run Of Show and Phone List.
 - **Notes for next year.** After an event ends, write down what worked and what to change. The notes stay with the event when you choose Start Next Year.
 - **Add to calendar.** Public sign-up and RSVP pages have an Add To Calendar button.
+- **Quick tour.** Settings > Help plays a tour under two minutes long. Rebuild it with the scripts in `tour-src/` after the screens change.
 - **Share and print.** The share button in an event's header opens one page with every link and QR code (volunteers, guest RSVP, connection card) and printable sheets: event summary, task list, run of show, volunteer roster, meal sign-ups, guest list, contact sheet, equipment checklist and payments owed. Everything you can share, links and QR codes included, can be copied as text, sent with the phone's share menu, or printed or saved as a PDF.
 - **Ministry logo.** The owner uploads it in Settings. It is resized in the browser and shows in the app header, on share pages, on printed sheets and QR posters.
 - **Annual events.** Open last year's event and choose **Start Next Year**: dates move to the new year, tasks and checklists reset, vendor payments reset, and sign-ups, volunteers and money are cleared (each is a checkbox). **Duplicate As A New Event** uses an event as a template for another.
