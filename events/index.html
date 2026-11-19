@@ -582,6 +582,27 @@ input[type=date].inp::-webkit-date-and-time-value{min-height:22px}
 .goal.empty-goal b{color:var(--red);font-size:14.5px}
 .goal.empty-goal span{font-size:12.5px;color:var(--muted)}
 .pgoal{margin:14px 0 4px;padding:14px 16px}
+
+/* v10: polish. Bigger small buttons, calmer row actions */
+.btn.sm{min-height:36px;padding:0 14px;font-size:13.5px;gap:6px}
+.btn.sm svg{width:16px;height:16px}
+.sec .btn.sm,.sec .link{min-height:36px;padding:0 14px;font-size:13.5px;font-weight:700;gap:5px;flex:0 0 auto}
+.sec .btn.sm svg,.sec .link svg{width:16px;height:16px}
+.link{min-height:36px;font-size:14px}
+.link.quiet{color:var(--muted);font-weight:600}
+.link.quiet:hover{color:var(--red)}
+.list.inner .row .link{padding:0 10px}
+.list.inner .row a.link{background:var(--red-tint);border-radius:999px;min-height:32px}
+.slot-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.slotcard > .meter,.slotcard .meter{margin-top:10px}
+.btnrow{gap:8px;margin:4px 0 12px}
+.btnrow .btn.sm.plain{box-shadow:var(--shadow)}
+.sec{min-height:36px}
+.sec h2{min-width:0}
+@media(max-width:420px){.subtabs:has(> :nth-child(5)) button{font-size:12px}}
+.sharebar .main b{font-size:15px}
+.row .pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.row b.amt{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
 </style>
 </head>
 <body>
