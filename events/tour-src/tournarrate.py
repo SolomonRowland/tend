@@ -1,11 +1,11 @@
-# Narration for the quick tour: one line per scene in a calm male voice (Kokoro TTS, voice am_michael).
+# Narration for the quick tour: one line per scene in a calm male voice (Kokoro TTS, voice am_puck, 1.12x speed).
 # Writes narration.wav (voice plus faint room tone) and durations.json (seconds per scene, the line plus a breath).
 import sys, json, numpy as np, wave, os
 from kokoro_onnx import Kokoro
 D = os.path.dirname(os.path.abspath(__file__))
 M = sys.argv[1] if len(sys.argv) > 1 else os.path.join(D, 'tts')
-VOICE = sys.argv[2] if len(sys.argv) > 2 else 'am_michael'
-SPEED = float(sys.argv[3]) if len(sys.argv) > 3 else 0.95
+VOICE = sys.argv[2] if len(sys.argv) > 2 else 'am_puck'
+SPEED = float(sys.argv[3]) if len(sys.argv) > 3 else 1.12
 LINES = [
   "Welcome to Tent and Table.",
   "Ministry events take more than a calendar. Volunteers, vendors, meals and money end up scattered across texts and spreadsheets. Tent and Table brings it all into one calm place.",
@@ -26,14 +26,14 @@ LINES = [
   "Plan it once, and share it everywhere. You can find this tour anytime, in Settings.",
 ]
 k = Kokoro(os.path.join(M, 'kokoro-v1.0.onnx'), os.path.join(M, 'voices-v1.0.bin'))
-SR = 24000; LEAD = 0.6; TAIL = 0.75
+SR = 24000; LEAD = 0.45; TAIL = 0.55
 clips, durs = [], []
 for i, line in enumerate(LINES):
     a, sr = k.create(line, voice=VOICE, speed=SPEED, lang='en-us'); SR = sr
     a = np.asarray(a, dtype=np.float32)
     nz = np.where(np.abs(a) > 0.004)[0]
     if len(nz): a = a[max(0, nz[0] - 200): nz[-1] + 1200]
-    d = max(4.5 if i else 3.5, LEAD + len(a) / sr + TAIL)
+    d = max(3.8 if i else 3.0, LEAD + len(a) / sr + TAIL)
     durs.append(round(d, 2)); clips.append(a)
 total = sum(durs)
 out = np.zeros(int(SR * (total + 1)), np.float32); t = 0.0
