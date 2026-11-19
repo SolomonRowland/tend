@@ -420,10 +420,11 @@ function scrEditContact() {
 }
 function stepsCard(t) {
   var h = '';
-  if (t.steps.length) {
-    var n = t.steps.filter(function (s) { return s.d; }).length;
-    h += '<div class="section"><h2 style="font-size:19px">Steps</h2><span style="font-size:13px;color:var(--muted);font-weight:600">' + n + ' of ' + t.steps.length + ' done</span></div><div class="listcard" role="group" aria-label="Steps">' +
-      t.steps.map(function (s, i) {
+  var steps = t.steps || [];
+  if (steps.length) {
+    var n = steps.filter(function (s) { return s.d; }).length;
+    h += '<div class="section"><h2 style="font-size:19px">Steps</h2><span style="font-size:13px;color:var(--muted);font-weight:600">' + n + ' of ' + steps.length + ' done</span></div><div class="listcard" role="group" aria-label="Steps">' +
+      steps.map(function (s, i) {
         return '<button type="button" class="lrow step' + (s.d ? ' on' : '') + '" role="checkbox" aria-checked="' + s.d + '" data-act="step" data-i="' + i + '"><span class="stepbox">' + (s.d ? ic('check', 13, 3) : '') + '</span><span class="t" style="flex:1 1 auto">' + esc(s.t) + '</span></button>';
       }).join('') + '</div>';
   }

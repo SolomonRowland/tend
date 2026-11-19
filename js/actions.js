@@ -31,7 +31,7 @@ function quickDone(qid, qrow) {
   if (!qt || !qrow || qrow.classList.contains('doing')) return;
   var qb = snapshot(qid);
   qt.history.unshift({ date: iso(T), by: db.user, at: new Date().toISOString() }); qt.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-  qt.last = qt.history[0].date; qt.snooze = null; qt.steps.forEach(function (s) { s.d = false; }); save(); hideHint();
+  qt.last = qt.history[0].date; qt.snooze = null; (qt.steps || []).forEach(function (s) { s.d = false; }); save(); hideHint();
   var qn = nextDue(qt), qmsg = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : qt.freq === 'One-time' ? 'All finished.' : '');
   qrow.classList.add('doing');
   var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
@@ -66,7 +66,7 @@ function markDone(dateIso, note) {
   var before = snapshot(t.id);
   t.history.unshift({ date: dateIso, by: db.user, note: note || '', at: new Date().toISOString() });
   t.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-  t.last = t.history[0].date; t.snooze = null; t.steps.forEach(function (s) { s.d = false; });
+  t.last = t.history[0].date; t.snooze = null; (t.steps || []).forEach(function (s) { s.d = false; });
   save();
   var n = nextDue(t);
   render(); showToast('Done' + (dateIso !== iso(today()) ? ' on ' + fmt(parse(dateIso)) : '') + '. ' + (n ? 'Next due ' + fmt(n, true) + '.' : t.freq === 'One-time' ? 'All finished.' : ''), before);
@@ -246,7 +246,7 @@ document.addEventListener('click', function (e) {
     case 'hint-ok': hideHint(); keepRender(); break;
     case 'step':
       var stt = db.tasks.find(function (x) { return x.id === ui.taskId; }), sti = +el.getAttribute('data-i');
-      if (stt && stt.steps[sti]) {
+      if (stt && stt.steps && stt.steps[sti]) {
         stt.steps[sti].d = !stt.steps[sti].d; save(); keepRender();
         if (stt.steps[sti].d && stt.steps.every(function (s) { return s.d; }) && info(stt).status !== 'done') toast('All steps done. Tap Mark Complete when you\u2019re finished.');
       }
@@ -269,7 +269,7 @@ document.addEventListener('click', function (e) {
       break;
     case 'edit-task':
       var et = db.tasks.find(function (x) { return x.id === ui.taskId; });
-      go('edit-task', { form: Object.assign({}, et, { early: String(et.early), stepsText: et.steps.map(function (s) { return s.t; }).join('\n') }) }, true); break;
+      go('edit-task', { form: Object.assign({}, et, { early: String(et.early), stepsText: (et.steps || []).map(function (s) { return s.t; }).join('\n') }) }, true); break;
     case 'new-task': go('edit-task', { form: { id: null, name: '', cat: ui.cat || 'Home', who: '', freq: 'Yearly', fixed: false, first: '', last: '', early: String(remindPrefs().days), notes: '', how: '', stepsText: '', contact: '', item: '', active: true, owner: '' } }, true); break;
     case 'toggle-active': readForm('taskForm'); ui.form.active = !ui.form.active; render(); break;
     case 'cancel': ui.form = null; back(); break;
