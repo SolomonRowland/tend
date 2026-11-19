@@ -601,9 +601,11 @@ var ITEM_TYPES = {
   Appliance: { icon: 'plug', ph: 'e.g. Dishwasher', key: ['model', 'serial', 'part', 'warranty'], fields: [['kind', 'Appliance', 'sel', ['Dishwasher', 'Refrigerator', 'Freezer', 'Range / oven', 'Cooktop', 'Microwave', 'Range hood', 'Garbage disposal', 'Washer', 'Dryer', 'Water heater', 'Furnace', 'Air conditioner', 'Heat pump', 'Water softener', 'Sump pump', 'Dehumidifier', 'Humidifier', 'Garage door opener', 'Generator', 'Grill', 'Lawn mower', 'Snow blower', 'Other']], ['brand', 'Brand'], ['model', 'Model Number', 'code'], ['serial', 'Serial Number', 'code'], ['where', 'Where It Is'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date'], ['part', 'Filter / Part Number', 'code'], ['store', 'Bought From']] },
   Pet: { icon: 'paw', ph: 'e.g. Max', key: ['chip', 'tag', 'tagExp'], fields: [['species', 'Animal', 'sel', ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Guinea pig / hamster', 'Reptile', 'Horse', 'Other']], ['breed', 'Breed'], ['born', 'Birthday', 'date'], ['chip', 'Microchip Number', 'code'], ['tag', 'License / Rabies Tag #', 'code'], ['tagExp', 'Tag Expires', 'date'], ['food', 'Food & Amount'], ['meds', 'Medicines']] },
   Document: { icon: 'doc', ph: 'e.g. Sam’s passport', key: ['number', 'expires'], fields: [['kind', 'Document', 'sel', ['Driver’s license', 'Passport', 'State ID', 'Birth certificate', 'Social Security card', 'Insurance card', 'Vehicle title', 'Deed', 'Will / trust', 'Other']], ['holder', 'Whose'], ['number', 'Number', 'code'], ['issued', 'Issued', 'date'], ['expires', 'Expires', 'date'], ['kept', 'Where It’s Kept']] },
+  // anything that doesn't fit the others: a few broad fields, plus notes and photos like every belonging
+  Thing: { icon: 'tag', ph: 'e.g. Grandma’s china, kayak, ring', key: ['kept', 'expires'], fields: [['about', 'Description', 'long'], ['kept', 'Where It’s Kept'], ['brand', 'Brand / Maker'], ['bought', 'Got It On', 'date'], ['paid', 'Paid or Worth', 'money'], ['expires', 'Renew or Expires', 'date'], ['ident', 'Serial or ID Number', 'code']] },
   Other: { icon: 'box', ph: 'e.g. Generator', key: ['model', 'serial', 'warranty'], fields: [['brand', 'Brand'], ['model', 'Model Number', 'code'], ['serial', 'Serial Number', 'code'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date']] }
 };
-var ITEM_ORDER = ['Vehicle', 'Home', 'Appliance', 'Pet', 'Document', 'Other'];
+var ITEM_ORDER = ['Vehicle', 'Home', 'Appliance', 'Pet', 'Document', 'Thing', 'Other'];
 var ITEM_PLURAL = { Vehicle: 'Vehicles', Home: 'Homes', Appliance: 'Appliances', Pet: 'Pets', Document: 'Documents', Other: 'Other' };
 var EXPIRY_KEYS = { plateExp: 1, warranty: 1, tagExp: 1, expires: 1 };
 function itemById(id) { return id ? db.items.find(function (b) { return b.id === id; }) || null : null; }
@@ -647,8 +649,8 @@ function itemRow(b, alt) {
 }
 function fieldRows(b, keys) {
   return ITEM_TYPES[b.type].fields.filter(function (x) { return b.fields[x[0]] && (!keys || keys.indexOf(x[0]) >= 0); }).map(function (x) {
-    var v = b.fields[x[0]], d = x[2] === 'date' ? parse(v) : null;
-    return '<div class="lrow"><span class="col"><span class="s">' + esc(x[1]) + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(d ? fmt(d, true) : v) + '</span>' + (d && EXPIRY_KEYS[x[0]] ? expiryNote(d) : '') + '</span>' +
+    var v = b.fields[x[0]], d = x[2] === 'date' ? parse(v) : null, amt = x[2] === 'money' ? parseFloat(String(v).replace(/[^\d.]/g, '')) : NaN;
+    return '<div class="lrow"><span class="col"><span class="s">' + esc(x[1]) + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(d ? fmt(d, true) : amt > 0 ? money(amt) : v) + '</span>' + (d && EXPIRY_KEYS[x[0]] ? expiryNote(d) : '') + '</span>' +
       (d ? '' : '<button class="copy" data-act="copy" data-v="' + esc(v) + '" aria-label="Copy ' + esc(x[1]) + '">' + ic('copy', 15) + '<span>Copy</span></button>') + '</div>';
   }).join('');
 }
@@ -743,12 +745,13 @@ function scrEditItem() {
     var nm = 'f_' + x[0], v = f[nm] || '', el;
     if (x[2] === 'date') el = '<input class="input" type="date" name="' + nm + '" value="' + esc(v) + '">';
     else if (x[2] === 'num') el = '<input class="input" inputmode="numeric" name="' + nm + '" value="' + esc(v) + '" maxlength="6">';
+    else if (x[2] === 'money') el = '<input class="input" inputmode="decimal" name="' + nm + '" value="' + esc(v) + '" placeholder="$">';
     else if (x[2] === 'code') el = '<input class="input" autocapitalize="characters" autocorrect="off" spellcheck="false" name="' + nm + '" value="' + esc(v) + '">';
     else if (x[2] === 'long') el = '<textarea class="input" name="' + nm + '" rows="2">' + esc(v) + '</textarea>';
     else if (x[2] === 'sel') el = '<select class="input" name="' + nm + '"><option value="">Choose…</option>' + (v && x[3].indexOf(v) < 0 ? opt(v, v) : '') + x[3].map(function (o) { return opt(o, v); }).join('') + '</select>';
     else el = '<input class="input" name="' + nm + '" value="' + esc(v) + '">';
     var fld = '<label class="field"><span>' + esc(x[1]) + '</span>' + el + '</label>';
-    var small = x[2] === 'num' || x[2] === 'date' || x[2] === 'sel';
+    var small = x[2] === 'num' || x[2] === 'date' || x[2] === 'sel' || x[2] === 'money';
     if (small && x[1].length < 22) { pair.push(fld); if (pair.length === 2) { h += '<div class="two">' + pair.join('') + '</div>'; pair = []; } }
     else { if (pair.length) { h += pair[0]; pair = []; } h += fld; }
   });
