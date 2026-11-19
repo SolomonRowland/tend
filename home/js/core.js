@@ -80,7 +80,7 @@ function normalize(d) {
   out.items = (Array.isArray(d.items) ? d.items : []).filter(Boolean).map(function (b) {
     var f = {}, src = b.fields && typeof b.fields === 'object' ? b.fields : {};
     Object.keys(src).forEach(function (k) { if (src[k] != null && String(src[k]).trim() !== '') f[k] = String(src[k]); });
-    return { id: String(b.id || ('b' + n++)), type: ITEM_TYPES[b.type] ? b.type : 'Other', name: String(b.name || b.type || 'Untitled'), fields: f, notes: b.notes || '', contacts: (Array.isArray(b.contacts) ? b.contacts : []).map(String).filter(function (x, i, a) { return cids[x] && a.indexOf(x) === i; }) };
+    return { id: String(b.id || ('b' + n++)), type: ITEM_TYPES[b.type] ? b.type : 'Other', name: String(b.name || b.type || 'Untitled'), fields: f, notes: b.notes || '', contacts: (Array.isArray(b.contacts) ? b.contacts : []).map(String).filter(function (x, i, a) { return cids[x] && a.indexOf(x) === i; }), photos: normPhotos(b.photos) };
   });
   var bids = {}; out.items.forEach(function (b) { bids[b.id] = 1; });
   var oldBills = Array.isArray(d.budget) ? d.budget.filter(Boolean) : [];
@@ -91,7 +91,7 @@ function normalize(d) {
       id: String(t.id || ('t' + n++)), name: String(t.name || 'Untitled'), cat: CATS.indexOf(t.cat) >= 0 ? t.cat : t.cat === 'Finance & Insurance' ? 'Bills & Finance' : 'Misc', who: t.who || '',
       freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: parse(t.first) ? t.first : null, last: parse(t.last) ? t.last : (hist[0] ? hist[0].date : null),
       early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '',
-      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: parse(t.snooze) ? t.snooze : null, history: hist
+      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: parse(t.snooze) ? t.snooze : null, history: hist, photos: normPhotos(t.photos)
     };
   });
   var max = 0;
@@ -238,6 +238,7 @@ var I = {
   pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
   web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/>',
   snooze: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3L2 6"/><path d="M19 3l3 3"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   car: '<path d="M5 16V12l2-5h10l2 5v4"/><path d="M3 16h18"/><path d="M5 12h14"/><circle cx="7.5" cy="18" r="1.6"/><circle cx="16.5" cy="18" r="1.6"/>',

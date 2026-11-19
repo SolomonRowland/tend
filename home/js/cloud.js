@@ -221,7 +221,7 @@ function subscribe() {
     .subscribe(function (status) { if (status === 'SUBSCRIBED') pull(); });
 }
 function refreshView() {
-  var busy = ['edit-task', 'edit-contact', 'edit-item', 'profile', 'prefs', 'starter', 'starter-pick'].indexOf(ui.screen) >= 0 || ui.completing || ui.confirm ||
+  var busy = ['edit-task', 'edit-contact', 'edit-item', 'profile', 'prefs', 'starter', 'starter-pick'].indexOf(ui.screen) >= 0 || ui.completing || ui.confirm || ui.viewer ||
     document.querySelector('.row.doing') || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
   if (busy) { C.stale = true; return; }
   C.stale = false;

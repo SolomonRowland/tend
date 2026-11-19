@@ -284,6 +284,7 @@ function scrTask() {
       '<button data-act="item" data-id="' + esc(bi.id) + '" style="display:flex;align-items:center;gap:12px;text-align:left;min-height:44px"><span class="badge">' + ic(ITEM_TYPES[bi.type].icon, 20) + '</span><span class="col"><span style="font-weight:600">' + esc(bi.name) + '</span><span style="font-size:12.5px;color:var(--muted)">' + (kr ? 'Tap for all details' : 'No details yet. Tap to add them.') + '</span></span><span style="color:var(--muted)">' + ic('next', 18) + '</span></button>' +
       (kr ? '<div>' + kr + '</div>' : '<div style="height:10px"></div>') + '</div>';
   }
+  h += photosCard('task', t);
   h += '<div class="section"><h2 style="font-size:19px">History</h2></div><div class="listcard">';
   h += t.history.length ? t.history.map(function (x, idx) {
     var armed = ui.armed === 'hist' + idx;
@@ -657,6 +658,7 @@ function scrItem() {
   var rowsH = fieldRows(b);
   h += '<div class="listcard" style="margin-top:16px">' + (rowsH || '<p class="note" style="text-align:left;margin:12px 0">No details saved yet. Tap Edit to add them.</p>') + '</div>';
   if (b.notes) h += '<div class="card" style="margin:10px 16px 0;padding:14px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;color:var(--muted)">Notes</span><span style="line-height:1.45;white-space:pre-wrap">' + esc(b.notes) + '</span></div>';
+  h += photosCard('item', b);
   var rc = b.contacts.map(function (id) { return db.contacts.find(function (c) { return c.id === id; }); }).filter(Boolean);
   h += '<div class="section"><h2 style="font-size:19px">Related Contacts</h2><button class="link" data-act="edit-item">' + (rc.length ? 'Edit' : '+ Add') + '</button></div><div class="stack">' +
     (rc.length ? rc.map(function (c, i) { return contactRow(c, i % 2 === 1); }).join('') : '<p class="note" style="text-align:left;padding:4px">No related contacts yet, like a mechanic or insurance agent.</p>') + '</div>';

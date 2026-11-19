@@ -31,6 +31,20 @@ window.TEND_CLOUD_FACTORY = function () {
       updateUser: function () { return Promise.resolve({}); }
     },
     from: function (t) { return new Q(t); },
+    storage: {
+      from: function (bucket) {
+        return {
+          upload: function (path, blob) {
+            return blob.arrayBuffer().then(function (buf) {
+              var s = '', u = new Uint8Array(buf); for (var i = 0; i < u.length; i++) s += String.fromCharCode(u[i]);
+              return post('/storage/upload', { bucket: bucket, path: path, b64: btoa(s) });
+            }).then(function (r) { return { data: r.data, error: r.error }; });
+          },
+          createSignedUrls: function (paths) { return post('/storage/sign', { bucket: bucket, paths: paths }).then(function (r) { return { data: r.data, error: r.error }; }); },
+          remove: function (paths) { return post('/storage/remove', { bucket: bucket, paths: paths }).then(function (r) { return { data: r.data, error: r.error }; }); }
+        };
+      }
+    },
     rpc: function (fn, args) { return post('/q', { q: { op: 'rpc', fn: fn, args: args } }).then(function (r) { return { data: r.data, error: r.error }; }); },
     channel: function () {
       var cb = null, ch = {

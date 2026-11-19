@@ -4,7 +4,7 @@
 const http = require('http'), crypto = require('crypto');
 const { Pool } = require('pg');
 const pool = new Pool({ host: process.env.PGHOST || '127.0.0.1', user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || 'pg', database: process.env.PGDATABASE || 'tendtest' });
-const pw = {}; const tokens = {}; const subs = new Set();
+const pw = {}; const tokens = {}; const subs = new Set(); const files = {}; const signed = {};
 function send(res, code, obj) { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }); res.end(JSON.stringify(obj)); }
 function ident(s) { if (!/^[a-z_][a-z0-9_]*$/.test(s)) throw new Error('bad ident ' + s); return s; }
 async function asUser(uid, fn) {
@@ -51,11 +51,12 @@ async function run(q, uid) {
 }
 http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});
+  if (req.url.startsWith('/file/')) { const f = files[signed[req.url.slice(6)]]; if (!f) return send(res, 404, {}); res.writeHead(200, { 'content-type': 'image/jpeg', 'access-control-allow-origin': '*' }); return res.end(f); }
   if (req.url === '/events') { res.writeHead(200, { 'content-type': 'text/event-stream', 'access-control-allow-origin': '*', 'cache-control': 'no-cache' }); res.write(':ok\n\n'); subs.add(res); req.on('close', () => subs.delete(res)); return; }
   let body = ''; req.on('data', d => body += d); await new Promise(r => req.on('end', r));
   const b = body ? JSON.parse(body) : {}; const uid = tokens[b.token] || null;
   try {
-    if (req.url === '/reset') { await pool.query("truncate public.records, public.invites, public.members, public.households cascade; delete from auth.users"); for (const k in pw) delete pw[k]; return send(res, 200, { ok: 1 }); }
+    if (req.url === '/reset') { await pool.query("truncate public.records, public.invites, public.members, public.households cascade; delete from auth.users; delete from storage.objects"); for (const k in pw) delete pw[k]; return send(res, 200, { ok: 1 }); }
     if (req.url === '/signup') {
       const ex = (await pool.query('select id from auth.users where email=$1', [b.email])).rows[0];
       if (ex) return send(res, 200, { error: { message: 'User already registered' } });
@@ -66,6 +67,18 @@ http.createServer(async (req, res) => {
       const u = (await pool.query('select id, email from auth.users where email=$1', [b.email])).rows[0];
       if (!u || pw[b.email] !== b.password) return send(res, 200, { error: { message: 'Invalid login credentials' } });
       const tk = crypto.randomUUID(); tokens[tk] = u.id; return send(res, 200, { data: { user: u, session: { access_token: tk, user: u } } });
+    }
+    if (req.url === '/storage/upload') {
+      await asUser(uid, c => c.query('insert into storage.objects (bucket_id, name) values ($1, $2)', [b.bucket, b.path]));
+      files[b.bucket + '/' + b.path] = Buffer.from(b.b64, 'base64'); return send(res, 200, { data: { path: b.path }, error: null });
+    }
+    if (req.url === '/storage/sign') {
+      const vis = await asUser(uid, async c => (await c.query('select name from storage.objects where bucket_id = $1 and name = any($2)', [b.bucket, b.paths])).rows.map(r => r.name));
+      return send(res, 200, { data: b.paths.map(p => { if (vis.indexOf(p) < 0) return { path: p, error: 'Object not found', signedUrl: null }; const tk = crypto.randomUUID(); signed[tk] = b.bucket + '/' + p; return { path: p, signedUrl: 'http://localhost:8790/file/' + tk }; }), error: null });
+    }
+    if (req.url === '/storage/remove') {
+      await asUser(uid, c => c.query('delete from storage.objects where bucket_id = $1 and name = any($2)', [b.bucket, b.paths]));
+      return send(res, 200, { data: [], error: null });
     }
     if (req.url === '/q') return send(res, 200, { data: await run(b.q, uid), error: null });
     send(res, 404, {});

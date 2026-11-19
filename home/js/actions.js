@@ -125,6 +125,7 @@ document.addEventListener('click', function (e) {
   var a = el.getAttribute('data-act'), T = today();
   if (a === 'noop') return;
   if (C.on && cloudAct(a, el)) return;
+  if (photoAct(a, el)) return;
   if (a === 'confirm-cancel') { ui.confirm = null; ui.armed = null; showModal(); return; }
   if (a === 'confirm-ok') {
     var cf = ui.confirm; ui.confirm = null; showModal(); if (!cf) return;
@@ -154,7 +155,7 @@ document.addEventListener('click', function (e) {
     case 'save-item': saveItem(); break;
     case 'del-item':
       if (ui.armed !== 'del-item') { readForm('itemForm'); ui.armed = 'del-item'; render(); break; }
-      var bid = ui.form.id; db.items = db.items.filter(function (x) { return x.id !== bid; });
+      var bid = ui.form.id; deletePhotos((itemById(bid) || {}).photos); db.items = db.items.filter(function (x) { return x.id !== bid; });
       db.tasks.forEach(function (t) { if (t.item === bid) t.item = null; }); save(); ui.form = null; go('items', { bq: '' }); toast('Belonging deleted.'); break;
     case 'copy': copyText(el.getAttribute('data-v'), el); break;
     case 'auto-vehicles':
@@ -248,7 +249,7 @@ document.addEventListener('click', function (e) {
     case 'save-task': saveTask(); break;
     case 'del-task':
       if (ui.armed !== 'del-task') { readForm('taskForm'); ui.armed = 'del-task'; render(); break; }
-      var dt = db.tasks.find(function (x) { return x.id === ui.form.id; }); if (dt && dt.auto === 'birthday') db.noBday = true;
+      var dt = db.tasks.find(function (x) { return x.id === ui.form.id; }); if (dt && dt.auto === 'birthday') db.noBday = true; if (dt) deletePhotos(dt.photos);
       db.tasks = db.tasks.filter(function (x) { return x.id !== ui.form.id; }); save(); ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); toast('Task deleted.'); break;
     case 'edit-contact':
       var ec = db.contacts.find(function (x) { return x.id === ui.conId; }); go('edit-contact', { form: Object.assign({}, ec, { items: db.items.filter(function (b) { return b.contacts.indexOf(ec.id) >= 0; }).map(function (b) { return b.id; }) }) }, true); break;

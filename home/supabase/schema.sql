@@ -181,3 +181,23 @@ do $$ begin
     alter publication supabase_realtime add table public.records;
   end if;
 end $$;
+
+-- ---------- photos (private storage; only your household can see or add them) ----------
+-- Files are stored as photos/<household id>/<task or belonging>/<file>.jpg
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('photos', 'photos', false, 5242880, array['image/jpeg'])
+  on conflict (id) do nothing;
+
+create or replace function public.can_use_photo(obj text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case when split_part(obj, '/', 1) ~ '^[0-9a-f-]{36}$' then public.is_member(split_part(obj, '/', 1)::uuid) else false end;
+$$;
+revoke all on function public.can_use_photo(text) from public, anon;
+grant execute on function public.can_use_photo(text) to authenticated;
+
+drop policy if exists tend_photos_read on storage.objects;
+create policy tend_photos_read on storage.objects for select to authenticated using (bucket_id = 'photos' and public.can_use_photo(name));
+drop policy if exists tend_photos_add on storage.objects;
+create policy tend_photos_add on storage.objects for insert to authenticated with check (bucket_id = 'photos' and public.can_use_photo(name));
+drop policy if exists tend_photos_remove on storage.objects;
+create policy tend_photos_remove on storage.objects for delete to authenticated using (bucket_id = 'photos' and public.can_use_photo(name));

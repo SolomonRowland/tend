@@ -45,6 +45,16 @@ begin
   perform t_expect(t_fails(format('insert into records (household_id, kind, id, data) values (%L, ''task'', ''y'', ''{}'')', hid)), 'cannot write into another household');
 
   perform t_as('11111111-1111-1111-1111-111111111111', 'sol@x.com');
+  insert into storage.objects (bucket_id, name) values ('photos', hid || '/t1/a.jpg');
+  perform t_expect(t_fails(format('insert into storage.objects (bucket_id, name) values (''photos'', %L)', hid2 || '/t1/b.jpg')), 'cannot add a photo to another household');
+  perform t_expect(t_fails('insert into storage.objects (bucket_id, name) values (''photos'', ''not-a-household/t1/c.jpg'')'), 'odd photo paths refused');
+  perform t_as('22222222-2222-2222-2222-222222222222', 'kelly@x.com');
+  select count(*) into n from storage.objects; perform t_expect(n = 1, 'member sees household photos');
+  perform t_as('33333333-3333-3333-3333-333333333333', 'stranger@x.com');
+  select count(*) into n from storage.objects; perform t_expect(n = 0, 'stranger sees no photos');
+  delete from storage.objects; 
+  perform t_as('11111111-1111-1111-1111-111111111111', 'sol@x.com');
+  select count(*) into n from storage.objects; perform t_expect(n = 1, 'stranger cannot delete photos');
   perform t_expect(t_fails(format('select remove_member(%L, ''11111111-1111-1111-1111-111111111111'')', hid)), 'owner cannot leave while others remain');
   perform remove_member(hid, '22222222-2222-2222-2222-222222222222');
   perform t_as('22222222-2222-2222-2222-222222222222', 'kelly@x.com');
@@ -56,4 +66,5 @@ do $$ begin perform t_expect(t_fails('select count(*) from records'), 'signed-ou
 reset role;
 -- clean up so the browser tests start empty
 truncate public.records, public.invites, public.members, public.households cascade;
+delete from storage.objects;
 delete from auth.users;
