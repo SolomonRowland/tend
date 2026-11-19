@@ -1,4 +1,5 @@
 # Renders the Tent & Table quick tour: 1920x1080, 30 fps, piped to ffmpeg.
+# Scene lengths come from durations.json (written by tournarrate.py) so each slide lasts as long as its line.
 import subprocess, sys, os, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 D = os.path.dirname(os.path.abspath(__file__))
@@ -117,9 +118,12 @@ def render(i, lt):
         im.alpha_composite(p2, (x, (H - p2.height) // 2 + int(40 * (1 - b)) + float_y))
     return im.convert('RGB')
 
+import json
+_d = json.load(open(os.path.join(D, 'durations.json'))); _d[-1] += 1.0
+SCENES = [(sc[0], dd) + tuple(sc[2:]) for sc, dd in zip(SCENES, _d)]
 total = sum(s[1] for s in SCENES)
-out = sys.argv[1]; music = sys.argv[2]
-ff = subprocess.Popen(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-', '-i', music,
+out = sys.argv[1]; audio = sys.argv[2]
+ff = subprocess.Popen(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-', '-i', audio,
                        '-c:v', 'libx264', '-preset', 'medium', '-crf', '22', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k', '-shortest', '-movflags', '+faststart', out], stdin=subprocess.PIPE)
 prev_last = None; XF = 0.5
 for i, sc in enumerate(SCENES):

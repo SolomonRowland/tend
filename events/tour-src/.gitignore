@@ -1,2 +1,5 @@
 shots/
-music.wav
+tts/
+voice.wav
+narration.wav
+durations.json
