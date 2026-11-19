@@ -582,12 +582,13 @@ function viewHome() {
   week.sort(function (a, b) { return (a.d + a.k).localeCompare(b.d + b.k); });
   att.sort(function (a, b) { return (a.x[0] === 'red' ? 0 : 1) - (b.x[0] === 'red' ? 0 : 1); });
   var h = '';
+  h += '<div class="stats three">' + '<div class="stat c-red"><div class="v">' + late + '</div><div class="k">Overdue Tasks</div></div>' + '<div class="stat c-amber"><div class="v">' + money(owed) + '</div><div class="k">Still Owed</div></div>' + '<div class="stat c-green"><div class="v">' + up.length + '</div><div class="k">Upcoming Events</div></div></div>';
+  h += secHead('Next Up');
   if (next) {
     var days = next.starts_on ? dayDiff(next.starts_on, TODAY) : null, ts = evRows('ed_tasks', next), td = ts.filter(function (t) { return t.done; }).length;
     h += '<button class="countdown cdbtn" data-a="open-event" data-id="' + next.id + '"><div class="cd-num">' + (days != null && days > 1 ? '<b>' + days + '</b><span>Days<br>To Go</span>' : '<b class="word">' + esc(countdown(next)) + '</b>') + '</div>' +
       '<div class="cd-side"><div class="cd-k">Next Up</div><div class="cd-title">' + esc(next.title) + '</div><div class="cd-sub">' + esc(fmtRange(next.starts_on, next.ends_on)) + '</div>' + (ts.length ? '<div class="cd-bar"><i style="width:' + Math.round(100 * td / ts.length) + '%"></i></div>' : '') + '</div></button>';
   } else h += '<div class="card empty">No upcoming events. ' + addBtn('Plan An Event', 'new-event') + '</div>';
-  h += '<div class="stats">' + stat('Upcoming Events', up.length) + stat('Tasks Overdue', late, late > 0) + stat('Still Owed', money(owed), false) + stat('New Cards', cards, cards > 0) + stat('People', T('ed_people').filter(function (p) { return p.status === 'current'; }).length) + stat('Vendors', T('ed_vendors').length) + '</div>';
   h += secHead('Needs Attention', '', att.length ? String(att.length) : '') + (att.length ? '<div class="list">' + att.slice(0, 8).map(function (a) {
     return '<button class="row flag ' + a.x[0] + '" data-a="open-event-tab" data-id="' + a.e.id + '" data-v="' + a.x[3] + '"><div class="main"><div class="t">' + esc(a.x[1]) + '</div><div class="s">' + esc(a.e.title) + (a.x[2] ? ' · ' + esc(a.x[2]) : '') + '</div></div><span class="chev">' + IC.chev + '</span></button>';
   }).join('') + '</div>' + (att.length > 8 ? '<p class="small muted">' + (att.length - 8) + ' more inside each event.</p>' : '') : '<div class="empty good">' + IC.check + ' Everything is on track.</div>');
