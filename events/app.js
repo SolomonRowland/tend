@@ -606,15 +606,16 @@ function upcomingEvents() { return events().filter(function (e) { return (e.ends
 function withEvent(e, fn) { var keep = S.ev; S.ev = e; try { return fn(); } finally { S.ev = keep; } }
 function viewHome() {
   var up = upcomingEvents(), next = up[0], wk = addDays(TODAY, 7);
-  var att = [], week = [], owed = 0, late = 0, cards = 0;
+  var att = [], week = [], late = 0, dueWk = 0, volNeed = 0, cards = 0;
   events().forEach(function (e) {
     var isUp = up.indexOf(e) >= 0;
     withEvent(e, function () {
       if (isUp) attention(e).forEach(function (x) { att.push({ e: e, x: x }); });
       cards += evRows('ed_cards').filter(function (c) { return c.status === 'new'; }).length;
       if (!isUp) return;
-      payables(e).forEach(function (p) { owed += p.owed; });
       late += evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on < TODAY; }).length;
+      dueWk += evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on <= wk; }).length;
+      if (on('volunteers') && num(e.volunteer_goal)) volNeed += Math.max(0, num(e.volunteer_goal) - volCount());
       if (on('calendar')) evRows('ed_schedule').filter(function (s) { return s.on_date >= TODAY && s.on_date <= wk; }).forEach(function (s) { week.push({ d: s.on_date, k: s.start_time || '', title: s.title, sub: [fmtTime(s.start_time), e.title].filter(Boolean).join(' · '), e: e, tab: 'calendar' }); });
       if (on('tasks')) evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on >= TODAY && t.due_on <= wk; }).forEach(function (t) { week.push({ d: t.due_on, k: 'zz', title: t.title, sub: ['Task', t.owner, e.title].filter(Boolean).join(' · '), e: e, tab: 'tasks' }); });
     });
@@ -622,17 +623,20 @@ function viewHome() {
   week.sort(function (a, b) { return (a.d + a.k).localeCompare(b.d + b.k); });
   att.sort(function (a, b) { return (a.x[0] === 'red' ? 0 : 1) - (b.x[0] === 'red' ? 0 : 1); });
   var h = '';
-  h += '<div class="stats three">' + '<div class="stat c-red"><div class="v">' + late + '</div><div class="k">Overdue Tasks</div></div>' + '<div class="stat c-amber"><div class="v">' + money(owed) + '</div><div class="k">Still Owed</div></div>' + '<div class="stat c-green"><div class="v">' + up.length + '</div><div class="k">Upcoming Events</div></div></div>';
+  h += '<div class="stats three">' +
+    '<button class="stat c-green" data-a="nav" data-v="events"><div class="v">' + up.length + '</div><div class="k">Upcoming Events</div></button>' +
+    '<button class="stat ' + (late ? 'c-red' : 'c-ink') + '" data-a="home-jump" data-v="week"><div class="v">' + dueWk + '</div><div class="k">Tasks This Week' + (late ? ' · ' + late + ' Late' : '') + '</div></button>' +
+    '<button class="stat ' + (volNeed ? 'c-amber' : 'c-ink') + '" data-a="home-jump" data-v="att"><div class="v">' + volNeed + '</div><div class="k">Volunteers Needed</div></button></div>';
   h += secHead('Next Up');
   if (next) {
     var days = next.starts_on ? dayDiff(next.starts_on, TODAY) : null, ts = evRows('ed_tasks', next), td = ts.filter(function (t) { return t.done; }).length;
     h += '<button class="countdown cdbtn" data-a="open-event" data-id="' + next.id + '"><div class="cd-num">' + (days != null && days > 1 ? '<b>' + days + '</b><span>Days<br>To Go</span>' : '<b class="word">' + esc(countdown(next)) + '</b>') + '</div>' +
       '<div class="cd-side"><div class="cd-k">Next Up</div><div class="cd-title">' + esc(next.title) + '</div><div class="cd-sub">' + esc(fmtRange(next.starts_on, next.ends_on)) + '</div>' + (ts.length ? '<div class="cd-bar"><i style="width:' + Math.round(100 * td / ts.length) + '%"></i></div>' : '') + '</div></button>';
   } else h += '<div class="card empty">No upcoming events. ' + addBtn('Plan An Event', 'new-event') + '</div>';
-  h += secHead('Needs Attention', '', att.length ? String(att.length) : '') + (att.length ? '<div class="list">' + att.slice(0, 8).map(function (a) {
+  h += '<div id="home-att"></div>' + secHead('Needs Attention', '', att.length ? String(att.length) : '') + (att.length ? '<div class="list">' + att.slice(0, 8).map(function (a) {
     return '<button class="row flag ' + a.x[0] + '" data-a="open-event-tab" data-id="' + a.e.id + '" data-v="' + a.x[3] + '"><div class="main"><div class="t">' + esc(a.x[1]) + '</div><div class="s">' + esc(a.e.title) + (a.x[2] ? ' · ' + esc(a.x[2]) : '') + '</div></div><span class="chev">' + IC.chev + '</span></button>';
   }).join('') + '</div>' + (att.length > 8 ? '<p class="small muted">' + (att.length - 8) + ' more inside each event.</p>' : '') : '<div class="empty good">' + IC.check + ' Everything is on track.</div>');
-  h += secHead('This Week') + listBox(week.slice(0, 8).map(function (w) {
+  h += '<div id="home-week"></div>' + secHead('This Week') + listBox(week.slice(0, 8).map(function (w) {
     return '<button class="row" data-a="open-event-tab" data-id="' + w.e.id + '" data-v="' + w.tab + '"><span class="datebox sm"><small>' + dt(w.d).toLocaleDateString('en-US', { weekday: 'short' }) + '</small><b>' + dt(w.d).getDate() + '</b></span><div class="main"><div class="t">' + esc(w.title) + '</div><div class="s">' + esc(w.sub) + '</div></div><span class="chev">' + IC.chev + '</span></button>';
   }), 'Nothing scheduled in the next 7 days.');
   h += secHead('Quick Add') + '<div class="quick">' + [['new-event', 'Event', IC.cal, ''], ['dir-add', 'Person', IC.user, 'ed_people'], ['dir-add', 'Vendor', IC.tent, 'ed_vendors'], ['dir-add', 'Equipment', IC.box, 'ed_equipment']].map(function (q) {
@@ -713,14 +717,15 @@ function editProfile(fields, base, title, fn) {
 function inviteUrl(code) { return location.origin + location.pathname + '?join=' + code; }
 
 /* ================================================================ event workspace */
-var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['dir', 'Directory'], ['money', 'Money'], ['guests', 'Guests']];
+var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['people', 'People'], ['vendors', 'Vendors'], ['money', 'Money']];
 var AREA_SUBS = {
-  plan: [['tasks', 'Tasks', 'tasks'], ['schedule', 'Schedule', 'calendar'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'worship']],
-  dir: [['people', 'People', 'team'], ['volunteers', 'Volunteers', 'vols'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors'], ['equipment', 'Equipment', 'equipment']],
-  guests: [['attending', 'Attending', 'guests'], ['checkin', 'Check-In', 'ci'], ['followup', 'Follow-Up', 'followup']]
+  plan: [['tasks', 'Tasks', 'tasks'], ['schedule', 'Schedule', 'calendar'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'worship'], ['equipment', 'Equipment', 'equipment']],
+  people: [['team', 'Team', 'team'], ['volunteers', 'Volunteers', 'vols'], ['guests', 'Guests', 'gst']],
+  vendors: [['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors']]
 };
-var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], people: ['dir', 'people'], vendors: ['dir', 'vendors'], contacts: ['dir', 'contacts'], equipment: ['dir', 'equipment'], food: ['dir', 'volunteers'], signups: ['dir', 'volunteers'], volunteers: ['dir', 'volunteers'], attending: ['guests', 'attending'], checkin: ['guests', 'checkin'], followup: ['guests', 'followup'], share: ['guests', 'attending'], money: ['money'], payments: ['money'] };
-function subOn(x) { var k = x[2]; return k === 'always' ? true : k === 'vols' ? (on('volunteers') || on('food')) : k === 'team' ? (on('people') || on('speakers') || on('worship')) : k === 'ci' ? (on('guests') || on('volunteers')) : on(k); }
+var GUEST_SUBS = { attending: 1, checkin: 1, followup: 1 };
+var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], equipment: ['plan', 'equipment'], people: ['people', 'team'], team: ['people', 'team'], vendors: ['vendors', 'vendors'], contacts: ['vendors', 'contacts'], food: ['people', 'volunteers'], signups: ['people', 'volunteers'], volunteers: ['people', 'volunteers'], guests: ['people', 'guests'], attending: ['people', 'guests'], checkin: ['people', 'guests'], followup: ['people', 'guests'], share: ['people', 'guests'], money: ['money'], payments: ['money'] };
+function subOn(x) { var k = x[2]; return k === 'always' ? true : k === 'vols' ? (on('volunteers') || on('food')) : k === 'team' ? (on('people') || on('speakers') || on('worship')) : k === 'gst' ? (on('guests') || on('followup')) : on(k); }
 function areaSubs(k) { return (AREA_SUBS[k] || []).filter(subOn); }
 function areaOn(k) { return k === 'overview' || (k === 'money' ? on('money') : areaSubs(k).length > 0); }
 function goArea(key) {
@@ -731,6 +736,8 @@ function goArea(key) {
   if (key === 'money' || key === 'payments') S.sub.money = 'payments';
   if (key === 'food') S.sub.signkind = 'meal';
   if (key === 'signups' || key === 'volunteers') S.sub.signkind = 'serve';
+  if (GUEST_SUBS[key]) S.sub.guestsub = key === 'checkin' && !on('guests') ? 'attending' : key;
+  if (key === 'checkin' && !on('guests')) { S.evTab = 'people'; S.sub.area_people = 'volunteers'; S.sub.signkind = 'checkin'; }
 }
 function hidden(fn) { S.hideSub = true; try { return fn(); } finally { S.hideSub = false; } }
 function viewWorkspace() {
@@ -756,21 +763,31 @@ function areaView(area, sub, e) {
   if (sub === 'tasks') return wsTasks(e);
   if (sub === 'agenda') return wsAgenda(e);
   if (sub === 'setlists') return setlistsView();
-  if (sub === 'people') return dirPeople(e);
+  if (sub === 'team') return dirPeople(e);
+  if (sub === 'guests') return guestsView(e);
   if (sub === 'vendors' || sub === 'contacts') { S.sub.vendors = sub; return hidden(function () { return wsVendors(e); }); }
   if (sub === 'equipment') return wsEquipment(e);
-  if (sub === 'checkin') return checkinView(e);
-  if (sub === 'followup') return wsFollowup(e);
-  if (sub === 'attending') return attendingView(e);
   if (sub === 'volunteers') return volunteersView(e);
   return '';
+}
+function guestsView(e) {
+  var kinds = [];
+  if (on('guests')) kinds.push(['attending', 'Attending'], ['checkin', 'Check-In']);
+  if (on('followup')) kinds.push(['followup', 'Follow-Up']);
+  var st = subTabs('guestsub', kinds, kinds[0][0]);
+  var top = kinds.length > 1 ? st.html.replace('class="subtabs"', 'class="subtabs mini"') : '';
+  if (st.cur === 'checkin') return top + checkinView(e);
+  if (st.cur === 'followup') return top + wsFollowup(e);
+  return top + attendingView(e);
 }
 function volunteersView(e) {
   var kinds = [];
   if (on('volunteers')) kinds.push(['serve', 'Volunteers']);
   if (on('food')) kinds.push(['meal', 'Meals']);
+  if (on('volunteers') && !on('guests')) kinds.push(['checkin', 'Check-In']);
   var st = subTabs('signkind', kinds, 'serve');
   var top = kinds.length > 1 ? st.html.replace('class="subtabs"', 'class="subtabs mini"') : '';
+  if (st.cur === 'checkin') return top + checkinView(e);
   if (st.cur === 'meal') return top + shareBar('v') + wsFood(e);
   var av = assigned('volunteer');
   return top + shareBar('v') + goalCard(e) + secHead('Volunteer Team', addBtn('Add From Directory', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
@@ -794,7 +811,7 @@ function attendingView(e) {
 function checkinView(e) {
   var its0 = evRows('ed_items').filter(function (i) { return i.kind === 'attend' || i.kind === 'serve'; }), days = [];
   its0.forEach(function (i) { var d = i.on_date || ''; if (days.indexOf(d) < 0) days.push(d); }); days.sort();
-  if (!days.length) return '<div class="empty card">Add RSVP services under Attending, or volunteer spots under Directory, then check people in here.</div>';
+  if (!days.length) return '<div class="empty card">Add RSVP services under Guests, or volunteer spots under Volunteers, then check people in here.</div>';
   var day = S.sub.ciDay != null && days.indexOf(S.sub.ciDay) >= 0 ? S.sub.ciDay : (days.indexOf(TODAY) >= 0 ? TODAY : days.find(function (d) { return d >= TODAY; }) || days[0]);
   S.sub.ciDay = day;
   var its = its0.filter(function (i) { return (i.on_date || '') === day; }), all = 0, here = 0;
@@ -1203,8 +1220,7 @@ function openDoc(k) {
     var opts = k === 'tasks' && evRows('ed_tasks').length ? '<div class="docopts">' + tabs([['phase', 'By Segment'], ['area', 'By Area']], S.sub.taskby === 'area' ? 'area' : 'phase', 'doc-by', 'subtabs mini') + areaSelect('dk_area', 'doc-area', S.taskArea) + '</div>' : '';
     d = docBuild(k);
     return '<h3>' + esc(d.title) + '</h3>' + opts + '<div class="docprev">' + d.html + '</div>' +
-      '<div class="acts"><button class="btn plain" data-a="close">Close</button><span class="grow"></span><button class="btn plain" data-a="doc-copy" data-id="' + k + '">Copy Text</button>' + (window.ED_DEMO ? '' : '<button class="btn" data-a="doc-print" data-id="' + k + '">Print Or PDF</button>') + '</div>' +
-      (window.ED_DEMO ? '<p class="small muted center" style="margin:8px 0 0">Printing and saving as PDF work in the app, not in this demo.</p>' : '');
+      shareTools('doc', k) + '<div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Done</button></div>';
   });
 }
 function printHtml(html) { var d = document.createElement('div'); d.className = 'printonly'; d.innerHTML = html; document.body.appendChild(d); window.print(); setTimeout(function () { d.remove(); }, 800); }
@@ -1212,7 +1228,7 @@ function showQr(k) {
   var url = pubUrl(k);
   openSheet(function () {
     return '<h3>' + esc(SHARE[k][0]) + '</h3><p class="lead">' + esc(SHARE[k][1]) + ' Text the link, post it, or print the QR code for the tent and tables.</p><div class="qrbig-sheet">' + qrSvg(url) + '</div><div class="urlbox">' + esc(url) + '</div>' +
-      '<div class="qr-tools"><button class="btn sm plain" data-a="copy" data-v="' + esc(url) + '">Copy Link</button><button class="btn sm plain" data-a="open-pub" data-id="' + k + '">Open Page</button>' + (window.ED_DEMO ? '' : '<button class="btn sm plain" data-a="print-qr" data-id="' + k + '">Print Poster</button>') + '</div><div class="acts"><span class="grow"></span><button class="btn" data-a="close">Done</button></div>';
+      shareTools('qr', k, '<button class="btn sm plain" data-a="copy" data-v="' + esc(url) + '">Copy Link</button><button class="btn sm plain" data-a="open-pub" data-id="' + k + '">Open Page</button>') + '<div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Done</button></div>';
   });
 }
 /* ================================================================ pickers */
@@ -1494,7 +1510,23 @@ function download(name, text) {
   var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' })); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
-function copyText(text) { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast('Link copied'); }, function () { toast('Press and hold the link to copy it'); }); }
+function copyText(text, msg) { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { toast(msg || 'Link copied'); }, function () { toast('Press and hold the text to copy it'); }); }
+// The same three ways out for everything you can share: copy as text, send with the phone's share menu, print or save as a PDF.
+function shareTools(kind, id, extra) {
+  return '<div class="qr-tools">' + (extra || '') + '<button class="btn sm plain" data-a="out-copy" data-v="' + kind + '" data-id="' + id + '">' + IC.list + ' Copy Text</button>' +
+    (navigator.share && !window.ED_DEMO ? '<button class="btn sm plain" data-a="out-share" data-v="' + kind + '" data-id="' + id + '">' + IC.share + ' Share</button>' : '') +
+    '<button class="btn sm" data-a="out-print" data-v="' + kind + '" data-id="' + id + '">Print Or PDF</button></div>' +
+    (window.ED_DEMO ? '<p class="small muted center" style="margin:8px 0 0">Printing, PDFs and the phone’s share menu work in the app, not in this demo.</p>' : '');
+}
+function inviteText(k) {
+  var e = S.ev, o = org() || {};
+  return [o.name ? o.name + ' · ' + e.title : e.title, [fmtRange(e.starts_on, e.ends_on), e.time_label].filter(Boolean).join(' · '), [e.place, e.address].filter(Boolean).join(', '), '', SHARE[k][2] + ':', pubUrl(k)].filter(function (x, i) { return x || i === 3; }).join('\n');
+}
+function posterHtml(k) {
+  var url = pubUrl(k), o = org() || {};
+  return (o.logo ? '<img class="plogo-big" src="' + esc(o.logo) + '" alt="">' : '') + '<p class="pmin">' + esc(o.name || '') + '</p><h1>' + esc(S.ev.title) + '</h1><p>' + esc(SHARE[k][2]) + '</p><div class="qrbig">' + qrSvg(url) + '</div><p class="url">' + esc(url) + '</p>';
+}
+function outOf(kind, id) { return kind === 'qr' ? { title: SHARE[id][0] + ' · ' + S.ev.title, text: inviteText(id) } : docBuild(id); }
 
 /* ================================================================ event wiring */
 document.addEventListener('click', function (ev) {
@@ -1564,7 +1596,8 @@ var A = {
   'set-goal': function () { editRow('ed_events', S.ev, [{ k: 'volunteer_goal', label: 'How Many Volunteers Do You Need?', type: 'int', auto: true, hint: 'Counts everyone on the volunteer team plus everyone who signs up for a spot.' }], { title: 'Volunteer Goal', del: false, prep: function (v) { v.volunteer_goal = Math.max(0, Math.min(10000, v.volunteer_goal || 0)); return v; }, after: function (r) { S.ev = r; } }); },
   'open-event': function (t, id) { closeSheet(); openEvent(id); },
   'close-event': function () { closeEvent(); },
-  'ev-tab': function (t, id) { goArea(id || t.getAttribute('data-v')); render(); window.scrollTo(0, 0); if (S.evTab === 'dir' || S.evTab === 'guests') refreshEvent(); },
+  'home-jump': function (t) { var el = document.getElementById('home-' + t.getAttribute('data-v')); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+  'ev-tab': function (t, id) { goArea(id || t.getAttribute('data-v')); render(); window.scrollTo(0, 0); if (S.evTab === 'people') refreshEvent(); },
   'sub-tab': function (t) { S.sub[t.getAttribute('data-k')] = t.getAttribute('data-v'); render(); },
   'cal-day': function (t) { S.calDay = t.getAttribute('data-v'); render(); },
   'event-menu': eventMenu,
@@ -1642,9 +1675,12 @@ var A = {
   'slot-open': function (t, id) { S.openSlots = S.openSlots || {}; S.openSlots[id] = !S.openSlots[id]; render(); },
   'pub-go': function (t, id) { openPub(id, S.pubSlug); },
   'leave-pub': function () { if (/^#\/(e|c|v|r)\//.test(location.hash)) { try { history.pushState(null, '', location.pathname + location.search); } catch (e) {} } S.pubMode = ''; S.pub = null; S.cardDone = false; if (!S.user && !window.ED_DEMO) boot(); else if (S.pubFromEv && byId('ed_events', S.pubFromEv)) { var back = S.pubFromEv, tab = S.evTab, sub = S.sub; S.pubFromEv = null; openEvent(back); S.evTab = tab; S.sub = sub; render(); } else render(); },
+  'out-copy': function (t, id) { copyText(outOf(t.getAttribute('data-v'), id).text, 'Copied. Paste it into a text or email.'); },
+  'out-share': function (t, id) { var x = outOf(t.getAttribute('data-v'), id); try { navigator.share({ title: x.title, text: x.text }).catch(function () {}); } catch (er) { copyText(x.text, 'Copied'); } },
+  'out-print': function (t, id) { if (window.ED_DEMO) { toast('Printing works in the app, not in this demo'); return; } if (t.getAttribute('data-v') === 'qr') A['print-qr'](t, id); else printHtml(docBuild(id).html); },
   'print-qr': function (t, id) {
-    var url = pubUrl(id), d = document.createElement('div'); d.className = 'printonly';
-    d.innerHTML = (org().logo ? '<img class="plogo-big" src="' + esc(org().logo) + '" alt="">' : '') + '<p class="pmin">' + esc(org().name) + '</p><h1>' + esc(S.ev.title) + '</h1><p>' + esc((SHARE[id] || SHARE.v)[2]) + '</p><div class="qrbig">' + qrSvg(url) + '</div><p class="url">' + esc(url) + '</p>';
+    var d = document.createElement('div'); d.className = 'printonly';
+    d.innerHTML = posterHtml(SHARE[id] ? id : 'v');
     document.body.appendChild(d); window.print(); setTimeout(function () { d.remove(); }, 800);
   },
   'pub-sign': function (t, id) {
