@@ -210,8 +210,9 @@ function ask(msg, yes, fn, sub) {
 }
 
 /* ---------- small building blocks */
-function head(title, sub, left, right) {
-  return '<header class="bar">' + (left || '') + '<div class="ttl"><b>' + esc(title) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</div>' + (DB.mode === 'demo' ? '<span class="demo-flag">Demo</span>' : '') + (right || '') + '</header>';
+function head(title, sub, left, right, eyebrow) {
+  return '<header class="top"><div class="hrow">' + (left || '') + '<div class="htxt">' + (eyebrow ? '<div class="eyebrow">' + esc(eyebrow) + '</div>' : '') + '<h1>' + esc(title) + '</h1>' + (sub ? '<div class="hsub">' + esc(sub) + '</div>' : '') + '</div>' +
+    '<div class="hact">' + (DB.mode === 'demo' ? '<span class="demo-flag">Demo</span>' : '') + (right || '') + '</div></div></header>';
 }
 function tabs(list, cur, act, cls) {
   return '<nav class="' + (cls || 'tabs') + '" role="tablist">' + list.map(function (t) {
@@ -422,7 +423,7 @@ function viewSetup() {
 function viewShell() {
   var body = S.tab === 'directory' ? viewDirectory() : S.tab === 'account' ? viewAccount() : viewEvents();
   var title = { events: 'Events', directory: 'Directory', account: 'Account' }[S.tab];
-  return head(title, org().name, '<span class="brandmark" aria-hidden="true">' + IC.tent + '</span>', S.tab === 'events' ? addBtn('New Event', 'new-event') : '') +
+  return head(title, '', '<span class="brandmark" aria-hidden="true">' + IC.tent + '</span>', S.tab === 'events' ? addBtn('New Event', 'new-event') : '', org().name) +
     '<main>' + body + demoNote() + '</main>' +
     '<nav class="bottomnav" aria-label="Main">' + [['events', 'Events', IC.cal], ['directory', 'Directory', IC.book], ['account', 'Account', IC.user]].map(function (t) {
       return '<button data-a="nav" data-v="' + t[0] + '"' + (S.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span></button>';
@@ -569,8 +570,8 @@ function viewWorkspace() {
   if (!tabsOn.some(function (t) { return t[0] === S.evTab; })) S.evTab = 'overview';
   var V = { overview: wsOverview, calendar: wsCalendar, people: wsPeople, agenda: wsAgenda, vendors: wsVendors, equipment: wsEquipment, food: wsFood, tasks: wsTasks, money: wsMoney, followup: wsFollowup, share: wsShare }[S.evTab];
   return '<div class="ws">' + head(e.title, [fmtRange(e.starts_on, e.ends_on), e.time_label, e.place].filter(Boolean).join(' · '),
-      '<button class="back" data-a="close-event" aria-label="Close Event">' + IC.close + '</button>',
-      '<button class="iconbtn" data-a="event-menu" aria-label="Event Menu">' + IC.more + '</button>') +
+      '<button class="iconbtn" data-a="close-event" aria-label="Close Event">' + IC.close + '</button>',
+      '<button class="iconbtn" data-a="event-menu" aria-label="Event Menu">' + IC.more + '</button>', org().name) +
     tabs(tabsOn, S.evTab, 'ev-tab', 'tabs sticky') + '<main>' + V(e) + '</main></div>';
 }
 function subTabs(key, list, def) { var cur = S.sub[key] || def; if (!list.some(function (x) { return x[0] === cur; })) cur = list[0][0]; S.sub[key] = cur; return { cur: cur, html: tabs(list, cur, 'sub-tab" data-k="' + key, 'subtabs') }; }
@@ -616,9 +617,12 @@ function wsOverview(e) {
   if (on('equipment') && evRows('ed_event_equipment').length) { var eq = evRows('ed_event_equipment'); tiles.push(stat('Equipment Loaded', eq.filter(function (a) { return a.loaded; }).length + ' / ' + eq.length)); }
   if (on('money')) { tiles.push(stat('Committed', money(m.committed) + (m.budget ? '<small> of ' + money(m.budget) + '</small>' : ''), m.budget && m.committed > m.budget)); tiles.push(stat('Given', money(m.given))); }
   if (on('agenda')) { var ag = evRows('ed_agenda'); tiles.push(stat('Agenda Topics', ag.length)); }
-  return '<div class="hero"><div class="band"></div><div class="in"><div class="eyebrow">' + esc(cd || 'Not Scheduled') + '</div><h1>' + esc(e.title) + '</h1>' +
-      '<div class="meta">' + esc([fmtRange(e.starts_on, e.ends_on), e.time_label].filter(Boolean).join(' · ')) + (e.place || e.address ? '<br>' + esc([e.place, e.address].filter(Boolean).join(', ')) : '') + '</div>' +
-      (e.address ? '<div style="margin-top:10px">' + actions({ address: e.address }) + '</div>' : '') + '</div></div>' +
+  var days = e.starts_on ? dayDiff(e.starts_on, TODAY) : null, ts = evRows('ed_tasks'), td = ts.filter(function (t) { return t.done; }).length;
+  return '<div class="hero"><div class="k">' + esc(fmtRange(e.starts_on, e.ends_on)) + (e.time_label ? ' · ' + esc(e.time_label) : '') + '</div>' +
+      (days != null && days > 1 ? '<div class="count"><b>' + days + '</b><span>days to go</span></div>' : '<div class="count"><b class="word">' + esc(cd || 'Not Scheduled') + '</b></div>') +
+      (e.place || e.address ? '<div class="sub">' + esc([e.place, e.address].filter(Boolean).join(', ')) + '</div>' : '') +
+      (ts.length ? '<div class="tl"><div class="tbar"><i style="width:' + Math.round(100 * td / ts.length) + '%"></i></div><div class="lbl"><span>' + td + ' of ' + ts.length + ' tasks done</span><span>' + Math.round(100 * td / ts.length) + '%</span></div></div>' : '') +
+      (e.address ? '<a class="heroact" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">' + IC.pin + ' Directions</a>' : '') + '</div>' +
     (tiles.length ? '<div class="stats">' + tiles.slice(0, 6).join('') + '</div>' : '') +
     secHead('Needs Attention', '', att.length ? String(att.length) : '') +
     (att.length ? '<div class="list">' + att.map(function (a) { return row({ act: 'ev-tab', id: a[3], lead: '<span class="dot ' + a[0] + '">' + IC.warn + '</span>', title: esc(a[1]), sub: esc(a[2]) }); }).join('') + '</div>'
@@ -948,7 +952,7 @@ function loadPublic() {
 function pubOn(k) { var s = (S.pub.event.sections || []); return !s.length || s.indexOf(k) >= 0; }
 function pubHero(extra) {
   var e = S.pub.event;
-  return '<div class="hero"><div class="band"></div><div class="in"><div class="eyebrow">' + esc(e.ministry || 'You’re Invited') + '</div><h1>' + esc(e.title) + '</h1><div class="meta">' +
+  return '<div class="phero"><div class="in"><div class="eyebrow">' + esc(e.ministry || 'You’re Invited') + '</div><h1>' + esc(e.title) + '</h1><div class="meta">' +
     esc([fmtRange(e.starts_on, e.ends_on), e.time_label].filter(Boolean).join(' · ')) + (e.place || e.address ? '<br>' + esc([e.place, e.address].filter(Boolean).join(', ')) : '') + '</div>' + (extra || '') + '</div></div>';
 }
 function backLink() { return S.user || window.ED_DEMO ? '<p class="center"><a href="#" data-a="leave-pub" class="small">Back To Tent &amp; Table</a></p>' : ''; }
