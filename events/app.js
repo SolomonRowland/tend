@@ -80,7 +80,30 @@ var IC = {
 };
 
 /* ================================================================ vocab */
-var GROUPS = ['Team Member', 'Board', 'Worship', 'Speaker', 'Prayer Team', 'Volunteer'];
+var GROUPS = ['Team Member', 'Board', 'Worship', 'Speaker', 'Prayer Team', 'Volunteer', 'Guest'];
+var TEAM_GROUPS = ['Team Member', 'Board', 'Worship', 'Speaker', 'Prayer Team'];
+// Every person or business is a contact, and every contact has one of these types, inside an event and out.
+var CTYPES = [['team', 'Team', 'Team'], ['volunteer', 'Volunteers', 'Volunteer'], ['guest', 'Guests', 'Guest'], ['vendor', 'Vendors', 'Vendor'], ['other', 'Other', 'Other']];
+var CTYPE_HINT = { team: 'Leaders, board, staff, worship, speakers, prayer team.', volunteer: 'People who serve at your events.', guest: 'People who attend: RSVPs and connection cards.', vendor: 'Businesses you hire: tent, sound, food, printing.', other: 'Landowners, permit offices, partner churches, officials.' };
+function ctypeOne(k) { return (CTYPES.find(function (c) { return c[0] === k; }) || [, , 'Other'])[2]; }
+function personTypes(p) {
+  var g = p.groups || [], out = [];
+  if (g.some(function (x) { return TEAM_GROUPS.indexOf(x) >= 0; })) out.push('team');
+  if (g.indexOf('Volunteer') >= 0) out.push('volunteer');
+  if (g.indexOf('Guest') >= 0) out.push('guest');
+  return out.length ? out : ['other'];
+}
+function allContacts() {
+  return T('ed_people').map(function (r) { return { t: 'ed_people', r: r, name: r.name, types: personTypes(r), detail: [r.title], phone: r.phone, email: r.email, status: r.status || 'current' }; })
+    .concat(T('ed_vendors').map(function (r) { return { t: 'ed_vendors', r: r, name: r.name, types: ['vendor'], detail: [r.contact_name, r.category], phone: r.phone, email: r.email, status: 'current' }; }))
+    .concat(T('ed_contacts').map(function (r) { return { t: 'ed_contacts', r: r, name: r.name, types: ['other'], detail: [r.role, r.organization], phone: r.phone, email: r.email, status: 'current' }; }))
+    .sort(function (x, y) { return x.name.localeCompare(y.name); });
+}
+// The one contact row: name on top, what they do and how to reach them underneath, type on the right.
+function contactSub(detail, phone, email) { var d = detail.filter(Boolean), c = phone || email; return esc(d.join(' · ')) + (c ? (d.length ? ' · ' : '') + '<span class="nw">' + esc(c) + '</span>' : ''); }
+function contactRow(c) {
+  return row({ act: 'dir-open', id: c.r.id, t: c.t, lead: avatar(c.name), title: esc(c.name) + (c.status === 'previous' ? ' ' + pill('Previous') : ''), sub: contactSub(c.detail, c.phone, c.email), right: pill(ctypeOne(c.types[0])) });
+}
 var TITLES = ['Founder', 'President', 'Vice President', 'Pastor', 'Board Member', 'Treasurer', 'Secretary', 'Events Director', 'Worship Director', 'Worship Leader', 'Songwriter', 'Vocalist', 'Musician', 'Sound Engineer', 'Speaker', 'Guest Speaker', 'In-House Speaker', 'Evangelist', 'Prayer Director', 'Altar Counselor', 'Volunteer Coordinator', 'Volunteer'];
 var VENDOR_CATS = ['Tent', 'Sound And Lights', 'Food', 'Restrooms', 'Rentals', 'Printing', 'Security', 'Power', 'Venue', 'Other'];
 var GEAR_CATS = ['Sound', 'Power', 'Tables And Chairs', 'Tents', 'Stage', 'Parking', 'Ushers', 'Kids', 'Baptism', 'Hospitality', 'Other'];
@@ -131,7 +154,7 @@ var PRESETS = {
 var DB = null;
 var S = {
   loading: true, user: null, acct: null, authMode: 'in', authMsg: '', busy: false,
-  tab: 'home', dirTab: 'people', dirQ: '', dirGroup: '', dirStatus: 'current', dirCat: '', budgetYear: new Date().getFullYear(),
+  tab: 'home', dirTab: 'contacts', dirType: '', dirQ: '', dirGroup: '', dirStatus: 'current', dirCat: '', budgetYear: new Date().getFullYear(),
   db: {}, ev: null, evTab: 'overview', sub: {}, calDay: null,
   sheet: null, toast: '', pubMode: '', pubSlug: '', pub: null, mine: [], cardDone: false, pubErr: '', cardErr: ''
 };
@@ -358,11 +381,11 @@ var F = {
   person: [
     { k: 'name', label: 'Name', auto: true }, { k: 'title', label: 'Title', type: 'list', opts: TITLES, half: true, ph: 'Worship Director' },
     { k: 'status', label: 'Status', type: 'select', opts: [['current', 'Current'], ['previous', 'Previous']], half: true },
-    { k: 'groups', label: 'Groups', type: 'multi', opts: GROUPS },
+    { k: 'groups', label: 'Contact Type', type: 'multi', opts: GROUPS, hint: 'Pick all that fit. Board, worship, speakers, prayer team and staff all count as Team.' },
     { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true },
     { k: 'address', label: 'Address' }, { k: 'notes', label: 'Notes', type: 'textarea', ph: 'Background check date, skills, shirt size…' }],
   vendor: [
-    { k: 'name', label: 'Business Name', auto: true }, { k: 'category', label: 'Category', type: 'list', opts: VENDOR_CATS, half: true }, { k: 'contact_name', label: 'Contact Person', half: true },
+    { k: 'name', label: 'Business Name', auto: true }, { k: 'category', label: 'Category', type: 'list', opts: VENDOR_CATS, half: true }, { k: 'contact_name', label: 'Contact Person', half: true, ph: 'Who you talk to' },
     { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true },
     { k: 'website', label: 'Website', type: 'url', ph: 'example.com' }, { k: 'address', label: 'Address' }, { k: 'notes', label: 'Notes', type: 'textarea', ph: 'Pricing, what to ask for next time…' }],
   contact: [
@@ -506,7 +529,7 @@ function viewEvents() {
 }
 
 /* ---------------------------------------------------------------- directory */
-var DIRTABS = [['people', 'People', 'ed_people'], ['vendors', 'Vendors', 'ed_vendors'], ['contacts', 'Contacts', 'ed_contacts'], ['equipment', 'Equipment', 'ed_equipment'], ['budget', 'Budget', 'ed_budget']];
+var DIRTABS = [['contacts', 'Contacts'], ['equipment', 'Equipment'], ['budget', 'Budget']];
 function usedIn(t, id) {
   var map = { ed_people: ['ed_event_people', 'person_id'], ed_vendors: ['ed_event_vendors', 'vendor_id'], ed_contacts: ['ed_event_contacts', 'contact_id'], ed_equipment: ['ed_event_equipment', 'equipment_id'] }[t];
   if (!map) return [];
@@ -518,23 +541,20 @@ function viewDirectory() {
   var q = S.dirQ.toLowerCase();
   var tool = '<div class="toolbar"><label class="search">' + IC.search + '<input id="dir_q" type="search" placeholder="Search ' + esc(DIRTABS.find(function (d) { return d[0] === t; })[1]) + '" value="' + esc(S.dirQ) + '" data-input="dir-q" aria-label="Search"></label>';
   function match(r, keys) { return !q || keys.some(function (k) { return String(r[k] || '').toLowerCase().indexOf(q) >= 0; }); }
-  if (t === 'people') {
-    var ppl = T('ed_people').filter(function (p) { return (S.dirStatus === 'all' || p.status === S.dirStatus) && (!S.dirGroup || (p.groups || []).indexOf(S.dirGroup) >= 0) && match(p, ['name', 'title', 'phone', 'email']); })
-      .sort(function (a, b) { return a.name.localeCompare(b.name); });
-    tool += '<select class="inp sm" data-change="dir-group" aria-label="Group"><option value="">All Groups</option>' + GROUPS.map(function (g) { return '<option' + (S.dirGroup === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') + '</select>' +
-      '<select class="inp sm" data-change="dir-status" aria-label="Status">' + [['current', 'Current'], ['previous', 'Previous'], ['all', 'All']].map(function (o) { return '<option value="' + o[0] + '"' + (S.dirStatus === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>';
-    return h + tool + secHead(plural(ppl.length, 'Person', 'People'), addBtn('Add Person', 'dir-add', 'ed_people')) +
-      listBox(ppl.map(function (p) { return row({ act: 'dir-open', id: p.id, t: 'ed_people', lead: avatar(p.name), title: esc(p.name) + (p.status === 'previous' ? ' ' + pill('Previous') : ''), sub: esc([p.title, (p.groups || []).join(', ')].filter(Boolean).join(' · ')) }); }),
-        q || S.dirGroup ? 'No one matches.' : 'Add your team members, volunteers, worship team and speakers here once, then assign them to events.');
-  }
-  if (t === 'vendors' || t === 'contacts') {
-    var tbl = t === 'vendors' ? 'ed_vendors' : 'ed_contacts', cats = {};
-    T(tbl).forEach(function (r) { var c = t === 'vendors' ? r.category : r.organization; if (c) cats[c] = 1; });
-    var list = T(tbl).filter(function (r) { return (!S.dirCat || (t === 'vendors' ? r.category : r.organization) === S.dirCat) && match(r, ['name', 'category', 'contact_name', 'organization', 'role', 'phone']); }).sort(function (a, b) { return a.name.localeCompare(b.name); });
-    tool += '<select class="inp sm" data-change="dir-cat" aria-label="Filter"><option value="">' + (t === 'vendors' ? 'All Categories' : 'All Organizations') + '</option>' + Object.keys(cats).sort().map(function (c) { return '<option' + (S.dirCat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>';
-    return h + tool + secHead(plural(list.length, t === 'vendors' ? 'Vendor' : 'Contact'), addBtn(t === 'vendors' ? 'Add Vendor' : 'Add Contact', 'dir-add', tbl)) +
-      listBox(list.map(function (r) { var n = usedIn(tbl, r.id).length; return row({ act: 'dir-open', id: r.id, t: tbl, lead: avatar(r.name), title: esc(r.name), sub: esc(t === 'vendors' ? [r.category, r.contact_name, r.phone].filter(Boolean).join(' · ') : [r.role, r.organization, r.phone].filter(Boolean).join(' · ')), right: n ? '<span class="muted small">' + plural(n, 'Event') + '</span>' : '' }); }),
-        t === 'vendors' ? 'Tent rentals, sound, food trucks, printers. Add them once and book them for any event.' : 'Landowners, permit offices, partner churches, the sheriff’s non-emergency line…');
+  if (t === 'contacts') {
+    var every = allContacts().filter(function (c) { return S.dirStatus === 'all' || c.status === S.dirStatus; }), ty = S.dirType || '', grp = ty.indexOf('g:') === 0 ? ty.slice(2) : '';
+    var list = every.filter(function (c) {
+      return (!ty || (grp ? (c.r.groups || []).indexOf(grp) >= 0 : c.types.indexOf(ty) >= 0)) &&
+        match(c.r, ['name', 'title', 'phone', 'email', 'contact_name', 'category', 'role', 'organization']);
+    });
+    var cnt = function (k) { return every.filter(function (c) { return c.types.indexOf(k) >= 0; }).length; };
+    tool += '<div class="filters"><select class="inp sm" data-change="dir-type" aria-label="Type"><option value="">All Contacts · ' + every.length + '</option>' + CTYPES.map(function (c) {
+      return '<option value="' + c[0] + '"' + (ty === c[0] ? ' selected' : '') + '>' + c[1] + ' · ' + cnt(c[0]) + '</option>' + (c[0] === 'team' ? TEAM_GROUPS.map(function (g) {
+        return '<option value="g:' + g + '"' + (ty === 'g:' + g ? ' selected' : '') + '>&nbsp;&nbsp;– ' + esc({ Speaker: 'Speakers', 'Team Member': 'Staff And Team Members' }[g] || g) + '</option>'; }).join('') : '');
+    }).join('') + '</select>' +
+      '<select class="inp sm" data-change="dir-status" aria-label="Status">' + [['current', 'Current'], ['previous', 'Previous'], ['all', 'Current And Previous']].map(function (o) { return '<option value="' + o[0] + '"' + (S.dirStatus === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div></div>';
+    return h + tool + secHead(plural(list.length, 'Contact'), addBtn('Add Contact', 'contact-new', ty && !grp ? ty : '')) +
+      listBox(list.map(contactRow), q || ty ? 'No contacts match.' : 'Add your team, volunteers, guests, vendors and everyone else here once, then add them to any event.');
   }
   // equipment
   var gear = T('ed_equipment').filter(function (g) { return (!S.dirCat || g.category === S.dirCat) && match(g, ['name', 'category', 'location']); });
@@ -579,9 +599,9 @@ function viewBudget() {
 function openDirRecord(t, id) {
   var r = byId(t, id); if (!r) return;
   var used = usedIn(t, id), sub = '', info = [];
-  if (t === 'ed_people') { sub = [r.title, r.status === 'previous' ? 'Previous' : ''].filter(Boolean).join(' · '); info = [['Groups', (r.groups || []).join(', ')], ['Phone', r.phone], ['Email', r.email], ['Address', r.address], ['Notes', r.notes]]; }
-  if (t === 'ed_vendors') { sub = r.category; info = [['Contact', r.contact_name], ['Phone', r.phone], ['Email', r.email], ['Website', r.website], ['Address', r.address], ['Notes', r.notes]]; }
-  if (t === 'ed_contacts') { sub = [r.role, r.organization].filter(Boolean).join(', '); info = [['Phone', r.phone], ['Email', r.email], ['Website', r.website], ['Address', r.address], ['Notes', r.notes]]; }
+  if (t === 'ed_people') { sub = [personTypes(r).map(ctypeOne).join(', '), r.title, r.status === 'previous' ? 'Previous' : ''].filter(Boolean).join(' · '); info = [['Contact Type', (r.groups || []).join(', ')], ['Phone', r.phone], ['Email', r.email], ['Address', r.address], ['Notes', r.notes]]; }
+  if (t === 'ed_vendors') { sub = ['Vendor', r.category].filter(Boolean).join(' · '); info = [['Contact', r.contact_name], ['Phone', r.phone], ['Email', r.email], ['Website', r.website], ['Address', r.address], ['Notes', r.notes]]; }
+  if (t === 'ed_contacts') { sub = ['Other', r.role, r.organization].filter(Boolean).join(' · '); info = [['Phone', r.phone], ['Email', r.email], ['Website', r.website], ['Address', r.address], ['Notes', r.notes]]; }
   if (t === 'ed_equipment') {
     sub = r.category; info = [['Quantity Owned', String(num(r.quantity))], ['Stored At', r.location], ['Condition', r.condition], ['Notes', r.notes]];
   }
@@ -591,14 +611,19 @@ function openDirRecord(t, id) {
         return row({ act: 'open-event', id: u.e.id, title: esc(u.e.title), sub: esc([fmtRange(u.e.starts_on, u.e.ends_on), u.a.role || u.a.service || (u.a.quantity ? 'Bringing ' + u.a.quantity : '')].filter(Boolean).join(' · ')) });
       }).join('') + '</div>' : '<p class="small muted">Not used in any event yet.</p>') +
       '<div class="acts"><button class="btn ghost" data-a="sheet-del">Delete</button><span class="grow"></span><button class="btn plain" data-a="close">Close</button><button class="btn" data-a="dir-edit" data-id="' + r.id + '" data-t="' + t + '">Edit</button></div>';
-  }, null, { del: function () { ask('Delete ' + r.name + ' from the Directory?', 'Delete', function () { return remove(t, r.id).then(render); }, used.length ? 'It will also be removed from ' + plural(used.length, 'event') + '.' : ''); } });
+  }, null, { del: function () { ask('Delete ' + r.name + '?', 'Delete', function () { return remove(t, r.id).then(render); }, used.length ? 'It will also be removed from ' + plural(used.length, 'event') + '.' : ''); } });
 }
-var DIRFORM = { ed_people: ['person', 'Person'], ed_vendors: ['vendor', 'Vendor'], ed_contacts: ['contact', 'Contact'], ed_equipment: ['equipment', 'Equipment'], ed_budget: ['budget', 'Budget Line'] };
+function newContact(type, after) {
+  S.newGroups = { team: ['Team Member'], volunteer: ['Volunteer'], guest: ['Guest'] }[type] || [];
+  editDir(type === 'vendor' ? 'ed_vendors' : type === 'other' ? 'ed_contacts' : 'ed_people', null, after);
+  S.newGroups = null;
+}
+var DIRFORM = { ed_people: ['person', 'Contact'], ed_vendors: ['vendor', 'Vendor'], ed_contacts: ['contact', 'Contact'], ed_equipment: ['equipment', 'Equipment'], ed_budget: ['budget', 'Budget Line'] };
 function editDir(t, rec, after) {
   var d = DIRFORM[t];
-  editRow(t, rec, F[d[0]], { title: (rec ? 'Edit ' : 'Add ') + d[1], base: rec ? null : { org_id: org().id, status: 'current', groups: S.dirGroup ? [S.dirGroup] : [] },
+  editRow(t, rec, F[d[0]], { title: (rec ? 'Edit ' : 'Add ') + d[1], base: rec ? null : { org_id: org().id, status: 'current', groups: S.newGroups || [] },
     prep: function (v) { v.org_id = org().id; if (t === 'ed_budget' && !v.event_id) v.event_id = null; if (t === 'ed_equipment') v.quantity = Math.max(0, v.quantity || 0); return v; },
-    after: after, delMsg: 'Delete this from the Directory?', delSub: rec && usedIn(t, rec.id).length ? 'It will also be removed from every event that uses it.' : '' });
+    after: after, delMsg: t === 'ed_equipment' ? 'Delete this from your equipment?' : t === 'ed_budget' ? 'Delete this budget line?' : 'Delete this contact?', delSub: rec && usedIn(t, rec.id).length ? 'It will also be removed from every event that uses it.' : '' });
 }
 
 /* ---------------------------------------------------------------- home */
@@ -639,7 +664,7 @@ function viewHome() {
   h += '<div id="home-week"></div>' + secHead('This Week') + listBox(week.slice(0, 8).map(function (w) {
     return '<button class="row" data-a="open-event-tab" data-id="' + w.e.id + '" data-v="' + w.tab + '"><span class="datebox sm"><small>' + dt(w.d).toLocaleDateString('en-US', { weekday: 'short' }) + '</small><b>' + dt(w.d).getDate() + '</b></span><div class="main"><div class="t">' + esc(w.title) + '</div><div class="s">' + esc(w.sub) + '</div></div><span class="chev">' + IC.chev + '</span></button>';
   }), 'Nothing scheduled in the next 7 days.');
-  h += secHead('Quick Add') + '<div class="quick">' + [['new-event', 'Event', IC.cal, ''], ['dir-add', 'Person', IC.user, 'ed_people'], ['dir-add', 'Vendor', IC.tent, 'ed_vendors'], ['dir-add', 'Equipment', IC.box, 'ed_equipment']].map(function (q) {
+  h += secHead('Quick Add') + '<div class="quick">' + [['new-event', 'Event', IC.cal, ''], ['contact-new', 'Contact', IC.user, ''], ['dir-add', 'Equipment', IC.box, 'ed_equipment']].map(function (q) {
     return '<button class="qa" data-a="' + q[0] + '"' + (q[3] ? ' data-id="' + q[3] + '"' : '') + '>' + q[2] + '<span>' + q[1] + '</span></button>';
   }).join('') + '</div>';
   return h;
@@ -717,14 +742,13 @@ function editProfile(fields, base, title, fn) {
 function inviteUrl(code) { return location.origin + location.pathname + '?join=' + code; }
 
 /* ================================================================ event workspace */
-var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['people', 'People'], ['vendors', 'Vendors'], ['money', 'Money']];
+var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['people', 'Contacts'], ['money', 'Money']];
 var AREA_SUBS = {
   plan: [['tasks', 'Tasks', 'tasks'], ['schedule', 'Schedule', 'calendar'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'worship'], ['equipment', 'Equipment', 'equipment']],
-  people: [['team', 'Team', 'team'], ['volunteers', 'Volunteers', 'vols'], ['guests', 'Guests', 'gst']],
-  vendors: [['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors']]
+  people: [['team', 'Team', 'team'], ['volunteers', 'Volunteers', 'vols'], ['guests', 'Guests', 'gst'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Other', 'vendors']]
 };
 var GUEST_SUBS = { attending: 1, checkin: 1, followup: 1 };
-var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], equipment: ['plan', 'equipment'], people: ['people', 'team'], team: ['people', 'team'], vendors: ['vendors', 'vendors'], contacts: ['vendors', 'contacts'], food: ['people', 'volunteers'], signups: ['people', 'volunteers'], volunteers: ['people', 'volunteers'], guests: ['people', 'guests'], attending: ['people', 'guests'], checkin: ['people', 'guests'], followup: ['people', 'guests'], share: ['people', 'guests'], money: ['money'], payments: ['money'] };
+var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], equipment: ['plan', 'equipment'], people: ['people', 'team'], team: ['people', 'team'], vendors: ['people', 'vendors'], contacts: ['people', 'contacts'], food: ['people', 'volunteers'], signups: ['people', 'volunteers'], volunteers: ['people', 'volunteers'], guests: ['people', 'guests'], attending: ['people', 'guests'], checkin: ['people', 'guests'], followup: ['people', 'guests'], share: ['people', 'guests'], money: ['money'], payments: ['money'] };
 function subOn(x) { var k = x[2]; return k === 'always' ? true : k === 'vols' ? (on('volunteers') || on('food')) : k === 'team' ? (on('people') || on('speakers') || on('worship')) : k === 'gst' ? (on('guests') || on('followup')) : on(k); }
 function areaSubs(k) { return (AREA_SUBS[k] || []).filter(subOn); }
 function areaOn(k) { return k === 'overview' || (k === 'money' ? on('money') : areaSubs(k).length > 0); }
@@ -790,8 +814,8 @@ function volunteersView(e) {
   if (st.cur === 'checkin') return top + checkinView(e);
   if (st.cur === 'meal') return top + shareBar('v') + wsFood(e);
   var av = assigned('volunteer');
-  return top + shareBar('v') + goalCard(e) + secHead('Volunteer Team', addBtn('Add From Directory', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
-    listBox(av.map(function (x) { return personRow(x); }), 'Volunteers you place yourself, straight from the Directory.') +
+  return top + shareBar('v') + goalCard(e) + secHead('Volunteer Team', addBtn('Add Volunteer', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
+    listBox(av.map(function (x) { return personRow(x); }), 'Volunteers you place yourself, from your contacts.') +
     signupBlock('serve', 'Volunteer Spots', 'Add Spot');
 }
 function volCount() { return assigned('volunteer').length + evRows('ed_signups').filter(function (s) { var i = byId('ed_items', s.item_id); return i && i.kind === 'serve'; }).length; }
@@ -839,7 +863,7 @@ var DIR_TEAMS = [['leader', 'Leadership', 'Who is leading this event?'], ['team'
 var TEAM_SEC = { leader: 'people', team: 'people', speaker: 'speakers', worship: 'worship', volunteer: 'volunteers' };
 function dirPeople(e) {
   var f = S.sub.dirTeam || 'all', total = evRows('ed_event_people').filter(function (x) { return x.team !== 'volunteer'; }).length;
-  var h = '<div class="toolbar"><label class="sr" for="dt_team">Team</label><select class="inp sm" id="dt_team" data-change="dir-team"><option value="all">All Teams · ' + total + '</option>' + DIR_TEAMS.filter(function (t) { return on(TEAM_SEC[t[0]]); }).map(function (t) { return '<option value="' + t[0] + '"' + (f === t[0] ? ' selected' : '') + '>' + t[1] + ' · ' + assigned(t[0]).length + '</option>'; }).join('') + '</select></div>';
+  var h = '<div class="toolbar"><label class="sr" for="dt_team">Team</label><select class="inp sm" id="dt_team" data-change="dir-team"><option value="all">All Team · ' + total + '</option>' + DIR_TEAMS.filter(function (t) { return on(TEAM_SEC[t[0]]); }).map(function (t) { return '<option value="' + t[0] + '"' + (f === t[0] ? ' selected' : '') + '>' + t[1] + ' · ' + assigned(t[0]).length + '</option>'; }).join('') + '</select></div>';
   DIR_TEAMS.filter(function (t) { return (f === 'all' || f === t[0]) && on(TEAM_SEC[t[0]]); }).forEach(function (t) {
     var list = assigned(t[0]);
     if (t[0] === 'speaker') list.sort(function (a, b) { return String((a.a.details || {}).date || '9').localeCompare(String((b.a.details || {}).date || '9')); });
@@ -947,7 +971,7 @@ function wsCalendar(e) {
 
 /* ---------- people */
 function assigned(team) { return evRows('ed_event_people').filter(function (a) { return a.team === team; }).map(function (a) { return { a: a, p: byId('ed_people', a.person_id) || { name: '(Removed)' } }; }).sort(function (x, y) { return x.p.name.localeCompare(y.p.name); }); }
-function personRow(x, extraSub, right) { return row({ act: 'edit-assign', id: x.a.id, lead: avatar(x.p.name), title: esc(x.p.name), sub: esc([x.a.role || x.p.title, x.a.days].filter(Boolean).join(' · ')) + (extraSub ? '<br>' + extraSub : ''), right: right || '' }); }
+function personRow(x, extraSub, right) { return row({ act: 'edit-assign', id: x.a.id, lead: avatar(x.p.name), title: esc(x.p.name), sub: contactSub([x.a.role || x.p.title, x.a.days], x.p.phone, x.p.email) + (extraSub ? '<br>' + extraSub : ''), right: right || '' }); }
 function signupBlock(kind, title, addLabel) {
   var list = evRows('ed_items').filter(function (i) { return i.kind === kind; }).sort(function (a, b) { return String(a.on_date || '').localeCompare(String(b.on_date || '')) || a.sort - b.sort; });
   var f = fill(kind), groups = [];
@@ -966,7 +990,7 @@ function signupBlock(kind, title, addLabel) {
           }).join('') + '</div>' : '') + '<div class="slot-foot">' + (su.length ? '<button class="btn sm plain" data-a="slot-open" data-id="' + i.id + '">' + ((S.openSlots || {})[i.id] ? 'Hide Names' : 'Show ' + plural(su.length, att ? 'RSVP' : 'Name')) + '</button>' : '') + (open > 0 ? '<button class="btn sm ghost" data-a="add-signup" data-id="' + i.id + '">' + IC.plus + (att ? ' Add RSVP' : ' Add Person') + '</button>' : '') + '</div>' + '</div>';
       }).join('');
     }).join('') : '<div class="empty card">Nothing for people to sign up for yet.</div>') +
-    (kind === 'serve' ? '<div class="card tip"><b>Keep Your Volunteers</b><p class="small muted">Save everyone who signed up to the Directory as current volunteers, so you can invite them next time.</p><button class="btn sm ghost" data-a="vols-to-dir">Add Them To The Directory</button></div>' : '');
+    (kind === 'serve' || kind === 'attend' ? '<div class="card tip"><b>Keep Your ' + (kind === 'serve' ? 'Volunteers' : 'Guests') + '</b><p class="small muted">Save everyone who ' + (kind === 'serve' ? 'signed up' : 'RSVP’d') + ' to Contacts as ' + (kind === 'serve' ? 'volunteers' : 'guests') + ', so you can invite them next time.</p><button class="btn sm ghost" data-a="vols-to-dir" data-id="' + kind + '">Save To Contacts</button></div>' : '');
 }
 
 /* ---------- agenda */
@@ -985,18 +1009,18 @@ function wsVendors(e) {
   var vs = evRows('ed_event_vendors').map(function (a) { return { a: a, v: byId('ed_vendors', a.vendor_id) || { name: '(Removed)' } }; }).sort(function (x, y) { return x.v.name.localeCompare(y.v.name); });
   var cs = evRows('ed_event_contacts').map(function (a) { return { a: a, c: byId('ed_contacts', a.contact_id) || { name: '(Removed)' } }; }).sort(function (x, y) { return x.c.name.localeCompare(y.c.name); });
   var st = subTabs('vendors', [['vendors', 'Vendors', vs.length], ['contacts', 'Contacts', cs.length]], 'vendors');
-  if (st.cur === 'contacts') return st.html + secHead('Contacts', addBtn('Add From Directory', 'pick', 'ed_contacts')) +
-    listBox(cs.map(function (x) { return row({ act: 'edit-assign-c', id: x.a.id, lead: avatar(x.c.name), title: esc(x.c.name), sub: esc([x.a.role || x.c.role, x.c.organization].filter(Boolean).join(' · ')) + (x.c.phone ? '<br>' + esc(x.c.phone) : '') }); }), 'Landowner, permit office, fire inspector… add who you’ll need to reach.');
+  if (st.cur === 'contacts') return st.html + secHead('Other Contacts', addBtn('Add Contact', 'pick', 'ed_contacts'), cs.length ? String(cs.length) : '') +
+    listBox(cs.map(function (x) { return row({ act: 'edit-assign-c', id: x.a.id, lead: avatar(x.c.name), title: esc(x.c.name), sub: contactSub([x.a.role || x.c.role, x.c.organization], x.c.phone, x.c.email) }); }), 'Landowner, permit office, fire inspector… add who you’ll need to reach.');
   var live = vs.filter(function (x) { return x.a.status !== 'Cancelled'; }), cost = live.reduce(function (s, x) { return s + num(x.a.cost); }, 0), paid = live.reduce(function (s, x) { return s + (x.a.pay_status === 'Paid In Full' ? num(x.a.cost) : num(x.a.paid)); }, 0);
   return st.html + '<div class="stats three">' + stat('Total Cost', money(cost)) + stat('Paid', money(paid)) + stat('Still Owed', money(cost - paid), cost - paid > 0) + '</div>' +
-    secHead('Vendors', addBtn('Add From Directory', 'pick', 'ed_vendors')) +
+    secHead('Vendors', addBtn('Add Vendor', 'pick', 'ed_vendors'), vs.length ? String(vs.length) : '') +
     listBox(vs.map(function (x) {
       var a = x.a, owed = a.pay_status === 'Paid In Full' ? 0 : Math.max(0, num(a.cost) - num(a.paid));
       return row({ act: 'edit-assign-v', id: a.id, lead: avatar(x.v.name), title: esc(x.v.name),
-        sub: esc([a.service, a.arrival].filter(Boolean).join(' · ')) + (owed ? '<br>' + money(owed) + ' owed' + (a.payer ? ' · ' + esc(a.payer) + ' pays' : '') + (a.due_on ? ' · due ' + fmtDay(a.due_on, { month: 'short', day: 'numeric' }) : '') : '') +
+        sub: contactSub([x.v.contact_name], x.v.phone, x.v.email) + (a.service || a.arrival ? '<br>' + esc([a.service, a.arrival].filter(Boolean).join(' · ')) : '') + (owed ? '<br>' + money(owed) + ' owed' + (a.payer ? ' · ' + esc(a.payer) + ' pays' : '') + (a.due_on ? ' · due ' + fmtDay(a.due_on, { month: 'short', day: 'numeric' }) : '') : '') +
           '<span class="pills">' + pill(a.status, a.status === 'Booked' ? 'green' : a.status === 'Quoted' ? 'amber' : '') + (num(a.cost) ? payPill(a.pay_status, a.due_on) : '') + '</span>',
         right: num(a.cost) ? '<b class="amt">' + money(a.cost) + '</b>' : '' });
-    }), 'Book vendors from the Directory: tent, sound, restrooms, food trucks.');
+    }), 'Add the vendors working this event: tent, sound, restrooms, food trucks.');
 }
 
 /* ---------- equipment */
@@ -1234,9 +1258,9 @@ function showQr(k) {
 /* ================================================================ pickers */
 function pick(t, team) {
   var cfg = {
-    ed_people: { title: 'Add ' + (TEAMS.find(function (x) { return x[0] === team; }) || [, 'People'])[1], list: T('ed_people').filter(function (p) { return p.status === 'current'; }), has: function (r) { return evRows('ed_event_people').some(function (a) { return a.person_id === r.id && a.team === team; }); }, sub: function (r) { return [r.title, (r.groups || []).join(', ')].filter(Boolean).join(' · '); }, newLabel: 'New Person' },
-    ed_vendors: { title: 'Add Vendors', list: T('ed_vendors'), has: function (r) { return evRows('ed_event_vendors').some(function (a) { return a.vendor_id === r.id; }); }, sub: function (r) { return [r.category, r.contact_name].filter(Boolean).join(' · '); }, newLabel: 'New Vendor' },
-    ed_contacts: { title: 'Add Contacts', list: T('ed_contacts'), has: function (r) { return evRows('ed_event_contacts').some(function (a) { return a.contact_id === r.id; }); }, sub: function (r) { return [r.role, r.organization].filter(Boolean).join(' · '); }, newLabel: 'New Contact' },
+    ed_people: { title: 'Add ' + (TEAMS.find(function (x) { return x[0] === team; }) || [, 'People'])[1], list: T('ed_people').filter(function (p) { return p.status === 'current'; }), has: function (r) { return evRows('ed_event_people').some(function (a) { return a.person_id === r.id && a.team === team; }); }, sub: function (r) { return [r.title, (r.groups || []).join(', ')].filter(Boolean).join(' · '); }, newLabel: 'New Contact' },
+    ed_vendors: { title: 'Add Vendor', list: T('ed_vendors'), has: function (r) { return evRows('ed_event_vendors').some(function (a) { return a.vendor_id === r.id; }); }, sub: function (r) { return [r.category, r.contact_name].filter(Boolean).join(' · '); }, newLabel: 'New Vendor' },
+    ed_contacts: { title: 'Add Contact', list: T('ed_contacts'), has: function (r) { return evRows('ed_event_contacts').some(function (a) { return a.contact_id === r.id; }); }, sub: function (r) { return [r.role, r.organization].filter(Boolean).join(' · '); }, newLabel: 'New Contact' },
     ed_equipment: { title: 'Add Equipment', list: T('ed_equipment').filter(function (g) { return g.condition !== 'Retired'; }), has: function (r) { return evRows('ed_event_equipment').some(function (a) { return a.equipment_id === r.id; }); }, sub: function (r) { return [r.category, 'Own ' + num(r.quantity), r.condition !== 'Good' ? r.condition : ''].filter(Boolean).join(' · '); }, newLabel: 'New Item' }
   }[t];
   var groupHint = { leader: 'Team Member', team: 'Prayer Team', speaker: 'Speaker', worship: 'Worship', volunteer: 'Volunteer' }[team];
@@ -1245,13 +1269,13 @@ function pick(t, team) {
     return (cfg.has(a) ? 1 : 0) - (cfg.has(b) ? 1 : 0) || ga - gb || a.name.localeCompare(b.name);
   });
   openSheet(function () {
-    return '<h3>' + esc(cfg.title) + '</h3><p class="lead">From the Directory. ' + (t === 'ed_people' ? 'People in the ' + esc(groupHint) + ' group are listed first.' : '') + '</p>' +
+    return '<h3>' + esc(cfg.title) + '</h3><p class="lead">' + (t === 'ed_equipment' ? 'From your equipment in the Directory.' : 'From your contacts. ' + (t === 'ed_people' ? esc(groupHint) + ' contacts are listed first.' : '')) + '</p>' +
       '<label class="search block">' + IC.search + '<input type="search" placeholder="Search" data-input="pick-q" aria-label="Search" autofocus></label>' +
       (t === 'ed_people' ? '<div class="fgrid pick-only"><div class="fld"><label for="pk_role">Role At This Event</label><input class="inp" id="pk_role" list="pk_roles" placeholder="Optional"><datalist id="pk_roles">' + TITLES.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist></div></div>' : '') +
       '<div class="picklist">' + list.map(function (r) {
         var has = cfg.has(r);
         return '<label class="pickrow' + (has ? ' has' : '') + '" data-name="' + esc((r.name + ' ' + cfg.sub(r)).toLowerCase()) + '"><input type="checkbox" value="' + r.id + '"' + (has ? ' disabled checked' : '') + '>' + (t !== 'ed_equipment' ? avatar(r.name) : '') + '<span class="main"><span class="t">' + esc(r.name) + '</span><span class="s">' + esc(has ? 'Already Added' : cfg.sub(r)) + '</span></span></label>';
-      }).join('') + (list.length ? '' : '<p class="muted small">The Directory has nothing here yet.</p>') + '</div>' +
+      }).join('') + (list.length ? '' : '<p class="muted small">Nothing here yet. Add one below.</p>') + '</div>' +
       '<div class="acts pickfoot"><button class="btn ghost pf-new" data-a="pick-new" data-t="' + t + '" data-id="' + esc(team || '') + '">' + IC.plus + ' ' + esc(cfg.newLabel) + '</button><button class="btn plain pf-clear" data-a="pick-clear">Clear</button><span class="grow"></span><button class="btn plain" data-a="close">Cancel</button><button class="btn pf-add" data-save data-a="sheet-save">Add</button></div>';
   }, function () {
     var root = $('#layer .sheet'), ids = $$('.picklist input:checked:not(:disabled)', root).map(function (x) { return x.value; });
@@ -1552,7 +1576,7 @@ function pickFoot() {
 document.addEventListener('change', function (ev) {
   if (ev.target.closest && ev.target.closest('.pickrow')) pickFoot();
   var t = ev.target, k = t.getAttribute('data-change'); if (!k) return;
-  if (k === 'dir-group') { S.dirGroup = t.value; render(); }
+  if (k === 'dir-type') { S.dirType = t.value; render(); }
   if (k === 'dir-status') { S.dirStatus = t.value; render(); }
   if (k === 'dir-cat') { S.dirCat = t.value; render(); }
   if (k === 'budget-year') { S.budgetYear = +t.value; render(); }
@@ -1583,6 +1607,9 @@ var A = {
   signout: function () { DB.signOut().then(function () { if (DB.mode === 'demo') { lset('ed.mode', null); location.href = location.pathname; return; } S.user = null; S.acct = null; S.db = {}; S.ev = null; render(); }); },
   // directory
   'dir-tab': function (t) { S.dirTab = t.getAttribute('data-v'); S.dirQ = ''; S.dirCat = ''; render(); },
+  'contact-new': function (t, id) { if (id) { newContact(id); return; } openSheet(function () {
+    return '<h3>Add Contact</h3><p class="lead">What kind of contact is this?</p><div class="list">' + CTYPES.map(function (c) { return row({ act: 'contact-type', id: c[0], lead: '<span class="avatar ic">' + { team: IC.user, volunteer: IC.check, guest: IC.home, vendor: IC.tent, other: IC.book }[c[0]] + '</span>', title: esc(c[2] === 'Team' ? 'Team Member' : c[2]), sub: esc(CTYPE_HINT[c[0]]) }); }).join('') + '</div><div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Cancel</button></div>'; }); },
+  'contact-type': function (t, id) { newContact(id); },
   'dir-open': function (t, id) { openDirRecord(t.getAttribute('data-t'), id); },
   'dir-add': function (t, id) { editDir(id, null); },
   'dir-edit': function (t, id) { var tb = t.getAttribute('data-t'); editDir(tb, byId(tb, id)); },
@@ -1613,7 +1640,9 @@ var A = {
   'pick-clear': function () { $$('#layer .picklist input:checked:not(:disabled)').forEach(function (x) { x.checked = false; }); pickFoot(); },
   'pick-new': function (t, team) {
     var tb = t.getAttribute('data-t');
-    editDir(tb, null, function (r) { DB.save(assignTable(tb), assignRow(tb, r.id, team || null, '')).then(function (x) { put(assignTable(tb), x); render(); toast('Added to the Directory and this event'); }); });
+    S.newGroups = tb === 'ed_people' ? [{ leader: 'Team Member', team: 'Team Member', speaker: 'Speaker', worship: 'Worship', volunteer: 'Volunteer' }[team] || 'Team Member'] : null;
+    editDir(tb, null, function (r) { DB.save(assignTable(tb), assignRow(tb, r.id, team || null, '')).then(function (x) { put(assignTable(tb), x); render(); toast('Saved to Contacts and added to this event'); }); });
+    S.newGroups = null;
   },
   'edit-assign': function (t, id) { editAssign('ed_event_people', byId('ed_event_people', id)); },
   'edit-assign-v': function (t, id) { editAssign('ed_event_vendors', byId('ed_event_vendors', id)); },
@@ -1644,12 +1673,14 @@ var A = {
   'add-signup': function (t, id) { var it = byId('ed_items', id); editRow('ed_signups', null, it.kind === 'attend' ? F.rsvp : F.signup, { title: it.kind === 'attend' ? 'Add An RSVP' : 'Add A Person', sub: it.title + (it.on_date ? ' · ' + fmtDay(it.on_date) : ''), base: { event_id: S.ev.id, item_id: id, checked_in_at: null, note: '', party: 1 }, prep: function (v) { v.party = Math.max(1, Math.min(50, v.party || 1)); return v; }, saveLabel: 'Add' }); },
   'del-signup': function (t, id) { var s = byId('ed_signups', id); ask('Remove ' + s.name + ' from this spot?', 'Remove', function () { return remove('ed_signups', id, 'Removed').then(render); }); },
   checkin: function (t, id) { toggle('ed_signups', id, 'checked_in_at', function (r) { return r.checked_in_at ? null : new Date().toISOString(); }); },
-  'vols-to-dir': function () {
-    var serve = evRows('ed_items').filter(function (i) { return i.kind === 'serve'; }).map(function (i) { return i.id; }), have = {}, adds = [];
+  'vols-to-dir': function (t, kind) {
+    kind = kind === 'attend' ? 'attend' : 'serve';
+    var grp = kind === 'attend' ? 'Guest' : 'Volunteer';
+    var serve = evRows('ed_items').filter(function (i) { return i.kind === kind; }).map(function (i) { return i.id; }), have = {}, adds = [];
     T('ed_people').forEach(function (p) { have[p.name.toLowerCase()] = 1; });
-    evRows('ed_signups').filter(function (s) { return serve.indexOf(s.item_id) >= 0; }).forEach(function (s) { var k = s.name.toLowerCase(); if (have[k]) return; have[k] = 1; adds.push({ org_id: org().id, name: s.name, title: 'Volunteer', groups: ['Volunteer'], status: 'current', phone: s.phone, email: s.email, address: '', notes: 'Signed up for ' + S.ev.title }); });
-    if (!adds.length) { toast('Everyone is already in the Directory'); return; }
-    busy(Promise.all(adds.map(function (r) { return DB.save('ed_people', r); }))).then(function (rows) { rows.forEach(function (r) { put('ed_people', r); }); toast(plural(rows.length, 'volunteer') + ' added to the Directory'); render(); }).catch(function () {});
+    evRows('ed_signups').filter(function (s) { return serve.indexOf(s.item_id) >= 0; }).forEach(function (s) { var k = s.name.toLowerCase(); if (have[k]) return; have[k] = 1; adds.push({ org_id: org().id, name: s.name, title: kind === 'attend' ? '' : 'Volunteer', groups: [grp], status: 'current', phone: s.phone, email: s.email, address: '', notes: 'Signed up for ' + S.ev.title }); });
+    if (!adds.length) { toast('Everyone is already in Contacts'); return; }
+    busy(Promise.all(adds.map(function (r) { return DB.save('ed_people', r); }))).then(function (rows) { rows.forEach(function (r) { put('ed_people', r); }); toast(plural(rows.length, kind === 'attend' ? 'guest' : 'volunteer') + ' saved to Contacts'); render(); }).catch(function () {});
   },
   // money
   'add-offering': function () { editRow('ed_offerings', null, F.offering, { title: 'Record Offering', base: { event_id: S.ev.id, on_date: S.ev.starts_on && S.ev.starts_on <= TODAY ? TODAY : S.ev.starts_on, deposited: false } }); },

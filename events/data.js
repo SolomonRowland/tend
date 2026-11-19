@@ -71,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v8', D = null;
+  var KEY = 'ed.demo.v9', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -209,6 +209,8 @@ function demoSeed() {
   person('Pastor Angela Brooks', 'Guest Speaker', ['Speaker'], '(555) 610-2200');
   person('Rev. Thomas Hale', 'Guest Speaker', ['Speaker'], '(555) 610-3300');
   person('Gary Hughes', 'Altar Counselor', ['Prayer Team', 'Volunteer'], '(555) 555-0120');
+  person('Maria Lopez', '', ['Guest'], '(555) 555-0140', { email: 'maria.lopez@example.com' });
+  person('The Carter Family', '', ['Guest'], '(555) 555-0141');
   person('Denise Clark', 'Altar Counselor', ['Prayer Team', 'Volunteer'], '(555) 555-0121');
   person('Robert Lane', 'Prayer Team', ['Prayer Team'], '(555) 555-0122');
   person('Victor Hayes', 'Security Lead', ['Volunteer'], '(555) 555-0123', { notes: 'Off-duty deputy' });
