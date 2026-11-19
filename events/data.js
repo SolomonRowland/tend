@@ -71,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v11', D = null;
+  var KEY = 'ed.demo.v13', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -327,7 +327,11 @@ function demoSeed() {
    ['during', 'Set Out Offering Buckets And Cards', 0, 'Aaron Webb', false], ['during', 'Serve Coffee And Water At The Welcome Tent', 0, 'Grace Kim', false], ['during', 'Lock Up Sound Gear And Trailer', 0, 'Isaac Bell', false],
    ['teardown', 'Stack And Count Chairs', 4, 'Teardown Crew', false], ['teardown', 'Return Equipment And Check Inventory', 4, 'Dale Price', false], ['teardown', 'Walk The Field For Trash', 4, 'Everyone', false],
    ['followup', 'Send Thank-You Texts To Volunteers', 6, 'Pam Hughes', false], ['followup', 'Call Every Connection Card', 7, 'Pastor Solomon', false]
-  ].forEach(function (x, i) { add('ed_tasks', { event_id: R, phase: x[0], area: TASK_AREA_SEED[x[1]] || '', title: x[1], due_on: addDays(revStart, x[2]), due_time: '', owner: x[3], done: x[4], notes: '', sort: i }); });
+  ].forEach(function (x, i) {
+    var need = { 'Lay Ground Cover And Set Chairs': 6, 'Stack And Count Chairs': 8, 'Serve Coffee And Water At The Welcome Tent': 2, 'Walk The Field For Trash': 4, 'Mark Tent Stakes And Utility Lines': 2 }[x[1]] || 1;
+    var who = (P[x[3]] ? [x[3]] : []).concat({ 'Serve Coffee And Water At The Welcome Tent': ['Hannah Lowe'], 'Mark Tent Stakes And Utility Lines': ['Ray Dunn'] }[x[1]] || []);
+    add('ed_tasks', { event_id: R, phase: x[0], area: TASK_AREA_SEED[x[1]] || '', title: x[1], due_on: addDays(revStart, x[2]), due_time: '', task_owner: x[0] === 'planning' || x[0] === 'followup' ? 'Pastor Solomon' : 'Steve Moss', owner: who.length ? who.join(', ') : x[3], assignee_refs: who.map(function (w) { return 'ed_people:' + P[w].id; }), needed: need, done: x[4], notes: '', sort: i });
+  });
   add('ed_expenses', { event_id: R, description: 'Water And Ice', category: 'Hospitality', amount: 180, pay_status: 'Paid In Full', payer: 'Steve Moss', due_on: null, notes: '' });
   add('ed_expenses', { event_id: R, description: 'Tent Permit Fee', category: 'Permits', amount: 75, pay_status: 'Not Paid', payer: 'Linda Grey', due_on: addDays(today, 3), notes: '' });
 

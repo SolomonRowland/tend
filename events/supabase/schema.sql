@@ -1,4 +1,4 @@
--- Tent & Table database (version 9).
+-- Tent & Table database (version 11).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -312,6 +312,20 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 11: each task records who created it (task_owner); the work goes to the assignees
+alter table public.ed_tasks add column if not exists task_owner text not null default '';
+alter table public.ed_tasks drop constraint if exists ed_tasks_task_owner_check;
+alter table public.ed_tasks add constraint ed_tasks_task_owner_check check (length(task_owner) <= 120);
+
+-- version 10: a task can go to several contacts, and says how many people it needs.
+-- assignee_refs holds "ed_people:<id>", "ed_vendors:<id>" or "ed_contacts:<id>"; owner keeps the names.
+alter table public.ed_tasks add column if not exists assignee_refs text[] not null default '{}';
+alter table public.ed_tasks drop constraint if exists ed_tasks_assignee_refs_check;
+alter table public.ed_tasks add constraint ed_tasks_assignee_refs_check check (cardinality(assignee_refs) <= 40);
+alter table public.ed_tasks add column if not exists needed int not null default 1;
+alter table public.ed_tasks drop constraint if exists ed_tasks_needed_check;
+alter table public.ed_tasks add constraint ed_tasks_needed_check check (needed between 1 and 100);
+
 -- version 9: the heart of each event, and who leads each agenda segment or schedule item
 alter table public.ed_events add column if not exists theme text not null default '';
 alter table public.ed_events drop constraint if exists ed_events_theme_check;
@@ -577,8 +591,8 @@ begin
     select nid, on_date + delta, start_time, end_time, title, location, owner, owner_ref, notes from public.ed_schedule where event_id = p_event;
   insert into public.ed_items (event_id, kind, title, on_date, time_label, needed, notes, sort)
     select nid, kind, title, on_date + delta, time_label, needed, notes, sort from public.ed_items where event_id = p_event;
-  insert into public.ed_tasks (event_id, phase, area, title, due_on, due_time, owner, notes, sort)
-    select nid, phase, area, title, due_on + delta, due_time, owner, notes, sort from public.ed_tasks where event_id = p_event;
+  insert into public.ed_tasks (event_id, phase, area, title, due_on, due_time, owner, task_owner, assignee_refs, needed, notes, sort)
+    select nid, phase, area, title, due_on + delta, due_time, owner, task_owner, assignee_refs, needed, notes, sort from public.ed_tasks where event_id = p_event;
   insert into public.ed_agenda (event_id, title, leader, leader_ref, start_time, minutes, notes, sort)
     select nid, title, leader, leader_ref, start_time, minutes, '', sort from public.ed_agenda where event_id = p_event;
   -- scripture and declarations carry over; prayer needs are for this event only

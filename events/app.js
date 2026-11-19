@@ -105,6 +105,12 @@ function refOf(c) { return c.t + ':' + c.r.id; }
 function refContact(ref) { if (!ref) return null; var i = ref.indexOf(':'), t = ref.slice(0, i), id = ref.slice(i + 1), r = byId(t, id); if (!r) return null; return allContacts().find(function (c) { return c.t === t && c.r.id === id; }) || null; }
 // Picking a contact fills in the name, so print-outs and old rows still read right.
 function refSync(v) { [['leader_ref', 'leader'], ['owner_ref', 'owner']].forEach(function (p) { if (p[0] in v) { var c = refContact(v[p[0]]); if (c) v[p[1]] = c.name; else if (!v[p[0]]) v[p[0]] = ''; } }); return v; }
+// Who can take a task: team (staff, board, prayer team), volunteers, vendors and other contacts. Not guests, worship or speakers.
+var TASK_GROUPS = ['Team Member', 'Board', 'Prayer Team', 'Volunteer'];
+function taskEligible(c) { return c.t !== 'ed_people' || (c.r.groups || []).some(function (g) { return TASK_GROUPS.indexOf(g) >= 0; }) || !(c.r.groups || []).length; }
+function refNames(refs) { return (refs || []).map(refContact).filter(Boolean).map(function (c) { return c.name; }); }
+function splitNames(s) { return String(s || '').split(/\s*,\s*/).filter(Boolean); }
+function taskPeople(t) { var n = refNames(t.assignee_refs); return n.concat(splitNames(t.owner).filter(function (x) { return n.indexOf(x) < 0; })); }
 function refPill(ref) { var c = refContact(ref); return c ? pill(ctypeOne(c.types[0]), 'tone-' + CTYPE_TONE[c.types[0]]) : ''; }
 // The one contact row: name on top, what they do and how to reach them underneath, type on the right.
 function contactSub(detail, phone, email) { var d = detail.filter(Boolean), c = phone || email; return esc(d.join(' · ')) + (c ? (d.length ? ' · ' : '') + '<span class="nw">' + esc(c) + '</span>' : ''); }
@@ -344,6 +350,14 @@ function fieldHtml(f, data) {
     }).join('') + '</select>';
     return '<div class="' + cls + '">' + lab + inp + hint + '</div>';
   }
+  if (f.type === 'contacts') {
+    var sel = Array.isArray(v) ? v : [], pool = allContacts().filter(function (x) { var on0 = sel.indexOf(refOf(x)) >= 0; return on0 || ((f.filter ? f.filter(x) : true) && x.status !== 'previous'); });
+    return '<fieldset class="' + cls + '"><legend>' + esc(f.label) + '</legend>' + (pool.length > 8 ? '<input class="inp sm pickq" type="search" placeholder="Search contacts" data-input="pick-q" aria-label="Search contacts">' : '') +
+      '<div class="cpick">' + CTYPES.map(function (c) {
+        var g = pool.filter(function (x) { return x.types[0] === c[0]; }); if (!g.length) return '';
+        return '<div class="cpick-g">' + esc(c[1]) + '</div>' + g.map(function (x) { var r = refOf(x); return '<label class="cbx pickrow" data-name="' + esc(x.name.toLowerCase()) + '"><input type="checkbox" name="' + f.k + '" value="' + esc(r) + '"' + (sel.indexOf(r) >= 0 ? ' checked' : '') + '><span>' + esc(x.name) + '</span></label>'; }).join('');
+      }).join('') + (pool.length ? '' : '<p class="small muted">No contacts yet.</p>') + '</div>' + hint + '</fieldset>';
+  }
   if (f.type === 'textarea') inp = '<textarea class="inp" id="' + id + '" name="' + f.k + '" placeholder="' + esc(f.ph || '') + '">' + esc(v) + '</textarea>';
   else if (f.type === 'select') inp = '<select class="inp" id="' + id + '" name="' + f.k + '">' + optsOf(f).map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(o[0]) === String(v) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select>';
   else if (f.type === 'list') inp = '<input class="inp" id="' + id + '" name="' + f.k + '" list="dl_' + id + '" value="' + esc(v) + '" placeholder="' + esc(f.ph || '') + '" autocomplete="off"' + (f.auto ? ' autofocus' : '') + '><datalist id="dl_' + id + '">' + optsOf(f).map(function (o) { return '<option value="' + esc(o[0]) + '">'; }).join('') + '</datalist>';
@@ -365,7 +379,7 @@ function readForm(fields, base) {
   fields.forEach(function (f) {
     if (f.html) return;
     var v;
-    if (f.type === 'multi') v = $$('[name="' + f.k + '"]:checked', root).map(function (x) { return x.value; });
+    if (f.type === 'multi' || f.type === 'contacts') v = $$('[name="' + f.k + '"]:checked', root).map(function (x) { return x.value; });
     else { var el = root.querySelector('[name="' + f.k + '"]'); if (!el) return; v = f.type === 'check' ? el.checked : el.value.trim(); }
     if (f.type === 'money') v = v === '' ? 0 : Math.max(0, num(v));
     if (f.type === 'int') v = v === '' ? null : Math.round(num(v));
@@ -436,8 +450,10 @@ var F = {
   task: [
     { k: 'title', label: 'Task', auto: true, ph: 'Book portable restrooms' }, 
     { k: 'phase', label: 'Segment', type: 'select', opts: PHASES, half: true }, { k: 'area', label: 'Area', type: 'list', opts: function () { return taskAreas(evRows('ed_tasks')).concat(TASK_AREAS).filter(function (x, i, l) { return l.indexOf(x) === i; }).map(function (x) { return [x, x]; }); }, half: true, ph: 'Food, Stage, AV…' },
-    { k: 'owner', label: 'Who', type: 'list', opts: function () { return peopleNames(); } },
     { k: 'due_on', label: 'Due Date', type: 'date', half: true }, { k: 'due_time', label: 'Time', half: true, ph: '10 AM' },
+    { k: 'needed', label: 'People Needed', type: 'select', opts: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(function (n) { return [n, String(n)]; }), def: 1, hint: 'How many hands it takes, like 4 to set up the stage.' },
+    { k: 'assignee_refs', label: 'Assigned To', type: 'contacts', filter: taskEligible, hint: 'Pick as many as you need: team members, board, prayer team, volunteers, vendors or other contacts.' },
+    { k: 'owner_typed', label: 'Or Type A Name', ph: 'Not in contacts? Type names, separated by commas.' },
     { k: 'done', label: 'Done', type: 'check' }, { k: 'notes', label: 'Notes', type: 'textarea' }],
   agenda: [
     { k: 'title', label: 'Segment', auto: true, ph: 'Opening Prayer', hint: 'Call it anything: Worship, Housekeeping, The Message, Lunch Updates.' },
@@ -1170,10 +1186,22 @@ function wsFood(e) {
 }
 
 /* ---------- tasks */
+function taskPrep(v) {
+  v.assignee_refs = (v.assignee_refs || []).filter(function (r) { return refContact(r); });
+  v.needed = Math.max(1, Math.min(100, parseInt(v.needed, 10) || 1));
+  var n = refNames(v.assignee_refs); v.owner = n.concat(splitNames(v.owner_typed).filter(function (x) { return n.indexOf(x) < 0; })).join(', ').slice(0, 300);
+  if (!v.task_owner) { var me = myMember(); v.task_owner = String(me.name || me.email || '').slice(0, 120); }
+  v.owner_typed = undefined; return JSON.parse(JSON.stringify(v));
+}
+function taskNeed(t) {
+  var ppl = taskPeople(t), need = Math.max(1, t.needed || 1), short = need - ppl.length;
+  if (t.done || short <= 0) return '';
+  return ppl.length ? short + ' more needed' : need > 1 ? need + ' people needed' : 'No one assigned';
+}
 function taskRow(t, by) {
   var late = !t.done && t.due_on && t.due_on < TODAY, tag = by === 'area' ? phaseLbl(phaseOf(t)) : t.area;
   return '<div class="row">' + ck(t.done, 'toggle-task', t.id) + '<button class="main" data-a="edit-task" data-id="' + t.id + '"><div class="t' + (t.done ? ' done' : '') + '">' + esc(t.title) + '</div><div class="s">' + (tag ? '<span class="ttag">' + esc(tag) + '</span>' : '') +
-    (t.due_on ? '<span class="' + (late ? 'danger' : '') + '">' + (late ? 'Overdue · ' : '') + esc(fmtDay(t.due_on) + (t.due_time ? ', ' + t.due_time : '')) + '</span>' : '') + esc(t.owner ? (t.due_on ? ' · ' : '') + t.owner : '') + '</div></button></div>';
+    (t.due_on ? '<span class="' + (late ? 'danger' : '') + '">' + (late ? 'Overdue · ' : '') + esc(fmtDay(t.due_on) + (t.due_time ? ', ' + t.due_time : '')) + '</span>' : '') + esc(taskPeople(t).length ? (t.due_on ? ' · ' : '') + taskPeople(t).join(', ') : '') + (taskNeed(t) ? '<span class="need">' + (t.due_on || taskPeople(t).length ? ' · ' : '') + esc(taskNeed(t)) + '</span>' : '') + '</div></button></div>';
 }
 function wsTasks(e) {
   var every = evRows('ed_tasks'), done = every.filter(function (t) { return t.done; }).length;
@@ -1710,7 +1738,8 @@ document.addEventListener('click', function (ev) {
 document.addEventListener('input', function (ev) {
   var k = ev.target.getAttribute('data-input');
   if (k === 'dir-q') { S.dirQ = ev.target.value; var pos = ev.target.selectionStart; render(); var el = $('#dir_q'); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {} } }
-  if (k === 'pick-q') { var q = ev.target.value.toLowerCase(); $$('#layer .pickrow').forEach(function (r) { r.hidden = q && r.getAttribute('data-name').indexOf(q) < 0; }); }
+  if (k === 'pick-q') { var q = ev.target.value.toLowerCase(); $$('#layer .pickrow').forEach(function (r) { r.hidden = q && r.getAttribute('data-name').indexOf(q) < 0; });
+    $$('#layer .cpick-g').forEach(function (g) { var n = g.nextElementSibling, any = false; while (n && n.classList.contains('pickrow')) { if (!n.hidden) any = true; n = n.nextElementSibling; } g.hidden = !any; }); }
 });
 function pickFoot() {
   var sh = $('#layer .sheet'); if (!sh || !sh.querySelector('.pickfoot')) return;
@@ -1802,9 +1831,9 @@ var A = {
   // plan
   'add-sched': function () { editRow('ed_schedule', null, F.schedule, { title: 'Add To Schedule', base: { event_id: S.ev.id, on_date: S.calDay } , prep: function (v) { if (!v.on_date) return 'Pick a date.'; return v; }, after: function (r) { S.calDay = r.on_date; } }); },
   'edit-sched': function (t, id) { editRow('ed_schedule', byId('ed_schedule', id), F.schedule, { title: 'Edit Schedule Item', prep: function (v) { if (!v.on_date) return 'Pick a date.'; return v; } }); },
-  'add-task': function () { var ar = S.taskArea && S.taskArea !== '-' ? S.taskArea : ''; editRow('ed_tasks', null, F.task, { title: 'Add Task', base: { event_id: S.ev.id, phase: 'planning', area: ar, done: false, sort: evRows('ed_tasks').length } }); },
+  'add-task': function () { var ar = S.taskArea && S.taskArea !== '-' ? S.taskArea : ''; editRow('ed_tasks', null, F.task, { title: 'Add Task', base: { event_id: S.ev.id, phase: 'planning', area: ar, done: false, needed: 1, assignee_refs: [], owner_typed: '', sort: evRows('ed_tasks').length }, prep: taskPrep }); },
   'doc-by': function (t) { S.sub.taskby = t.getAttribute('data-v'); redrawSheet(); },
-  'edit-task': function (t, id) { editRow('ed_tasks', byId('ed_tasks', id), F.task, { title: 'Edit Task' }); },
+  'edit-task': function (t, id) { var r = byId('ed_tasks', id); if (!r) return; var n = refNames(r.assignee_refs); editRow('ed_tasks', Object.assign({}, r, { owner_typed: splitNames(r.owner).filter(function (x) { return n.indexOf(x) < 0; }).join(', ') }), F.task, { title: 'Edit Task', prep: taskPrep, top: function (b) { return b.task_owner ? '<p class="small muted tby">Created by ' + esc(b.task_owner) + (b.created_at ? ' on ' + esc(fmtDay(String(b.created_at).slice(0, 10), { month: 'short', day: 'numeric', year: 'numeric' })) : '') + '</p>' : ''; } }); },
   'toggle-task': function (t, id) { toggle('ed_tasks', id, 'done'); },
   'add-prayer': function (t, id) { editPrayer(id, null); },
   'edit-prayer': function (t, id) { var p = byId('ed_prayer', id); if (p) editPrayer(p.kind, p); },
