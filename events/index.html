@@ -481,6 +481,15 @@ button.row:hover{background:#fff;box-shadow:0 0 0 1.5px var(--red-line),var(--sh
   #app{border-left:1px solid var(--line);border-right:1px solid var(--line)}
   .bottomnav{max-width:720px;margin:0 auto}
 }
+
+/* v6: event areas */
+.top .areabar{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;background:rgba(255,255,255,.16);border-radius:12px;padding:3px;margin:14px 0 0}
+.top .areabar button{min-height:34px;border-radius:9px;color:rgba(255,255,255,.92);font-size:13px;font-weight:600;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.top .areabar button[aria-selected="true"]{background:#fff;color:var(--red);font-weight:700;box-shadow:0 1px 3px rgba(80,0,0,.2)}
+@media(max-width:400px){.top .areabar button{font-size:12px}}
+.subtabs.mini{max-width:320px;margin-bottom:12px}
+.stats.glance .stat{text-align:left}
+.stats.glance .stat:hover{box-shadow:0 0 0 1.5px var(--red-line),var(--shadow)}
 </style>
 </head>
 <body>
