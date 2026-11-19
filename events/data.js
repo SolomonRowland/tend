@@ -9,7 +9,7 @@ var CLOUD_KEY = 'sb_publishable_0uqPd7iYgo98ld-CaF5M6g_AV3VAlEI';
 
 var DIR_TABLES = ['ed_people', 'ed_vendors', 'ed_contacts', 'ed_equipment', 'ed_budget'];
 var EVENT_TABLES = ['ed_event_people', 'ed_event_vendors', 'ed_event_contacts', 'ed_event_equipment', 'ed_schedule', 'ed_tasks',
-  'ed_agenda', 'ed_setlists', 'ed_items', 'ed_signups', 'ed_offerings', 'ed_expenses', 'ed_cards'];
+  'ed_agenda', 'ed_setlists', 'ed_items', 'ed_signups', 'ed_offerings', 'ed_expenses', 'ed_cards', 'ed_prayer'];
 // Rows that go away with their parent (the database does this with "on delete cascade").
 var CASCADE = {
   ed_events: EVENT_TABLES.map(function (t) { return [t, 'event_id']; }),
@@ -71,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v10', D = null;
+  var KEY = 'ed.demo.v11', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -158,6 +158,7 @@ function DemoDB() {
       copy('ed_event_vendors', function () { return { paid: 0, pay_status: 'Not Paid', status: 'Quoted', due_on: null }; }, function (r) { return r.status === 'Cancelled'; });
       copy('ed_event_contacts');
       copy('ed_event_equipment', function () { return { loaded: false, returned: false }; });
+      copy('ed_prayer', null, function (r) { return r.kind === 'intercede'; });
       return n.id;
     }
   };
@@ -252,7 +253,8 @@ function demoSeed() {
   function ev(title, start, len, extra) { return add('ed_events', Object.assign({ org_id: O, slug: slugFor(title), title: title, starts_on: start, ends_on: addDays(start, len), time_label: '', place: '', address: '', about: '', contact_line: '', giving_link: '', budget: 0, notes: '', sections: [], is_open: true }, extra)); }
   var revStart = addDays(today, 18);
   var rev = ev('Annual Tent Revival', revStart, 3, { time_label: 'Nightly at 7 PM', place: 'Miller Field', address: '1200 Waterman Rd, Waterman, IL', about: 'Four nights of worship, preaching and prayer under the big tent. Everyone is welcome. Bring a lawn chair if you like; seating is provided.', contact_line: 'Questions? Text Steve at (555) 555-0142.', giving_link: 'https://example.com/give', budget: 9000,
-    sections: ['calendar', 'people', 'speakers', 'worship', 'volunteers', 'guests', 'vendors', 'equipment', 'food', 'tasks', 'money', 'followup', 'v2'], volunteer_goal: 80 });
+    sections: ['calendar', 'people', 'speakers', 'worship', 'volunteers', 'guests', 'vendors', 'equipment', 'food', 'tasks', 'money', 'followup', 'prayer', 'v2'], volunteer_goal: 80,
+    theme: 'Let His Presence Fall', purpose: 'The purpose of this revival is to give God glory. We want to see the lost saved, the sick healed, and our town know that Jesus is alive.' });
   var R = rev.id, nights = [0, 1, 2, 3].map(function (i) { return addDays(revStart, i); });
   // calendar
   add('ed_schedule', { event_id: R, on_date: addDays(revStart, -1), start_time: '08:00', end_time: '12:00', title: 'Tent Install With Big Top Crew', location: 'Miller Field', owner: 'Marcus Reed', notes: '' });
@@ -346,12 +348,29 @@ function demoSeed() {
   add('ed_tasks', { event_id: board.id, phase: 'planning', area: 'Admin', title: 'Print Agenda And Treasurer’s Report', due_on: addDays(today, 1), due_time: '', owner: 'Linda Grey', done: false, notes: '', sort: 0 });
   add('ed_items', { event_id: board.id, kind: 'meal', title: 'Snacks And Coffee', on_date: board.starts_on, time_label: '6:45 PM', needed: 1, notes: '', sort: 0 });
 
-  var prayer = ev('Prayer Night', today, 0, { time_label: '6:30 PM', place: 'Prayer Room', sections: ['people', 'agenda', 'followup', 'calendar', 'tasks', 'volunteers', 'guests', 'v2'] });
+  var prayer = ev('Prayer Night', today, 0, { time_label: '6:30 PM', place: 'Prayer Room', sections: ['people', 'agenda', 'followup', 'calendar', 'tasks', 'volunteers', 'guests', 'prayer', 'v2'], theme: 'Ask, Seek, Knock' });
   [['18:00', 'Prayer Team Huddle', 'Pastor’s Office'], ['18:30', 'Worship And Open Prayer', 'Prayer Room'], ['19:15', 'Prayer Stations', 'Prayer Room'], ['20:00', 'Closing And Coffee', 'Fellowship Hall']].forEach(function (s, i) { add('ed_schedule', { event_id: prayer.id, on_date: today, start_time: s[0], end_time: '', title: s[1], location: s[2], owner: '', notes: '' }); });
   var pr = add('ed_items', { event_id: prayer.id, kind: 'attend', title: 'Prayer Night', on_date: today, time_label: '6:30 PM', needed: 40, notes: '', sort: 0 });
   [['Maria Lopez', '(555) 555-0140', 1], ['The Carter Family', '(555) 555-0141', 4], ['Ruth Ellis', '(555) 555-0150', 2]].forEach(function (x, k) { add('ed_signups', { event_id: prayer.id, item_id: pr.id, name: x[0], phone: x[1], email: '', note: '', token: token(), checked_in_at: k === 0 ? new Date().toISOString() : null, party: x[2] }); });
   ['Pam Hughes', 'Robert Lane', 'Gary Hughes'].forEach(function (n) { add('ed_event_people', { event_id: prayer.id, person_id: P[n].id, team: 'team', role: 'Prayer Team', days: '', details: {}, amount: 0, pay_status: 'Not Paid', payer: '', due_on: null, notes: '' }); });
-  [['Praise And Thanksgiving', '', 15], ['Pray For The Revival And Its Speakers', 'Pam Hughes', 20], ['Our Town, Schools And Leaders', 'Robert Lane', 20]].forEach(function (a, i) { add('ed_agenda', { event_id: prayer.id, title: a[0], leader: a[1], minutes: a[2], done: false, notes: '', sort: i }); });
+  [['Opening Prayer', 'Pastor Solomon', 5, '18:30'], ['Worship', 'Kayla Ross', 25, '18:35'], ['Housekeeping And Prayer Stations', 'Maria Lopez', 5, '19:00'], ['Pray For The Revival And Its Speakers', 'Pam Hughes', 20, '19:15'], ['Our Town, Schools And Leaders', 'Robert Lane', 20, '19:35'], ['Closing Prayer', 'Pastor Solomon', 5, '19:55']].forEach(function (a, i) { add('ed_agenda', { event_id: prayer.id, title: a[0], leader: a[1], leader_ref: P[a[1]] ? 'ed_people:' + P[a[1]].id : '', start_time: a[3], minutes: a[2], done: false, notes: '', sort: i }); });
+
+  // prayer: scripture, declarations and what the prayer team is interceding for (none of it gets checked off)
+  function pray(evId, kind, title, extra) { return add('ed_prayer', Object.assign({ event_id: evId, kind: kind, title: title, body: '', person_id: null, follow_up_on: null, answer: '', private: false, sort: 0 }, extra || {})); }
+  [['2 Chronicles 7:14', 'If my people, who are called by my name, will humble themselves and pray and seek my face and turn from their wicked ways, then I will hear from heaven, and I will forgive their sin and will heal their land.'],
+   ['Psalm 22:3', 'Yet you are holy, enthroned on the praises of Israel.'],
+   ['Habakkuk 3:2', 'Lord, I have heard of your fame; I stand in awe of your deeds, Lord. Repeat them in our day, in our time make them known.']].forEach(function (v, i) { pray(R, 'verse', v[0], { body: v[1], sort: i }); });
+  ['This revival is for the glory of God, not the glory of man.', 'The presence of the Lord will fill this tent every night.', 'The truth will come out, and the Lord will reveal Himself to this town.', 'The lost will be saved, the sick will be healed, and the bound will go free.', 'Every volunteer and every family will be covered and protected.', 'The weather is in His hands. The tent will stand.'].forEach(function (t, i) { pray(R, 'declare', t, { sort: i }); });
+  pray(R, 'intercede', 'Healing for her mom, Rosa', { person_id: P['Maria Lopez'].id, body: 'Rosa has been in the hospital since last week. Maria asked us to keep praying.', follow_up_on: addDays(today, -1), sort: 0 });
+  pray(R, 'intercede', 'Salvation for his two sons', { person_id: P['Tony Alvarez'].id, body: 'Tony is inviting them to Night 2.', sort: 1 });
+  pray(R, 'intercede', 'Clear weather all four nights', { sort: 2 });
+  pray(R, 'intercede', 'Strength and a fresh word for the speakers', { body: 'Evangelist David Moore, Pastor Angela Brooks and Rev. Thomas Hale.', sort: 3 });
+  pray(R, 'intercede', 'A new job', { person_id: P['Denise Clark'].id, follow_up_on: addDays(today, 5), private: true, sort: 4 });
+  pray(R, 'intercede', 'The permit for Miller Field to be approved', { answer: 'Approved in one week. The city waived the fee.', sort: 5 });
+  pray(prayer.id, 'verse', 'Matthew 7:7', { body: 'Ask and it will be given to you; seek and you will find; knock and the door will be opened to you.' });
+  pray(prayer.id, 'declare', 'Our town will be covered in prayer.');
+  pray(prayer.id, 'intercede', 'Healing for Rosa', { person_id: P['Maria Lopez'].id, sort: 0 });
+  pray(prayer.id, 'intercede', 'The schools and teachers in our town', { sort: 1 });
 
   var outreach = ev('Summer Park Outreach', addDays(today, -110), 0, { time_label: '10 AM–2 PM', place: 'City Park Pavilion', about: 'Free lunch, kids games and prayer.', budget: 800, sections: [], debrief: 'Ran out of hot dogs by 12:30. Plan for 300, not 200. The bounce house drew families in; book it again. Start setup at 8, not 9. Need a shade tent for the prayer table.' });
   add('ed_offerings', { event_id: outreach.id, service: 'Outreach', on_date: outreach.starts_on, cash: 240, checks: 150, online: 85, other: 0, counter1: 'Aaron Webb', counter2: 'Linda Grey', deposited: true, notes: '' });

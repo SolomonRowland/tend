@@ -1,4 +1,4 @@
--- Tent & Table database (version 8).
+-- Tent & Table database (version 9).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -14,6 +14,7 @@
 --     public sign-ups: ed_items (serve spots and meals) and ed_signups
 --     money: ed_offerings, ed_expenses (plus vendor and speaker costs on the assignments)
 --     follow-up: ed_cards (connection cards)
+--     prayer: ed_prayer (scripture, declarations and needs the prayer team intercedes for)
 --   Public pages call only the ed_public, ed_sign, ed_unsign, ed_mine and ed_connect functions.
 
 -- ============================================================ accounts
@@ -311,6 +312,23 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 9: the heart of each event, and who leads each agenda segment or schedule item
+alter table public.ed_events add column if not exists theme text not null default '';
+alter table public.ed_events drop constraint if exists ed_events_theme_check;
+alter table public.ed_events add constraint ed_events_theme_check check (length(theme) <= 200);
+alter table public.ed_events add column if not exists purpose text not null default '';
+alter table public.ed_events drop constraint if exists ed_events_purpose_check;
+alter table public.ed_events add constraint ed_events_purpose_check check (length(purpose) <= 3000);
+-- leader_ref / owner_ref point at a contact as "ed_people:<id>", "ed_vendors:<id>" or "ed_contacts:<id>";
+-- leader / owner keep the name, so a deleted contact still leaves a name behind.
+alter table public.ed_agenda add column if not exists leader_ref text not null default '';
+alter table public.ed_agenda drop constraint if exists ed_agenda_leader_ref_check;
+alter table public.ed_agenda add constraint ed_agenda_leader_ref_check check (length(leader_ref) <= 60);
+alter table public.ed_agenda add column if not exists start_time time;
+alter table public.ed_schedule add column if not exists owner_ref text not null default '';
+alter table public.ed_schedule drop constraint if exists ed_schedule_owner_ref_check;
+alter table public.ed_schedule add constraint ed_schedule_owner_ref_check check (length(owner_ref) <= 60);
+
 -- version 8: notes for next year on each event
 alter table public.ed_events add column if not exists debrief text not null default '';
 alter table public.ed_events drop constraint if exists ed_events_debrief_check;
@@ -551,18 +569,21 @@ begin
   s := left(regexp_replace(lower(coalesce(nullif(trim(p_title), ''), ev.title)), '[^a-z0-9]+', '-', 'g'), 40);
   s := trim(both '-' from s) || '-' || left(replace(gen_random_uuid()::text, '-', ''), 4);
   if length(s) < 6 then s := 'event-' || s; end if;
-  insert into public.ed_events (org_id, slug, title, starts_on, ends_on, time_label, place, address, about, contact_line, giving_link, budget, sections, is_open, volunteer_goal)
+  insert into public.ed_events (org_id, slug, title, starts_on, ends_on, time_label, place, address, about, contact_line, giving_link, budget, sections, is_open, volunteer_goal, theme, purpose)
     values (ev.org_id, s, coalesce(nullif(ed_clip(p_title, 120), ''), ev.title), coalesce(p_start, ev.starts_on), ev.ends_on + delta,
-            ev.time_label, ev.place, ev.address, ev.about, ev.contact_line, ev.giving_link, ev.budget, ev.sections, true, ev.volunteer_goal)
+            ev.time_label, ev.place, ev.address, ev.about, ev.contact_line, ev.giving_link, ev.budget, ev.sections, true, ev.volunteer_goal, ev.theme, ev.purpose)
     returning id into nid;
-  insert into public.ed_schedule (event_id, on_date, start_time, end_time, title, location, owner, notes)
-    select nid, on_date + delta, start_time, end_time, title, location, owner, notes from public.ed_schedule where event_id = p_event;
+  insert into public.ed_schedule (event_id, on_date, start_time, end_time, title, location, owner, owner_ref, notes)
+    select nid, on_date + delta, start_time, end_time, title, location, owner, owner_ref, notes from public.ed_schedule where event_id = p_event;
   insert into public.ed_items (event_id, kind, title, on_date, time_label, needed, notes, sort)
     select nid, kind, title, on_date + delta, time_label, needed, notes, sort from public.ed_items where event_id = p_event;
   insert into public.ed_tasks (event_id, phase, area, title, due_on, due_time, owner, notes, sort)
     select nid, phase, area, title, due_on + delta, due_time, owner, notes, sort from public.ed_tasks where event_id = p_event;
-  insert into public.ed_agenda (event_id, title, leader, minutes, notes, sort)
-    select nid, title, leader, minutes, '', sort from public.ed_agenda where event_id = p_event;
+  insert into public.ed_agenda (event_id, title, leader, leader_ref, start_time, minutes, notes, sort)
+    select nid, title, leader, leader_ref, start_time, minutes, '', sort from public.ed_agenda where event_id = p_event;
+  -- scripture and declarations carry over; prayer needs are for this event only
+  insert into public.ed_prayer (event_id, kind, title, body, sort)
+    select nid, kind, title, body, sort from public.ed_prayer where event_id = p_event and kind <> 'intercede';
   insert into public.ed_event_people (event_id, person_id, team, role, days, details, amount, payer, notes)
     select nid, person_id, team, role, days, details, amount, payer, notes from public.ed_event_people where event_id = p_event and team <> 'volunteer';
   insert into public.ed_event_vendors (event_id, vendor_id, service, arrival, cost, payer, notes)
@@ -735,3 +756,31 @@ grant execute on function public.ed_is_member(uuid), public.ed_is_owner(uuid), p
   public.ed_renew_event(uuid, date, date, jsonb), public.ed_copy_event(uuid, text, date) to authenticated;
 grant execute on function public.ed_public(text), public.ed_sign(text, uuid, text, text, text, text, int), public.ed_unsign(text),
   public.ed_mine(text[]), public.ed_connect(text, text, text, text, text[], text) to anon, authenticated;
+
+-- ============================================================ version 9: prayer
+-- Scripture, declarations and the needs the prayer team intercedes for. Nothing is checked off:
+-- a row stays until someone deletes it. A need can name a contact, a follow-up date, and what God did.
+create table if not exists public.ed_prayer (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.ed_events (id) on delete cascade,
+  kind text not null default 'intercede' check (kind in ('intercede', 'declare', 'verse')),
+  title text not null check (length(title) between 1 and 600),
+  body text not null default '' check (length(body) <= 4000),
+  person_id uuid references public.ed_people (id) on delete set null,
+  follow_up_on date,
+  answer text not null default '' check (length(answer) <= 4000),
+  private boolean not null default false,
+  sort int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists ed_prayer_event_idx on public.ed_prayer (event_id);
+create index if not exists ed_prayer_person_idx on public.ed_prayer (person_id);
+drop trigger if exists ed_prayer_touch on public.ed_prayer;
+create trigger ed_prayer_touch before update on public.ed_prayer for each row execute function public.ed_touch();
+alter table public.ed_prayer enable row level security;
+revoke all on public.ed_prayer from anon;
+drop policy if exists ed_prayer_all on public.ed_prayer;
+create policy ed_prayer_all on public.ed_prayer for all to authenticated using (public.ed_can_event(event_id))
+  with check (public.ed_can_event(event_id) and (person_id is null or public.ed_same_org(event_id, 'ed_people', person_id)));
+grant select, insert, update, delete on public.ed_prayer to authenticated;
