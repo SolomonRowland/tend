@@ -216,7 +216,7 @@ function head(title, sub, left, right, eyebrow) {
 }
 function tabs(list, cur, act, cls) {
   return '<nav class="' + (cls || 'tabs') + '" role="tablist">' + list.map(function (t) {
-    return '<button role="tab" aria-selected="' + (t[0] === cur) + '" data-a="' + act + '" data-v="' + t[0] + '">' + esc(t[1]) + (t[2] != null && t[2] !== '' ? ' <span class="count">' + esc(t[2]) + '</span>' : '') + '</button>';
+    return '<button role="tab" aria-selected="' + (t[0] === cur) + '" data-a="' + act + '" data-v="' + t[0] + '">' + esc(t[1]) + '</button>';
   }).join('') + '</nav>';
 }
 function secHead(title, right, sub) { return '<div class="sec"><h2>' + esc(title) + (sub ? ' <small>' + esc(sub) + '</small>' : '') + '</h2>' + (right || '') + '</div>'; }
