@@ -55,13 +55,22 @@ begin
   delete from storage.objects; 
   perform t_as('11111111-1111-1111-1111-111111111111', 'sol@x.com');
   select count(*) into n from storage.objects; perform t_expect(n = 1, 'stranger cannot delete photos');
-  insert into push_subs (endpoint, user_id, household_id, p256dh, auth) values ('https://push/sol', auth.uid(), hid, 'k', 'a');
-  perform t_expect(t_fails(format('insert into push_subs (endpoint, user_id, household_id, p256dh, auth) values (''https://push/x'', auth.uid(), %L, ''k'', ''a'')', hid2)), 'cannot sign a phone up for another household');
+  perform save_push_sub('https://push/sol', hid, 'k', 'a', 8, 'America/Chicago');
+  perform t_expect((select user_id from push_subs where endpoint = 'https://push/sol') = auth.uid(), 'phone saved for you');
+  perform t_expect(t_fails(format('select save_push_sub(''https://push/x'', %L, ''k'', ''a'', 8, ''UTC'')', hid2)), 'cannot sign a phone up for another household');
   perform t_expect(t_fails('insert into push_subs (endpoint, user_id, household_id, p256dh, auth) values (''https://push/y'', ''22222222-2222-2222-2222-222222222222'', ''' || hid || ''', ''k'', ''a'')'), 'cannot add a phone for someone else');
+  perform t_expect(t_fails('update push_subs set user_id = ''22222222-2222-2222-2222-222222222222'''), 'cannot hand your phone to someone else');
+  perform t_expect(t_fails(format('select save_push_sub(''http://push/z'', %L, ''k'', ''a'', 8, ''UTC'')', hid)), 'odd phone addresses refused');
+  update push_subs set hour = 19 where endpoint = 'https://push/sol';
+  perform t_expect((select hour from push_subs where endpoint = 'https://push/sol') = 19, 'you can change your hour');
+  perform t_expect(t_fails('select cron_secret from push_config'), 'phones cannot read the hourly job''s secret');
   perform t_expect(t_fails('select private_key from push_config'), 'phones cannot read the sending key');
   perform t_expect(push_public_key() is null, 'public key empty until the function makes it');
   perform t_as('22222222-2222-2222-2222-222222222222', 'kelly@x.com');
   select count(*) into n from push_subs; perform t_expect(n = 0, 'you only see your own phones');
+  -- Solomon signed out without turning it off, and Kelly signs in on the same phone
+  perform save_push_sub('https://push/sol', hid, 'k2', 'a2', 7, 'America/Chicago');
+  select count(*) into n from push_subs; perform t_expect(n = 1, 'the next person on a phone takes it over');
   perform t_as('11111111-1111-1111-1111-111111111111', 'sol@x.com');
   perform t_expect(t_fails(format('select remove_member(%L, ''11111111-1111-1111-1111-111111111111'')', hid)), 'owner cannot leave while others remain');
   perform remove_member(hid, '22222222-2222-2222-2222-222222222222');

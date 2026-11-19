@@ -4,6 +4,8 @@
 // heads-up yet, it sends a short list of what's overdue, due today and coming up.
 // Also handles { action: 'init' } (makes the sending keys, returns the public one)
 // and { action: 'test' } (sends a test to the signed-in person's phones right now).
+// Deploy with "Verify JWT" off: the hourly run must show push_config.cron_secret
+// (only the database's cron job knows it) and a test must carry a signed-in user's token.
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 
@@ -24,9 +26,12 @@ function listNames(names, max) {
   const shown = names.slice(0, max), more = names.length - shown.length;
   return shown.join(', ') + (more > 0 ? ' and ' + more + ' more' : '');
 }
-// schedule.tasks rows: [id, name, due, opens, snoozedUntil]
-function buildDigest(schedule, today) {
-  const rows = (schedule && Array.isArray(schedule.tasks)) ? schedule.tasks : [];
+// schedule.tasks rows: [id, name, due, opens, snoozedUntil, owner]
+// owner is '' for anyone in the household, or a member's first name. Each person hears
+// about their own tasks plus the shared ones.
+function buildDigest(schedule, today, me) {
+  const rows = ((schedule && Array.isArray(schedule.tasks)) ? schedule.tasks : [])
+    .filter((r) => !r[5] || !me || r[5] === me);
   const week = addDaysIso(today, 7), overdue = [], dueToday = [], soon = [];
   rows.forEach((r) => {
     const name = r[1], due = r[2], opens = r[3], snooze = r[4];
@@ -54,24 +59,29 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch (_) { body = {}; }
 
-  // sending keys: made once, kept in push_config (only this function can read the private half)
-  let { data: cfg } = await sb.from('push_config').select('public_key, private_key').eq('id', 1).maybeSingle();
-  if (!cfg) {
+  // sending keys: made once, kept in push_config (only this function can read the private half).
+  // If two phones ask at the same moment, only the first set of keys is kept.
+  const readCfg = async () => (await sb.from('push_config').select('public_key, private_key, cron_secret').eq('id', 1).maybeSingle()).data;
+  let cfg = await readCfg();
+  if (!cfg) return json({ error: 'Run schema.sql first' }, 500);
+  if (!cfg.public_key) {
     const k = webpush.generateVAPIDKeys();
-    await sb.from('push_config').upsert({ id: 1, public_key: k.publicKey, private_key: k.privateKey });
-    ({ data: cfg } = await sb.from('push_config').select('public_key, private_key').eq('id', 1).maybeSingle());
+    await sb.from('push_config').update({ public_key: k.publicKey, private_key: k.privateKey }).eq('id', 1).is('public_key', null);
+    cfg = await readCfg();
   }
   if (body.action === 'init') return json({ publicKey: cfg!.public_key });
-  webpush.setVapidDetails(APP_URL, cfg!.public_key, cfg!.private_key);
 
-  // test: only for the signed-in person
+  // who's asking: a signed-in person testing their own phones, or the hourly job
   let onlyUser: string | null = null;
   if (body.action === 'test') {
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const { data: u } = await sb.auth.getUser(token);
     if (!u || !u.user) return json({ error: 'Sign in first' }, 401);
     onlyUser = u.user.id;
+  } else if (!cfg!.cron_secret || req.headers.get('x-tend-cron') !== cfg!.cron_secret) {
+    return json({ error: 'Not allowed' }, 401);
   }
+  webpush.setVapidDetails(APP_URL, cfg!.public_key, cfg!.private_key);
 
   let q = sb.from('push_subs').select('*');
   if (onlyUser) q = q.eq('user_id', onlyUser);
@@ -79,28 +89,35 @@ Deno.serve(async (req) => {
   if (error) return json({ error: error.message }, 500);
 
   const now = new Date(), schedules = new Map(), result = { checked: 0, sent: 0, removed: 0 };
+  const drop = async (endpoint: string) => { await sb.from('push_subs').delete().eq('endpoint', endpoint); result.removed++; };
   for (const s of subs || []) {
     result.checked++;
     let tz = s.tz; try { localToday(tz, now); } catch (_) { tz = 'America/Chicago'; }
     const t = localToday(tz, now);
     if (!onlyUser && (t.hour !== s.hour || s.last_sent === t.date)) continue;
-    // still in that household?
-    const { data: mem } = await sb.from('members').select('user_id').eq('household_id', s.household_id).eq('user_id', s.user_id).maybeSingle();
-    if (!mem) { await sb.from('push_subs').delete().eq('endpoint', s.endpoint); result.removed++; continue; }
+    // still in that household? (and what they're called there, for "whose job is it")
+    const { data: mem } = await sb.from('members').select('name').eq('household_id', s.household_id).eq('user_id', s.user_id).maybeSingle();
+    if (!mem) { await drop(s.endpoint); continue; }
+    // claim today's heads-up first, so two overlapping runs can't both send it
+    if (!onlyUser) {
+      const { data: claimed } = await sb.from('push_subs').update({ last_sent: t.date }).eq('endpoint', s.endpoint)
+        .or('last_sent.is.null,last_sent.neq.' + t.date).select('endpoint');
+      if (!claimed || !claimed.length) continue;
+    }
     if (!schedules.has(s.household_id)) {
-      const { data: rec } = await sb.from('records').select('data').eq('household_id', s.household_id).eq('kind', 'meta').eq('id', 'schedule').maybeSingle();
+      const { data: rec } = await sb.from('records').select('data').eq('household_id', s.household_id).eq('kind', 'meta').eq('id', 'schedule').eq('deleted', false).maybeSingle();
       schedules.set(s.household_id, rec ? rec.data : null);
     }
-    let msg = buildDigest(schedules.get(s.household_id), t.date);
+    let msg = buildDigest(schedules.get(s.household_id), t.date, mem.name || '');
     if (onlyUser) msg = msg ? { ...msg, title: 'Test: ' + msg.title } : { title: 'Test from Tend Home', body: 'Notifications are working. Nothing is due this week.', count: 0 };
-    if (!onlyUser) await sb.from('push_subs').update({ last_sent: t.date }).eq('endpoint', s.endpoint);
     if (!msg) continue;
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         JSON.stringify({ title: msg.title, body: msg.body, url: APP_URL, tag: 'tend-daily' }), { TTL: 6 * 3600 });
       result.sent++;
     } catch (e: any) {
-      if (e && (e.statusCode === 404 || e.statusCode === 410)) { await sb.from('push_subs').delete().eq('endpoint', s.endpoint); result.removed++; }
+      // 404/410: the phone dropped it. 403: it was made with keys we no longer have. Either way it can't work again.
+      if (e && (e.statusCode === 403 || e.statusCode === 404 || e.statusCode === 410)) await drop(s.endpoint);
     }
   }
   return json(result);

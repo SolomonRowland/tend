@@ -25,12 +25,45 @@ function render() {
 }
 
 /* ---------- actions ---------- */
-function snapshot() { return JSON.stringify(db.tasks); }
+/* complete a task from a list row: check fills, row slides away, toast with Undo */
+function quickDone(qid, qrow) {
+  var T = today(), qt = db.tasks.find(function (x) { return x.id === qid; });
+  if (!qt || !qrow || qrow.classList.contains('doing')) return;
+  var qb = snapshot(qid);
+  qt.history.unshift({ date: iso(T), by: db.user, at: new Date().toISOString() }); qt.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+  qt.last = qt.history[0].date; qt.snooze = null; save(); hideHint();
+  var qn = nextDue(qt), qmsg = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : qt.freq === 'One-time' ? 'All finished.' : '');
+  qrow.classList.add('doing');
+  var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
+  var qm = qrow.querySelector('.open .st .meta'); if (qm) qm.textContent = qn ? 'Next ' + fmt(qn) : '';
+  if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
+  ui.flash = null; ui.undo = null;
+  var box = qrow.closest('.swipe') || qrow;
+  setTimeout(function () { box.classList.add('gone'); }, 900);
+  var on = ui.screen; // if they've moved on to another screen by then, don't pop a toast over it
+  setTimeout(function () { if (ui.screen !== on) return; keepRender(); showToast(qmsg, qb); }, 1200);
+}
+/* snooze a task for a week from a list row (swipe left) */
+function quickSnooze(id, row) {
+  var t = db.tasks.find(function (x) { return x.id === id; }); if (!t) return;
+  var qb = snapshot(id), until = addDays(today(), 7);
+  t.snooze = iso(until); save();
+  var box = row.closest('.swipe') || row; box.classList.add('gone');
+  var on = ui.screen;
+  setTimeout(function () { if (ui.screen !== on) return; keepRender(); showToast('Snoozed ' + t.name + ' until ' + fmt(until) + '.', qb); }, 300);
+}
+/* Undo keeps a copy of just the one task it changes, so a housemate's edits that sync in meanwhile are never rolled back */
+function snapshot(id) { var t = db.tasks.find(function (x) { return x.id === id; }); return t ? JSON.stringify(t) : null; }
+function restoreSnap(snap) {
+  if (!snap) return; var old = JSON.parse(snap), i = db.tasks.findIndex(function (x) { return x.id === old.id; });
+  if (i >= 0) db.tasks[i] = old; else db.tasks.push(old);
+  save();
+}
 function keepRender() { var k = view.scrollTop; render(); view.scrollTop = k; }
 function markDone(dateIso, note) {
   var t = db.tasks.find(function (x) { return x.id === ui.taskId; }); if (!t) return;
-  var before = snapshot();
-  t.history.unshift({ date: dateIso, by: db.user, note: note || '' });
+  var before = snapshot(t.id);
+  t.history.unshift({ date: dateIso, by: db.user, note: note || '', at: new Date().toISOString() });
   t.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
   t.last = t.history[0].date; t.snooze = null;
   save();
@@ -189,6 +222,7 @@ document.addEventListener('click', function (e) {
     case 'st-apply': applyStarter(); break;
     case 'settings': go('settings', {}, true); break;
     case 'list': go('list', { filter: el.getAttribute('data-filter') || 'all', cat: el.getAttribute('data-cat') || '', q: '' }); break;
+    case 'mine': ui.mine = !ui.mine; try { localStorage.setItem('tend.mine', ui.mine ? '1' : ''); } catch (x) {} keepRender(); break;
     case 'filter': ui.filter = el.getAttribute('data-filter'); ui.flash = null; ui.undo = null; render(); break;
     case 'task': go('task', { taskId: el.getAttribute('data-id') }, true); break;
     case 'contact': go('contact', { conId: el.getAttribute('data-id') }, true); break;
@@ -207,25 +241,10 @@ document.addEventListener('click', function (e) {
       if (!dv || !parse(dv)) { toast('Pick the date you finished it.'); break; }
       if (dv > iso(T)) { toast('Pick today or an earlier day.'); break; }
       var dn = document.getElementById('doneNote'); ui.completing = null; markDone(dv, dn ? dn.value.trim() : ''); break;
-    case 'quick-done':
-      var qid = el.getAttribute('data-id'), qt = db.tasks.find(function (x) { return x.id === qid; }), qrow = el.closest('.row');
-      if (qt && qrow && !qrow.classList.contains('doing')) {
-        var qb = snapshot();
-        qt.history.unshift({ date: iso(T), by: db.user }); qt.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-        qt.last = qt.history[0].date; qt.snooze = null; save(); hideHint();
-        var qn = nextDue(qt), qmsg = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : qt.freq === 'One-time' ? 'All finished.' : '');
-        qrow.classList.add('doing');
-        var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
-        var qm = qrow.querySelector('.open .st .meta'); if (qm) qm.textContent = qn ? 'Next ' + fmt(qn) : '';
-        if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
-        ui.flash = null; ui.undo = null;
-        setTimeout(function () { qrow.classList.add('gone'); }, 900);
-        setTimeout(function () { if (ui.screen === 'home' || ui.screen === 'list') keepRender(); showToast(qmsg, qb); }, 1200);
-      }
-      break;
-    case 'undo-toast': if (showToast.undo) { db.tasks = JSON.parse(showToast.undo); save(); hideToast(); keepRender(); showToast('Undone.'); } break;
+    case 'quick-done': quickDone(el.getAttribute('data-id'), el.closest('.row')); break;
+    case 'undo-toast': if (showToast.undo) { restoreSnap(showToast.undo); hideToast(); keepRender(); showToast('Undone.'); } break;
     case 'hint-ok': hideHint(); keepRender(); break;
-    case 'undo': if (ui.undo) { var uk = view.scrollTop; db.tasks = JSON.parse(ui.undo); save(); ui.undo = null; ui.flash = 'Undone.'; render(); view.scrollTop = uk; } break;
+    case 'undo': if (ui.undo) { var uk = view.scrollTop; restoreSnap(ui.undo); ui.undo = null; ui.flash = 'Undone.'; render(); view.scrollTop = uk; } break;
     case 'snooze':
       var st = db.tasks.find(function (x) { return x.id === ui.taskId; });
       if (st) { var on = st.snooze && parse(st.snooze) > T; st.snooze = on ? null : iso(addDays(T, 7)); save(); toast(on ? 'Snooze removed.' : 'Snoozed until ' + fmt(addDays(T, 7)) + '. It still turns red if the deadline passes.'); }
@@ -240,12 +259,12 @@ document.addEventListener('click', function (e) {
       var k = 'hist' + el.getAttribute('data-idx');
       if (ui.armed !== k) { ui.armed = k; render(); break; }
       var ht = db.tasks.find(function (x) { return x.id === ui.taskId; });
-      if (ht) { var before = snapshot(); ht.history.splice(+el.getAttribute('data-idx'), 1); ht.last = ht.history[0] ? ht.history[0].date : null; save(); ui.armed = null; ui.flash = 'Entry removed.'; ui.undo = before; render(); }
+      if (ht) { var before = snapshot(ht.id); ht.history.splice(+el.getAttribute('data-idx'), 1); ht.last = ht.history[0] ? ht.history[0].date : null; save(); ui.armed = null; ui.flash = 'Entry removed.'; ui.undo = before; render(); }
       break;
     case 'edit-task':
       var et = db.tasks.find(function (x) { return x.id === ui.taskId; });
       go('edit-task', { form: Object.assign({}, et, { early: String(et.early) }) }, true); break;
-    case 'new-task': go('edit-task', { form: { id: null, name: '', cat: ui.cat || 'Home', who: '', freq: 'Yearly', fixed: false, first: '', last: '', early: String(remindPrefs().days), notes: '', contact: '', item: '', active: true } }, true); break;
+    case 'new-task': go('edit-task', { form: { id: null, name: '', cat: ui.cat || 'Home', who: '', freq: 'Yearly', fixed: false, first: '', last: '', early: String(remindPrefs().days), notes: '', contact: '', item: '', active: true, owner: '' } }, true); break;
     case 'toggle-active': readForm('taskForm'); ui.form.active = !ui.form.active; render(); break;
     case 'cancel': ui.form = null; back(); break;
     case 'save-task': saveTask(); break;
@@ -268,7 +287,10 @@ document.addEventListener('click', function (e) {
     case 'edit-profile': go('profile', { form: Object.assign({}, getProfile()) }, true); break;
     case 'save-profile': saveProfile(); break;
     case 'backup': backup(); break;
-    case 'restore': fileInput.click(); break;
+    case 'restore':
+      if (C.on && db && db.tasks.length && ui.armed !== 'restore') { ui.armed = 'restore'; render(); break; }
+      ui.armed = null; fileInput.click(); break;
+    case 'bring-old': var oldRaw = oldTendRaw(); if (oldRaw) { restoreFrom(oldRaw); toast('Brought over ' + db.tasks.length + ' tasks from the original Tend.'); } break;
     case 'start-empty': db = blank(); save(); go('home'); break;
     case 'example':
       if (db && db.tasks.length && ui.armed !== 'example') { ui.armed = 'example'; render(); break; }
@@ -328,6 +350,7 @@ function saveTask() {
   if (hol) { f.freq = 'Yearly'; f.fixed = true; if (!f.first) f.first = iso(today()); }
   var rec = { name: f.name, cat: f.cat, who: (f.who || '').trim(), freq: f.freq, fixed: !!f.fixed, holiday: hol, first: f.first || null, early: early, notes: (f.notes || '').trim(), contact: f.contact || null, item: itemById(f.item) ? f.item : null, active: !!f.active };
   var amt = parseFloat(String(f.amount == null ? '' : f.amount).replace(/[^\d.]/g, ''));
+  rec.owner = f.owner && people().indexOf(f.owner) >= 0 ? f.owner : '';
   rec.amount = f.cat === 'Bills & Finance' && amt > 0 ? Math.round(amt * 100) / 100 : null; rec.autopay = f.cat === 'Bills & Finance' && !!f.autopay;
   var t;
   if (f.id) { t = db.tasks.find(function (x) { return x.id === f.id; }); }

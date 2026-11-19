@@ -23,19 +23,29 @@ function hideToast() {
   var el = document.getElementById('toast'); clearTimeout(showToast.t); showToast.undo = null;
   if (!el.innerHTML) return; el.className = 'out'; setTimeout(function () { if (el.className === 'out') { el.innerHTML = ''; el.className = ''; } }, 260);
 }
+/* "Whose job is it?": a task can belong to one person in the household, or to anyone ('') */
+function people() { return C.on ? db.members.slice() : []; }
+function assignable() { return people().length > 1; }
+function isMine(t) { return !t.owner || t.owner === db.user; }
+function ownerTag(t) { return t.owner && assignable() ? (t.owner === db.user ? 'You' : t.owner) : ''; }
 function canTick(r) { return r.t.active && r.i.status !== 'done'; }
 function tick(r) { return '<button class="tick" data-act="quick-done" data-id="' + esc(r.t.id) + '" aria-label="Mark ' + esc(r.t.name) + ' done today"><i>' + ic('check', 14, 3) + '</i></button>'; }
 function billTag(t) { return t.amount ? money(t.amount) + (t.autopay ? ' autopay' : '') : ''; }
 function taskRow(r, alt, mode) {
-  var t = r.t, i = r.i, meta = (mode === 'contact' ? [t.who, i.short] : [t.cat, t.who]).concat([billTag(t)]).filter(Boolean).map(esc).join(' \u00b7 ');
+  var t = r.t, i = r.i, meta = (mode === 'contact' ? [t.who, i.short] : [t.cat, t.who]).concat([billTag(t), ownerTag(t)]).filter(Boolean).map(esc).join(' \u00b7 ');
   var inner = '<span class="col"><span class="name">' + esc(t.name) + '</span><span class="meta">' + meta + '</span></span>' +
     '<span class="st"><b style="color:' + i.color + '">' + i.text + '</b>' + (mode === 'contact' ? '' : '<span class="meta">' + esc(i.status === 'overdue' || i.status === 'due' || i.status === 'snoozed' ? i.short : (i.due ? fmt(i.due) : '')) + '</span>') + '</span>';
   if (!canTick(r)) return '<button class="row' + (alt ? ' alt' : '') + '" data-act="task" data-id="' + esc(t.id) + '">' + inner + '</button>';
-  return '<div class="row split' + (alt ? ' alt' : '') + '">' + tick(r) + '<button class="open" data-act="task" data-id="' + esc(t.id) + '">' + inner + '</button></div>';
+  return swipeWrap(r, '<div class="row split' + (alt ? ' alt' : '') + '">' + tick(r) + '<button class="open" data-act="task" data-id="' + esc(t.id) + '">' + inner + '</button></div>');
+}
+/* rows you can swipe: right to complete, left to snooze a week (when it isn't overdue) */
+function canSnoozeRow(r) { return r.i.due && r.i.status !== 'overdue' && r.i.status !== 'snoozed'; }
+function swipeWrap(r, rowHtml) {
+  return '<div class="swipe" data-id="' + esc(r.t.id) + '" data-snooze="' + (canSnoozeRow(r) ? '1' : '') + '"><div class="swbg" aria-hidden="true"><span class="swl">' + ic('check', 18, 2.6) + 'Done</span><span class="swr">Snooze 1 Week' + ic('snooze', 18) + '</span></div>' + rowHtml + '</div>';
 }
 function attnRow(r) {
   var t = r.t, i = r.i;
-  return '<div class="row split">' + tick(r) + '<button class="open" data-act="task" data-id="' + esc(t.id) + '"><span class="col"><span class="name ellip">' + esc(t.name) + '</span><span class="meta">' + [billTag(t) || t.cat, t.who, i.short].filter(Boolean).map(esc).join(' \u00b7 ') + '</span></span><b style="color:' + i.color + ';font-size:12.5px">' + i.text + '</b></button></div>';
+  return swipeWrap(r, '<div class="row split">' + tick(r) + '<button class="open" data-act="task" data-id="' + esc(t.id) + '"><span class="col"><span class="name ellip">' + esc(t.name) + '</span><span class="meta">' + [billTag(t) || t.cat, t.who, ownerTag(t), i.short].filter(Boolean).map(esc).join(' \u00b7 ') + '</span></span><b style="color:' + i.color + ';font-size:12.5px">' + i.text + '</b></button></div>');
 }
 function searchBox(id, val, ph, label) {
   return '<label class="search">' + ic('search', 18) + '<span class="sr">' + label + '</span><input id="' + id + '" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="' + ph + '" value="' + esc(val) + '">' +
@@ -67,6 +77,7 @@ function scrHome() {
   var up = R.filter(function (r) { return r.i.status === 'upcoming' && r.i.due && daysBetween(T, r.i.due) <= 30; }).sort(function (a, b) { return a.i.due - b.i.due; });
   if (up.length) h += '<div class="section"><h2>Coming Up</h2><span style="font-size:13px;color:var(--muted);font-weight:600">Next 30 days</span></div><div class="stack">' + up.slice(0, 5).map(function (r) { return taskRow(r, false); }).join('') +
     (up.length > 5 ? '<button class="link" data-act="list" data-filter="upcoming" style="align-self:flex-start">See ' + (up.length - 5) + ' more</button>' : '') + '</div>';
+  h += recentlyDone();
   var bills = db.tasks.filter(function (t) { return t.amount && t.active; }).map(function (t) { return { t: t, s: billMonth(t, T.getFullYear(), T.getMonth()) }; }).filter(function (x) { return x.s; });
   if (bills.length) {
     var bp = 0, bt = 0, bl = 0; bills.forEach(function (x) { if (x.s.paid) bp += x.t.amount; else { bt += x.t.amount; if (x.s.late) bl++; } });
@@ -90,6 +101,26 @@ function scrHome() {
   }
   return h + '<div class="pad-b"></div>';
 }
+/* the last few things anyone finished, newest first: "Kelly · Replaced furnace filter · 2h ago" */
+function agoText(e) {
+  if (e.at) {
+    var m = Math.max(0, Math.round((Date.now() - Date.parse(e.at)) / 60000));
+    if (m < 1) return 'Just now'; if (m < 60) return m + 'm ago'; if (m < 60 * 24) return Math.round(m / 60) + 'h ago';
+  }
+  var d = daysBetween(parse(e.date), today());
+  return d <= 0 ? 'Today' : d === 1 ? 'Yesterday' : d < 7 ? d + ' days ago' : fmt(parse(e.date));
+}
+function recentlyDone() {
+  var cut = iso(addDays(today(), -7)), list = [];
+  db.tasks.forEach(function (t) { t.history.forEach(function (e) { if (e.date >= cut) list.push({ t: t, e: e }); }); });
+  if (!list.length) return '';
+  list.sort(function (a, b) { var x = a.e.at || a.e.date, y = b.e.at || b.e.date; return x < y ? 1 : x > y ? -1 : 0; });
+  return '<div class="section"><h2>Recently Done</h2><span style="font-size:13px;color:var(--muted);font-weight:600">Past week</span></div><div class="listcard">' + list.slice(0, 4).map(function (x) {
+    var who = x.e.by ? (x.e.by === db.user ? 'You' : x.e.by) : '';
+    return '<button class="lrow" data-act="task" data-id="' + esc(x.t.id) + '"><span class="donedot">' + ic('check', 12, 3) + '</span><span class="col" style="flex:1 1 auto;min-width:0"><span class="t ellip">' + esc(x.t.name) + '</span>' +
+      '<span class="s">' + esc([who, agoText(x.e)].filter(Boolean).join(' \u00b7 ')) + '</span></span></button>';
+  }).join('') + '</div>';
+}
 function kidAge(t, due) {
   var b = parse(t.first); if (!b || !due) return 'Well-child visit';
   var mo = Math.round((due - b) / 86400000 / 30.4375);
@@ -106,6 +137,7 @@ function filteredTasks() {
     if (f === 'due-all' && s !== 'overdue' && s !== 'due') return false;
     if (['overdue', 'due', 'upcoming', 'nodate', 'paused'].indexOf(f) >= 0 && s !== f) return false;
     if (ui.cat && r.t.cat !== ui.cat) return false;
+    if (ui.mine && assignable() && !isMine(r.t)) return false;
     if (q && r.t.name.toLowerCase().indexOf(q) < 0 && (r.t.who || '').toLowerCase().indexOf(q) < 0 && !(r.t.item && (itemById(r.t.item) || { name: '' }).name.toLowerCase().indexOf(q) >= 0)) return false;
     return true;
   });
@@ -123,7 +155,7 @@ function taskResults() {
 }
 function titleRow(title, act, label) { return '<div class="titlerow"><h1>' + title + '</h1><button class="addbtn" data-act="' + act + '" aria-label="Add ' + label + '">' + ic('plus', 18, 2.6) + 'Add</button></div>'; }
 function scrList() {
-  var R = rows(), counts = {}; R.forEach(function (r) { counts[r.i.status] = (counts[r.i.status] || 0) + 1; });
+  var R = rows().filter(function (r) { return !ui.mine || !assignable() || isMine(r.t); }), counts = {}; R.forEach(function (r) { counts[r.i.status] = (counts[r.i.status] || 0) + 1; });
   var chips = [['all', 'All'], ['overdue', 'Overdue'], ['due', 'Due'], ['upcoming', 'Upcoming']];
   if (counts.nodate) chips.push(['nodate', 'Needs Date']);
   if (counts.paused) chips.push(['paused', 'Paused']);
@@ -132,7 +164,8 @@ function scrList() {
   var h = '<header class="head" style="gap:12px"><span class="eyebrow">' + R.length + ' tasks' + (need ? ' \u00b7 ' + need + ' need attention' : ' \u00b7 all on track') + '</span>' + titleRow(ui.filter === 'due-all' ? 'Needs Attention' : 'Tasks', 'new-task', 'Task') +
     '<div class="toprow">' + searchBox('q', ui.q, 'Search task', 'Search tasks') +
     '<label class="selectwrap"><span class="sr">Category</span><select class="headselect" id="catSel"><option value="">All Categories</option>' + CATS.map(function (c) { return '<option' + (ui.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' + ic('down', 16) + '</label></div>' +
-    '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { var n = c[0] === 'all' ? R.length : (counts[c[0]] || 0); return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '<span class="n">' + n + '</span></button>'; }).join('') + '</div></header>';
+    '<div class="chips" role="group" aria-label="Filter by status">' + chips.map(function (c) { var n = c[0] === 'all' ? R.length : (counts[c[0]] || 0); return '<button class="chip" data-act="filter" data-filter="' + c[0] + '" aria-pressed="' + (f === c[0] && ui.filter !== 'due-all') + '">' + c[1] + '<span class="n">' + n + '</span></button>'; }).join('') +
+    (assignable() ? '<button class="chip" data-act="mine" aria-pressed="' + !!ui.mine + '">Just Mine</button>' : '') + '</div></header>';
   return h + flashHtml() + (db.tasks.length ? '<div style="padding-top:12px">' + tickHint() + '</div>' : '') + '<div class="stack" id="results" style="padding-top:8px;padding-bottom:96px">' + taskResults() + '</div>';
 }
 /* how this month is going: finished vs. still to do vs. overdue */
@@ -242,7 +275,7 @@ function scrTask() {
   if (!t) { ui.screen = 'list'; return scrList(); }
   var i = info(t), con = t.contact ? db.contacts.find(function (c) { return c.id === t.contact; }) : null, kid = t.freq === 'Well-child (by age)';
   var h = '<header class="head" style="gap:10px;padding-bottom:24px"><div class="headrow">' + backBtn() + '<button class="textbtn" data-act="edit-task">Edit</button></div>' +
-    '<span class="eyebrow">' + esc(t.cat) + (t.who ? ' \u00b7 ' + esc(t.who) : '') + '</span><h1>' + esc(t.name) + '</h1><span class="pill" style="color:' + i.color + '">' + esc(i.long) + '</span></header>';
+    '<span class="eyebrow">' + esc(t.cat) + (t.who ? ' \u00b7 ' + esc(t.who) : '') + (ownerTag(t) ? ' \u00b7 ' + (t.owner === db.user ? 'Your job' : esc(t.owner) + '\u2019s job') : '') + '</span><h1>' + esc(t.name) + '</h1><span class="pill" style="color:' + i.color + '">' + esc(i.long) + '</span></header>';
   h += flashHtml();
   h += '<div class="grid2">' +
     '<div class="tile"><span class="k">Next Due</span><span class="v">' + (i.due ? fmt(i.due, true) : '\u2014') + '</span></div>' +
@@ -338,6 +371,8 @@ function scrEditTask() {
     '<label class="field"><span>Task</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Replace furnace filter" required></label>' +
     '<div class="two"><label class="field"><span>Category</span><select class="input" name="cat" data-rerender="1">' + CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
     '<label class="field"><span>' + (kid ? 'Child' : 'Applies To') + '</span>' + groupedSelect('who', whereGroups(), f.who, 'Choose\u2026') + '</label></div>' +
+    (assignable() ? '<label class="field"><span>Whose Job</span><select class="input" name="owner">' + opt('', f.owner || '', 'Anyone in the household') +
+      people().map(function (p) { return opt(p, f.owner || '', p === db.user ? p + ' (you)' : p); }).join('') + '</select><small>Their daily heads-up includes it. Everyone still sees it.</small></label>' : '') +
     (f.who === '__other' ? '<label class="field"><span>Type the ' + (kid ? 'Child\u2019s Name' : 'Place or Person') + '</span><input class="input" name="whoOther" value="' + esc(f.whoOther || '') + '" placeholder="' + (kid ? 'Name' : 'e.g. Shed') + '"></label>' : '') +
     (f.cat === 'Celebrations' ? '<label class="field"><span>Holiday</span><select class="input" name="holiday" data-rerender="1"><option value="">None (use the date below)</option>' + Object.keys(HOLIDAYS).map(function (k) { return opt(k, f.holiday || '', HOLIDAYS[k][0]); }).join('') + '</select><small>For holidays that move each year. Tend finds the right date every year.</small></label>' : '') +
     (f.cat === 'Bills & Finance' ? '<div class="two"><label class="field"><span>Amount</span><input class="input" name="amount" inputmode="decimal" value="' + esc(f.amount == null ? '' : String(f.amount)) + '" placeholder="Optional"></label>' +
@@ -506,7 +541,7 @@ function scrSettings() {
   h += '<div class="section"><h2 style="font-size:19px">Backup</h2></div><div class="stack">' +
     '<div class="tip" style="margin:0">' + (C.on ? 'Your list is saved online and shared with your household. A backup file is still a good safety net. Save one' : 'Your list is saved on this phone only. Save a backup file') + ' to iCloud Drive or Files about once a month, and before you change phones. ' + (lb ? '<br><strong>Last backup:</strong> ' + fmt(lb, true) + '.' : '<br><strong>No backup yet.</strong>') + '</div>' +
     '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a Backup File</button>' +
-    '<button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Restore from a Backup File</button></div>';
+    '<button class="btn secondary" data-act="restore"' + (ui.armed === 'restore' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + ic('upload', 18) + (ui.armed === 'restore' ? 'Tap Again: Replaces the List for Everyone' : 'Restore from a Backup File') + '</button></div>';
   var rp = remindPrefs(), lab = function (list, v) { var m = list.find(function (x) { return String(x[0]) === String(v); }); return m ? m[1] : ''; };
   h += '<div class="section"><h2 style="font-size:19px">Reminders</h2><button class="link" data-act="edit-prefs">Edit</button></div><div class="listcard">' +
     [['Heads-Up', lab(REMIND_DAYS, rp.days)], ['Calendar App', lab(CAL_APPS, rp.cal)], ['Alert Time', rp.cal === 'google' ? 'Set in Google Calendar' : lab(ALERT_HOURS, rp.hour)]].map(function (x) {
@@ -525,16 +560,21 @@ function scrSettings() {
   h += '<div class="section"><h2 style="font-size:19px">Your Data</h2></div><div class="stack">' +
     '<button class="btn danger' + (ui.armed === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (ui.armed === 'wipe' ? 'Tap Again to Erase Everything' : 'Erase All Data and Start Over') + '</button></div>';
   h += '<div class="section"><h2 style="font-size:19px">About</h2></div><div class="listcard"><div class="lrow"><span class="s">Tasks</span><span class="t">' + db.tasks.length + '</span></div><div class="lrow"><span class="s">Contacts</span><span class="t">' + db.contacts.length + '</span></div><div class="lrow"><span class="s">Belongings</span><span class="t">' + db.items.length + '</span></div><div class="lrow"><span class="s">Saved on Phone</span><span class="t" style="color:' + (storageOk ? 'var(--green)' : 'var(--red)') + '">' + (storageOk ? 'Yes' : 'Problem: back up now') + '</span></div></div>';
-  h += '<div class="section"><h2 style="font-size:19px">Testing</h2></div><p class="note" style="text-align:left;padding:0 20px 8px">For trying Tend out. Each of these replaces your whole list.</p><div class="stack">' +
+  if (!C.on) h += '<div class="section"><h2 style="font-size:19px">Testing</h2></div><p class="note" style="text-align:left;padding:0 20px 8px">For trying Tend out. Each of these replaces your whole list.</p><div class="stack">' +
     '<button class="btn secondary" data-act="mylist"' + (ui.armed === 'mylist' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'mylist' ? 'Tap Again: Replaces Your Current List' : 'Load Our Household List') + '</button>' +
     '<button class="btn secondary" data-act="example"' + (ui.armed === 'example' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'example' ? 'Tap Again: Replaces Your Current List' : 'Load Example Data') + '</button>' +
     '</div>';
   return h + '<div class="pad-b"></div>';
 }
+/* the original, phone-only Tend kept its list here (same website, so this phone can still read it) */
+var OLD_KEY = 'tend.data.v1';
+function oldTendRaw() { try { var r = localStorage.getItem(OLD_KEY), d = r && JSON.parse(r); return d && Array.isArray(d.tasks) && d.tasks.length ? r : null; } catch (e) { return null; } }
+function oldTendCount() { var r = oldTendRaw(); return r ? JSON.parse(r).tasks.length : 0; }
 function scrWelcome() {
   if (C.on) return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Fill Your Household List</h1><p>Whatever you add here is shared with everyone in ' + esc(C.house || 'your household') + '.</p>' +
-    '<p class="cnote"><strong>Moving from the first Tend app?</strong> In that app, open Settings and tap Save a Backup File. Then load that file here.</p>' +
-    '<button class="btn primary" data-act="restore">' + ic('upload', 18) + 'Load My Tend File</button><button class="btn secondary" data-act="start-starter">What Do You Tend To?</button><button class="btn secondary" data-act="mylist">Load Our Household List</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button><button class="btn secondary" data-act="example">Try It with Example Data</button></div>';
+    (oldTendCount() ? '<p class="cnote"><strong>Your list from the original Tend is on this phone</strong> (' + oldTendCount() + ' tasks). Bring it over to share it with your household.</p><button class="btn primary" data-act="bring-old">' + ic('upload', 18) + 'Bring Over My Tend List</button>'
+      : '<p class="cnote"><strong>Moving from another phone?</strong> In Tend on that phone, open Settings and tap Save a Backup File. Then load that file here.</p>') +
+    '<button class="btn ' + (oldTendCount() ? 'secondary' : 'primary') + '" data-act="restore">' + ic('upload', 18) + 'Load My Tend File</button><button class="btn secondary" data-act="start-starter">What Do You Tend To?</button><button class="btn secondary" data-act="mylist">Load Our Household List</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button><button class="btn secondary" data-act="example">Try It with Example Data</button></div>';
   return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Welcome to Tend</h1><p>Your household\u2019s recurring tasks, kids\u2019 visits and the people you call for them, all in one place on this phone.</p>' +
     '<p>New here? Tell Tend what you tend to and pick from tasks people often forget. Or load your household list. You can change it any time in Settings.</p>' +
     '<button class="btn primary" data-act="start-starter">What Do You Tend To?</button><button class="btn secondary" data-act="mylist">Load Our Household List</button><button class="btn secondary" data-act="example">Try It with Example Data</button><button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Load My Tend File</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button>' +

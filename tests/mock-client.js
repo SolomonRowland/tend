@@ -12,6 +12,7 @@ window.TEND_CLOUD_FACTORY = function () {
   Q.prototype.select = function (c) { this.q.op = this.q.op || 'select'; this.q.cols = c; return this; };
   Q.prototype.eq = function (c, v) { this.q.filters.push({ col: c, op: 'eq', val: v }); return this; };
   Q.prototype.gt = function (c, v) { this.q.filters.push({ col: c, op: 'gt', val: v }); return this; };
+  Q.prototype.gte = function (c, v) { this.q.filters.push({ col: c, op: 'gte', val: v }); return this; };
   Q.prototype.order = function (c, o) { this.q.order = { col: c, asc: !o || o.ascending !== false }; return this; };
   Q.prototype.range = function (a, b) { this.q.range = [a, b]; return this; };
   Q.prototype.limit = function (n) { this.q.limit = n; return this; };

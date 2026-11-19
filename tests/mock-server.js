@@ -26,7 +26,7 @@ async function run(q, uid) {
     return asUser(uid, async c => (await c.query(sql, keys.map(k => q.args[k]))).rows[0].v);
   }
   const t = ident(q.table), vals = []; const P = v => { vals.push(v); return '$' + vals.length; };
-  const where = (q.filters || []).map(f => ident(f.col) + (f.op === 'eq' ? ' = ' : ' > ') + P(f.val));
+  const where = (q.filters || []).map(f => ident(f.col) + ({ eq: ' = ', gt: ' > ', gte: ' >= ' }[f.op]) + P(f.val));
   const W = where.length ? ' where ' + where.join(' and ') : '';
   let sql;
   if (q.op === 'select') {
@@ -57,7 +57,7 @@ http.createServer(async (req, res) => {
   let body = ''; req.on('data', d => body += d); await new Promise(r => req.on('end', r));
   const b = body ? JSON.parse(body) : {}; const uid = tokens[b.token] || null;
   try {
-    if (req.url === '/reset') { await pool.query("truncate public.records, public.invites, public.members, public.households cascade; delete from auth.users; delete from storage.objects; delete from public.push_config"); for (const k in pw) delete pw[k]; return send(res, 200, { ok: 1 }); }
+    if (req.url === '/reset') { await pool.query("truncate public.records, public.invites, public.members, public.households cascade; delete from auth.users; delete from storage.objects; delete from public.push_config; insert into public.push_config (id) values (1)"); for (const k in pw) delete pw[k]; return send(res, 200, { ok: 1 }); }
     if (req.url === '/signup') {
       const ex = (await pool.query('select id from auth.users where email=$1', [b.email])).rows[0];
       if (ex) return send(res, 200, { error: { message: 'User already registered' } });
@@ -83,7 +83,7 @@ http.createServer(async (req, res) => {
     }
     if (req.url === '/fn') {
       // stand-in for the tend-notify function: 'init' makes keys, 'test' reports how many phones it would reach
-      if (b.body.action === 'init') { await pool.query("insert into public.push_config (id, public_key, private_key) values (1, 'BD_oxRMQ1QjH0d5JyhO6-tH3-dV5bWJ8uhhaEt3mCIsU-7xbTQf3NGHg4g8uMYyhkYX7apGcpEPAqA78V4-pXFs', 'mock') on conflict (id) do nothing"); const k = (await pool.query('select public_key from public.push_config')).rows[0].public_key; return send(res, 200, { data: { publicKey: k }, error: null }); }
+      if (b.body.action === 'init') { await pool.query("insert into public.push_config (id, public_key, private_key) values (1, 'BD_oxRMQ1QjH0d5JyhO6-tH3-dV5bWJ8uhhaEt3mCIsU-7xbTQf3NGHg4g8uMYyhkYX7apGcpEPAqA78V4-pXFs', 'mock') on conflict (id) do update set public_key = excluded.public_key, private_key = excluded.private_key where push_config.public_key is null"); const k = (await pool.query('select public_key from public.push_config')).rows[0].public_key; return send(res, 200, { data: { publicKey: k }, error: null }); }
       if (b.body.action === 'test') { if (!uid) return send(res, 200, { data: null, error: { message: 'Sign in first' } }); const n = (await pool.query('select count(*)::int as n from public.push_subs where user_id = $1', [uid])).rows[0].n; return send(res, 200, { data: { sent: n }, error: null }); }
       return send(res, 200, { data: {}, error: null });
     }

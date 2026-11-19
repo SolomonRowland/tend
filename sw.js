@@ -1,18 +1,8 @@
-// Tend offline cache. Bump VERSION whenever index.html changes so phones pick up the update.
-var VERSION = 'tend-v20';
-var FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
-self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
-});
+// The original Tend's offline cache is retired: Tend now lives at ./home/ (which has its own).
+// Phones that installed the original get this version, which clears the old cache and steps aside.
+self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
-    return Promise.all(keys.filter(function (k) { return k !== VERSION; }).map(function (k) { return caches.delete(k); }));
-  }).then(function () { return self.clients.claim(); }));
-});
-// Network first for the page (so updates arrive), cache fallback when offline.
-self.addEventListener('fetch', function (e) {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
-  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(function (res) {
-    var copy = res.clone(); caches.open(VERSION).then(function (c) { c.put(e.request, copy); }); return res;
-  }).catch(function () { return caches.match(e.request).then(function (r) { return r || caches.match('./index.html'); }); }));
+    return Promise.all(keys.filter(function (k) { return /^tend-v\d+$/.test(k); }).map(function (k) { return caches.delete(k); }));
+  }).then(function () { return self.registration.unregister(); }));
 });

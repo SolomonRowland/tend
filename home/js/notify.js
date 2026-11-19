@@ -28,15 +28,26 @@ function notifyCheck() {
     return C.sb.from('push_subs').select('hour, household_id').eq('endpoint', sub.endpoint).then(function (r) {
       var row = r.data && r.data[0];
       N.state = row ? 'on' : 'off'; if (row) N.hour = row.hour;
-      if (row && row.household_id !== C.hid) saveSub(sub);
+      if (row && row.household_id !== C.hid) saveSub(sub).catch(function () {});
       if (ui.screen === 'settings') keepRender();
     });
   }).catch(function () { N.state = 'off'; });
 }
+function phoneTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago'; } catch (e) { return 'America/Chicago'; } }
+/* save (or take over) this phone's subscription for the signed-in person and household */
 function saveSub(sub) {
   var j = sub.toJSON ? sub.toJSON() : sub;
-  var row = { endpoint: j.endpoint, user_id: C.user.id, household_id: C.hid, p256dh: j.keys.p256dh, auth: j.keys.auth, hour: N.hour, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago' };
-  return C.sb.from('push_subs').upsert(row).then(function (r) { if (r.error) throw r.error; });
+  return C.sb.rpc('save_push_sub', { p_endpoint: j.endpoint, p_household: C.hid, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_hour: N.hour, p_tz: phoneTz() })
+    .then(function (r) { if (r.error) throw r.error; });
+}
+/* on sign-out: this phone stops getting that person's heads-up */
+function notifyForget() {
+  N.checked = false; N.state = 'unknown';
+  if (!pushSupported()) return Promise.resolve();
+  return navigator.serviceWorker.getRegistration().then(function (reg) { return reg && reg.pushManager.getSubscription(); }).then(function (sub) {
+    if (!sub) return;
+    return C.sb.from('push_subs').delete().eq('endpoint', sub.endpoint).then(function () { return sub.unsubscribe(); });
+  });
 }
 function serverKey() {
   return C.sb.rpc('push_public_key').then(function (r) {
@@ -76,7 +87,7 @@ function notifyOff() {
 function notifyHour(h) {
   N.hour = h; keepRender();
   swReady().then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
-    if (sub) return C.sb.from('push_subs').update({ hour: h, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago' }).eq('endpoint', sub.endpoint).then(function (r) { if (r.error) throw r.error; });
+    if (sub) return C.sb.from('push_subs').update({ hour: h, tz: phoneTz() }).eq('endpoint', sub.endpoint).then(function (r) { if (r.error) throw r.error; });
   }).then(function () { toast('You’ll get your heads-up at ' + hourLabel(h) + '.'); }, function (e) { toast(cloudMsg(e)); });
 }
 function notifyTest() {

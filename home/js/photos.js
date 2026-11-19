@@ -21,7 +21,7 @@ function photosCard(kind, obj) {
   h += '<div class="photos">' + list.map(function (x, i) {
     var u = photoUrls[x.p];
     return '<button class="ph" data-act="photo-open" data-kind="' + kind + '" data-id="' + esc(obj.id) + '" data-i="' + i + '" aria-label="Photo ' + (i + 1) + '">' +
-      (u ? '<img src="' + esc(u.url) + '" alt="" loading="lazy">' : '<span class="phload">' + (C.online ? '' : 'Offline') + '</span>') + '</button>';
+      (u && u.url ? '<img src="' + esc(u.url) + '" alt="" loading="lazy">' : '<span class="phload">' + (u ? 'Missing' : C.online ? '' : 'Offline') + '</span>') + '</button>';
   }).join('') + '</div>';
   if (ui.photoBusy) h += '<p class="note" style="text-align:left;padding:6px 20px 0">Uploading…</p>';
   return h;
@@ -30,10 +30,12 @@ function loadPhotoUrls(paths) {
   if (loadPhotoUrls.busy) return; loadPhotoUrls.busy = true;
   C.sb.storage.from('photos').createSignedUrls(paths, 3600).then(function (r) {
     loadPhotoUrls.busy = false;
-    if (r.error) return;
-    (r.data || []).forEach(function (x) { if (x.signedUrl) photoUrls[x.path] = { url: x.signedUrl, until: Date.now() + 50 * 60000 }; });
+    if (r.error) { paths.forEach(function (p) { photoUrls[p] = { url: null, until: Date.now() + 60000 }; }); return; }
+    // a photo that can't be found (deleted on another phone, or from another household's backup) is
+    // remembered as missing for a few minutes, so the screen doesn't keep asking for it
+    (r.data || []).forEach(function (x, i) { photoUrls[x.path || paths[i]] = x.signedUrl ? { url: x.signedUrl, until: Date.now() + 50 * 60000 } : { url: null, until: Date.now() + 5 * 60000 }; });
     if (ui.screen === 'task' || ui.screen === 'item') refreshView();
-  }, function () { loadPhotoUrls.busy = false; });
+  }, function () { loadPhotoUrls.busy = false; paths.forEach(function (p) { photoUrls[p] = { url: null, until: Date.now() + 60000 }; }); });
 }
 
 /* shrink to at most 1600px on the long side, as a JPEG (a phone photo goes from ~4 MB to ~300 KB) */
@@ -78,7 +80,7 @@ function photoViewer() {
   var u = photoUrls[x.p], armed = ui.armed === 'photo-del';
   return '<div class="viewer" role="dialog" aria-modal="true" aria-label="Photo"><div class="vtop"><button class="textbtn" data-act="photo-close">Done</button><span>' + (v.i + 1) + ' of ' + o.photos.length + '</span>' +
     '<button class="textbtn" data-act="photo-del" style="' + (armed ? 'color:#FF8A80' : '') + '">' + (armed ? 'Tap to Delete' : 'Delete') + '</button></div>' +
-    '<div class="vimg" data-act="photo-next">' + (u ? '<img src="' + esc(u.url) + '" alt="">' : '') + '</div>' +
+    '<div class="vimg" data-act="photo-next">' + (u && u.url ? '<img src="' + esc(u.url) + '" alt="">' : '') + '</div>' +
     '<div class="vcap">' + esc([x.at ? fmt(parse(x.at), true) : '', x.by ? 'by ' + x.by : ''].filter(Boolean).join(' · ')) + '</div></div>';
 }
 function showViewer() { document.getElementById('modal').innerHTML = ui.viewer ? photoViewer() : modalHtml(); }

@@ -16,6 +16,10 @@ eq('only coming up', buildDigest({ tasks: [['a', 'Rotate tires', '2026-11-24', '
 eq('snoozed tasks wait (unless overdue)', buildDigest({ tasks: [['a', 'Wash car', '2026-11-21', '2026-11-14', '2026-11-26'], ['b', 'Old thing', '2026-11-02', '2026-11-01', '2026-11-30']] }, T),
   { title: '1 thing is overdue', body: 'Overdue: Old thing.', count: 1 });
 eq('long lists are trimmed', buildDigest({ tasks: [1, 2, 3, 4].map(i => ['o' + i, 'Overdue ' + i, '2026-11-0' + i, '2026-10-01', null]) }, T).body, 'Overdue: Overdue 1, Overdue 2 and 2 more.');
+const shared = { tasks: [['a', 'Clean gutters', '2026-11-01', '2026-10-25', null, 'Kelly'], ['b', 'Pay electric', T, '2026-11-12', null, ''], ['c', 'Rotate tires', '2026-11-24', '2026-11-17', null, 'Solomon']] };
+eq('Kelly hears her jobs plus shared ones', buildDigest(shared, T, 'Kelly'), { title: '1 thing is overdue', body: 'Overdue: Clean gutters. Due today: Pay electric.', count: 2 });
+eq('Solomon does not hear Kelly\'s jobs', buildDigest(shared, T, 'Solomon'), { title: '1 thing due today', body: 'Due today: Pay electric. Coming up: Rotate tires.', count: 2 });
+eq('older schedules without owners still work', buildDigest({ tasks: [['b', 'Pay electric', T, '2026-11-12', null]] }, T, 'Kelly').count, 1);
 eq('local time in Chicago', localToday('America/Chicago', new Date('2026-11-19T14:05:00Z')), { date: '2026-11-19', hour: 8 });
 eq('local date rolls at midnight', localToday('America/Chicago', new Date('2026-11-20T05:30:00Z')), { date: '2026-11-19', hour: 23 });
 console.log(ok, 'passed', bad, 'failed'); process.exit(bad ? 1 : 0);

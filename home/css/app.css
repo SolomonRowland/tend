@@ -245,3 +245,19 @@ html[data-mode="dark"] .chip[aria-pressed="true"]{background:#fff;color:#0A1E46;
 html[data-mode="dark"] .flash{color:var(--ink)}
 html[data-mode="dark"] .card,html[data-mode="dark"] .listcard,html[data-mode="dark"] .row,html[data-mode="dark"] .stat,html[data-mode="dark"] .tile,html[data-mode="dark"] .ccard{box-shadow:none}
 html[data-mode="dark"] .input::placeholder{color:#6F7A8C}
+/* swipe a row: right = done, left = snooze a week */
+.swipe{position:relative;border-radius:14px;transition:opacity .3s,max-height .3s,margin .3s;max-height:140px}
+.swipe .swbg{position:absolute;inset:0;border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:14px;font-weight:700;color:#fff;background:var(--rose);opacity:0;pointer-events:none}
+.swipe .swbg span{display:flex;align-items:center;gap:6px}
+.swipe .swbg .swr{display:none}
+.swipe.left .swbg{background:var(--dusty);justify-content:flex-end}
+.swipe.left .swbg .swl{display:none}.swipe.left .swbg .swr{display:flex}
+.swipe.dragging .swbg,.swipe.left .swbg,.swipe.right .swbg{opacity:1}
+.swipe .row{position:relative;touch-action:pan-y}
+.swipe.armed .swbg{filter:brightness(1.08)}
+.swipe .row.settle{transition:transform .22s ease}
+.swipe.doing .swbg,.swipe .row.doing~.swbg{opacity:0}
+.swipe.gone{opacity:0;max-height:0;margin-top:-8px;overflow:hidden}
+.swipe.gone .row{box-shadow:none}
+/* Recently done */
+.lrow .donedot{flex:0 0 22px;width:22px;height:22px;border-radius:999px;background:var(--rose);color:#fff;display:flex;align-items:center;justify-content:center}

@@ -82,6 +82,14 @@ const FAKE_PUSH = () => {
   check('schedule follows changes', await waitFor(H, b => C.sb.from('records').select('data').eq('kind', 'meta').eq('id', 'schedule').then(r => JSON.stringify(r.data[0].data) !== b), before));
   await H.click('[data-act=notify-off]');
   check('turned off and removed', await waitFor(H, () => N.state === 'off') && (await H.evaluate(() => C.sb.from('push_subs').select('endpoint').then(r => r.data.length))) === 0);
+  // signing out stops that phone's heads-up (so the next person on the phone doesn't get yours)
+  await H.click('[data-act=notify-on]'); await waitFor(H, () => N.state === 'on');
+  const { Client } = require('pg'); const pg = new Client({ host: '127.0.0.1', user: 'postgres', password: 'pg', database: 'tendtest' }); await pg.connect();
+  const nSubs = async () => (await pg.query('select count(*)::int as n from public.push_subs')).rows[0].n;
+  check('phone on before sign-out', (await nSubs()) === 1);
+  await H.evaluate(() => signOut()); await waitFor(H, () => !C.user);
+  check('sign-out removes the phone', (await nSubs()) === 0);
+  await pg.end();
   console.log('errors', errs); console.log(ok, 'passed', bad, 'failed');
   await b.close(); process.exit(bad || errs.length ? 1 : 0);
 })();

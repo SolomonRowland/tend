@@ -225,15 +225,36 @@ create policy push_own_change on public.push_subs for update to authenticated us
 drop policy if exists push_own_remove on public.push_subs;
 create policy push_own_remove on public.push_subs for delete to authenticated using (user_id = auth.uid());
 revoke all on public.push_subs from anon;
-grant select, insert, delete on public.push_subs to authenticated;
-grant update (user_id, hour, tz, household_id, p256dh, auth) on public.push_subs to authenticated;
+revoke update on public.push_subs from authenticated;
+grant select, delete on public.push_subs to authenticated;
+grant update (hour, tz) on public.push_subs to authenticated;
+-- Turning notifications on goes through this, so a phone that someone else signed out of
+-- (or that moved household) can be taken over by whoever is signed in on it now.
+-- Only the phone itself knows its endpoint, so holding it is proof enough.
+create or replace function public.save_push_sub(p_endpoint text, p_household uuid, p_p256dh text, p_auth text, p_hour int, p_tz text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null or not public.is_member(p_household) then raise exception 'Not a member of that household'; end if;
+  if p_endpoint !~ '^https://' or length(p_endpoint) > 1000 or length(p_p256dh) > 200 or length(p_auth) > 100 then raise exception 'That doesn''t look like a phone subscription'; end if;
+  insert into public.push_subs (endpoint, user_id, household_id, p256dh, auth, hour, tz)
+  values (p_endpoint, auth.uid(), p_household, p_p256dh, p_auth, least(greatest(coalesce(p_hour, 8), 0), 23), left(coalesce(nullif(p_tz, ''), 'America/Chicago'), 64))
+  on conflict (endpoint) do update set user_id = excluded.user_id, household_id = excluded.household_id, p256dh = excluded.p256dh,
+    auth = excluded.auth, hour = excluded.hour, tz = excluded.tz, last_sent = null;
+end $$;
+revoke all on function public.save_push_sub(text, uuid, text, text, int, text) from public, anon;
+grant execute on function public.save_push_sub(text, uuid, text, text, int, text) to authenticated;
 
 -- The sending keys. Only the tend-notify function (service role) can read the private half.
+-- cron_secret is what the hourly job shows the function, so nobody else can make it send.
 create table if not exists public.push_config (
   id int primary key default 1 check (id = 1),
-  public_key text not null,
-  private_key text not null
+  public_key text,
+  private_key text
 );
+alter table public.push_config alter column public_key drop not null, alter column private_key drop not null;
+alter table public.push_config add column if not exists cron_secret text not null
+  default replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+insert into public.push_config (id) values (1) on conflict (id) do nothing;
 alter table public.push_config enable row level security;
 revoke all on public.push_config from anon, authenticated;
 create or replace function public.push_public_key() returns text

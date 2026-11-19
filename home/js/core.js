@@ -85,13 +85,17 @@ function normalize(d) {
   var bids = {}; out.items.forEach(function (b) { bids[b.id] = 1; });
   var oldBills = Array.isArray(d.budget) ? d.budget.filter(Boolean) : [];
   out.tasks = (d.tasks || []).map(function (t) {
-    var hist = Array.isArray(t.history) ? t.history.filter(function (h) { return h && parse(h.date); }).map(function (h) { return { date: h.date, by: h.by || '', note: h.note || '' }; }) : [];
+    var hist = Array.isArray(t.history) ? t.history.filter(function (h) { return h && parse(h.date); }).map(function (h) {
+      var e = { date: h.date, by: h.by || '', note: h.note || '' };
+      if (typeof h.at === 'string' && /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(h.at)) e.at = h.at; // exact moment it was ticked off, for "Recently done"
+      return e;
+    }) : [];
     hist.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     return {
       id: String(t.id || ('t' + n++)), name: String(t.name || 'Untitled'), cat: CATS.indexOf(t.cat) >= 0 ? t.cat : t.cat === 'Finance & Insurance' ? 'Bills & Finance' : 'Misc', who: t.who || '',
       freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: parse(t.first) ? t.first : null, last: parse(t.last) ? t.last : (hist[0] ? hist[0].date : null),
       early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '',
-      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: parse(t.snooze) ? t.snooze : null, history: hist, photos: normPhotos(t.photos)
+      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: parse(t.snooze) ? t.snooze : null, history: hist, photos: normPhotos(t.photos), owner: typeof t.owner === 'string' ? t.owner.slice(0, 40) : ''
     };
   });
   var max = 0;
@@ -207,7 +211,8 @@ function rows() {
 }
 
 /* ---------- ui state ---------- */
-var ui = { screen: 'home', stack: [], filter: 'all', cat: '', q: '', cq: '', bq: '', dir: 'contacts', st: null, itemId: null, taskId: null, conId: null, flash: null, undo: null, calY: 0, calM: 0, calDay: null, form: null, armed: null };
+var ui = { screen: 'home', stack: [], filter: 'all', cat: '', q: '', cq: '', bq: '', dir: 'contacts', st: null, itemId: null, taskId: null, conId: null, flash: null, undo: null, calY: 0, calM: 0, calDay: null, form: null, armed: null, mine: false };
+try { ui.mine = localStorage.getItem('tend.mine') === '1'; } catch (e) {}
 function go(screen, opts, push) {
   if (push) ui.stack.push({ screen: ui.screen, taskId: ui.taskId, conId: ui.conId, itemId: ui.itemId, scroll: view.scrollTop });
   else ui.stack = [];

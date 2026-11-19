@@ -10,7 +10,7 @@ var C = {
   on: false, ready: false, sb: null, user: null, hid: null, house: '', role: '',
   members: [], invites: [], snap: {}, since: null, firstPull: false,
   pushing: false, pushAgain: false, pulling: false, pullAgain: false, pushT: 0, pullT: 0,
-  online: true, lastSync: null, err: '', chan: null, joinCode: '', recovery: false,
+  online: true, lastSync: null, err: '', chan: null, joinCode: '', recovery: false, inflight: {}, authP: null, authUid: null,
   auth: { mode: 'in', email: '', msg: '', busy: false }, inviteLink: '', stale: false
 };
 var CLOUD_FACTORY = window.TEND_CLOUD_FACTORY || (window.supabase && CLOUD_URL && CLOUD_KEY ? function () {
@@ -56,15 +56,30 @@ function cloudInit() {
     C.ready = true; render(); afterAuth();
   }, function () { C.ready = true; render(); });
   window.addEventListener('online', function () { pull(); schedulePush(); });
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && C.hid) { pull(); schedulePush(); } });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && C.hid) { pull(); schedulePush(); checkStillMember(); } });
   setInterval(function () { if (C.hid && document.visibilityState === 'visible') { pull(); if (pendingCount()) push(); } }, 60000);
 }
+/* Runs once per sign-in, even though both the sign-in screen and the auth listener ask for it. */
 function afterAuth() {
-  if (!C.user) { dropHousehold(); render(); return; }
-  refreshHousehold().then(function () {
+  if (!C.user) { C.authP = null; C.authUid = null; dropHousehold(); render(); return Promise.resolve(); }
+  if (C.authP && C.authUid === C.user.id) return C.authP;
+  C.authUid = C.user.id;
+  var p = C.authP = refreshHousehold().then(function () {
     if (!C.hid && C.joinCode) return joinWith(C.joinCode, true);
   }).catch(function (e) { setOnline(false, e); }).then(function () { render(); });
+  return p;
 }
+/* A phone whose person was removed from the household stops showing (and keeps no copy of) its list. */
+function checkStillMember() {
+  if (!C.user || !C.hid || !C.online || checkStillMember.busy) return;
+  checkStillMember.busy = true;
+  var hid = C.hid;
+  refreshHousehold().then(function () {
+    checkStillMember.busy = false;
+    if (hid && C.hid !== hid) { forgetHousehold(hid); ui.stack = []; ui.screen = 'home'; render(); toast('You’re no longer in that household.'); }
+  }, function () { checkStillMember.busy = false; });
+}
+function forgetHousehold(hid) { try { localStorage.removeItem('tend.data.h.' + hid); } catch (e) {} cset('sync.' + hid, null); }
 function refreshHousehold() {
   return C.sb.from('members').select('household_id, role, households(name)').eq('user_id', C.user.id).limit(1).then(function (r) {
     if (r.error) throw r.error;
@@ -122,7 +137,7 @@ function scheduleSnapshot(d) {
   d.tasks.forEach(function (t) {
     if (!t.active) return;
     var due = nextDue(t); if (!due) return;
-    out.push([t.id, t.name, iso(due), iso(addDays(due, -t.early)), t.snooze || null]);
+    out.push([t.id, t.name, iso(due), iso(addDays(due, -t.early)), t.snooze || null, t.owner || '']);
   });
   out.sort(function (a, b) { return a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : a[0] < b[0] ? -1 : 1; });
   return { tasks: out };
@@ -155,6 +170,8 @@ function push() {
   });
   if (!rows.length) return Promise.resolve();
   C.pushing = true;
+  // what the server was known to have when this push started; a pull that lands mid-push may move it
+  var was = {}; Object.keys(sent).forEach(function (k) { was[k] = C.snap[k]; C.inflight[k] = sent[k]; });
   var chunks = []; for (var i = 0; i < rows.length; i += 400) chunks.push(rows.slice(i, i + 400));
   var chain = Promise.resolve();
   chunks.forEach(function (ch) {
@@ -162,13 +179,19 @@ function push() {
       return C.sb.from('records').upsert(ch).then(function (r) {
         if (r.error) throw r.error;
         if (hid !== C.hid) return;
-        ch.forEach(function (row) { var k = row.kind + ':' + row.id; if (sent[k] === null) delete C.snap[k]; else C.snap[k] = sent[k]; });
+        ch.forEach(function (row) {
+          var k = row.kind + ':' + row.id; delete C.inflight[k];
+          if (C.snap[k] !== was[k]) return; // a newer version arrived while this was on its way: keep that
+          if (sent[k] === null) delete C.snap[k]; else C.snap[k] = sent[k];
+        });
         saveSync();
       });
     });
   });
-  return chain.then(function () { setOnline(true); }, function (e) { setOnline(false, e); })
-    .then(function () { C.pushing = false; if (C.pushAgain) { C.pushAgain = false; return push(); } });
+  return chain.then(function () { setOnline(true); }, function (e) { setOnline(false, e); if (isDenied(e)) checkStillMember(); })
+    .then(function () { C.pushing = false; C.inflight = {}; if (C.pushAgain) { C.pushAgain = false; return push(); } });
+}
+function isDenied(e) { return /row-level security|permission denied|42501/i.test(String((e && (e.message || e.code)) || e || ''));
 }
 function pull() {
   if (!C.hid) return Promise.resolve();
@@ -176,16 +199,24 @@ function pull() {
   C.pulling = true;
   var hid = C.hid, rows = [];
   var since = C.since ? new Date(new Date(C.since).getTime() - 10000).toISOString() : null;
-  function page(from) {
+  // Pages walk forward by updated_at (not by position), so a row changed mid-pull can't be skipped.
+  var seen = {};
+  function page(cursor, from) {
     var q = C.sb.from('records').select('kind, id, data, deleted, updated_at').eq('household_id', hid);
-    if (since) q = q.gt('updated_at', since);
+    if (cursor) q = q.gte('updated_at', cursor);
     return q.order('updated_at', { ascending: true }).range(from, from + 999).then(function (r) {
       if (r.error) throw r.error;
-      rows = rows.concat(r.data || []);
-      if ((r.data || []).length === 1000) return page(from + 1000);
+      var got = r.data || [];
+      got.forEach(function (x) { var k = x.kind + ':' + x.id + '@' + x.updated_at; if (!seen[k]) { seen[k] = 1; rows.push(x); } });
+      if (got.length < 1000) return;
+      var last = got[got.length - 1].updated_at;
+      return last === cursor ? page(cursor, from + 1000) : page(last, 0);
     });
   }
-  return page(0).then(function () { if (hid === C.hid) { C.firstPull = true; applyRows(rows); setOnline(true); } }, function (e) { if (hid === C.hid) { C.firstPull = true; setOnline(false, e); refreshView(); } })
+  return page(since, 0).then(function () { if (hid === C.hid) { C.firstPull = true; C.pullErr = ''; applyRows(rows); setOnline(true); } }, function (e) {
+    if (hid !== C.hid) return;
+    setOnline(false, e); if (!db) { C.pullErr = cloudMsg(e); render(); } else refreshView();
+  })
     .then(function () { C.pulling = false; if (C.pullAgain) { C.pullAgain = false; return pull(); } });
 }
 function mergeHistory(a, b) {
@@ -198,11 +229,14 @@ function applyRows(rows) {
   var base = db || blank(), cur = recMap(base), changed = {}, keepLocal = {}, any = false;
   rows.forEach(function (r) {
     if (!C.since || r.updated_at > C.since) C.since = r.updated_at;
-    var k = r.kind + ':' + r.id, local = cur[k], localJ = local ? stable(local) : undefined, dirty = localJ !== C.snap[k];
+    var k = r.kind + ':' + r.id, local = cur[k], localJ = local ? stable(local) : undefined;
+    // a change only counts as ours-and-unsent if it isn't already on its way to the server
+    var dirty = localJ !== C.snap[k] && !(local && C.inflight[k] === localJ);
     var remoteJ = r.deleted ? undefined : stable(r.data);
     if (remoteJ === C.snap[k]) return; // already have it
     any = true;
     if (r.deleted) { delete cur[k]; changed[k] = 1; return; }
+    if (!local && C.snap[k] !== undefined) { keepLocal[k] = remoteJ; return; } // deleted here and not yet sent: the delete wins
     if (dirty && local) {
       keepLocal[k] = remoteJ;
       if (r.kind === 'task') { var m = JSON.parse(JSON.stringify(local)); m.history = mergeHistory(local.history, r.data.history); m.last = m.history[0] ? m.history[0].date : m.last; cur[k] = m; }
@@ -272,9 +306,10 @@ function makeInvite() {
 }
 function signOut() {
   var hid = C.hid;
-  (C.sb.auth.signOut() || Promise.resolve()).catch(function () {}).then(function () {
-    if (hid) { try { localStorage.removeItem('tend.data.h.' + hid); } catch (e) {} cset('sync.' + hid, null); }
-    dropHousehold(); C.user = null; ui.stack = []; ui.screen = 'home'; render();
+  // stop this phone's daily heads-up first (needs to still be signed in to remove it)
+  notifyForget().catch(function () {}).then(function () { return C.sb.auth.signOut(); }).catch(function () {}).then(function () {
+    if (hid) forgetHousehold(hid);
+    C.authP = null; C.authUid = null; dropHousehold(); C.user = null; ui.stack = []; ui.screen = 'home'; render();
   });
 }
 
@@ -284,7 +319,8 @@ function cloudScreen() {
   if (C.recovery && C.user) return scrNewPassword();
   if (!C.user) return scrSignIn();
   if (!C.hid) return scrHousehold();
-  if (!db && !C.firstPull) return '<div class="welcome" style="align-items:center;justify-content:center"><p>Loading your household…</p></div>';
+  if (!db && !C.firstPull) return '<div class="welcome" style="align-items:center;justify-content:center">' + (C.pullErr
+    ? '<p>' + esc(C.pullErr) + '</p><button class="btn primary" data-act="cloud-retry">Try Again</button>' : '<p>Loading your household…</p>') + '</div>';
   return '';
 }
 function authErr() { return C.err ? '<p class="cerr" role="alert">' + esc(C.err) + '</p>' : ''; }
@@ -382,6 +418,7 @@ function cloudAct(a, el) {
       C.auth.email = em;
       C.sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname }).then(function (r) { if (r.error) throw r.error; C.err = ''; C.auth.msg = 'If that email has an account, a reset link is on its way.'; render(); }).catch(function (e) { C.err = cloudMsg(e); render(); });
       return true;
+    case 'cloud-retry': C.pullErr = ''; render(); pull(); return true;
     case 'house-create': createHousehold(); return true;
     case 'house-join': joinWith((document.getElementById('joinCode') || {}).value); return true;
     case 'invite': makeInvite(); return true;
