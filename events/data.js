@@ -46,14 +46,16 @@ function CloudDB() {
         if (!rows.length) return null;
         var oid = rows[0].org_id, role = rows[0].role;
         return Promise.all([
-          q(sb.from('ed_orgs').select('id, name').eq('id', oid).single()),
-          q(sb.from('ed_members').select('org_id, user_id, email, name, role').eq('org_id', oid).order('joined_at')),
+          q(sb.from('ed_orgs').select('*').eq('id', oid).single()),
+          q(sb.from('ed_members').select('org_id, user_id, email, name, role, phone, prefs').eq('org_id', oid).order('joined_at')),
           role === 'owner' ? q(sb.from('ed_invites').select('code, org_id, expires_at').eq('org_id', oid)) : Promise.resolve([])
         ]).then(function (r) { return { org: r[0], role: role, members: r[1], invites: r[2] }; });
       });
     },
-    renameOrg: function (id, name) { return q(sb.from('ed_orgs').update({ name: name }).eq('id', id)); },
-    setMyName: function (oid, n) { return q(sb.from('ed_members').update({ name: n }).eq('org_id', oid).eq('user_id', me.id)); },
+    updateOrg: function (id, f) { return q(sb.from('ed_orgs').update(f).eq('id', id)); },
+    updateMe: function (oid, f) { return q(sb.from('ed_members').update(f).eq('org_id', oid).eq('user_id', me.id)); },
+    changeEmail: function (e) { return q(sb.auth.updateUser({ email: e }, { emailRedirectTo: location.origin + location.pathname })); },
+    changePassword: function (p) { return q(sb.auth.updateUser({ password: p })); },
     cancelInvite: function (c) { return q(sb.from('ed_invites').delete().eq('code', c)); },
     list: function (t, col, val) { return q(sb.from(t).select('*').eq(col, val)); },
     listIn: function (t, col, vals) {
@@ -69,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v4', D = null;
+  var KEY = 'ed.demo.v5', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -166,8 +168,10 @@ function DemoDB() {
       var m = T('ed_members').find(function (x) { return x.user_id === D.me.id; }); if (!m) return ok(null);
       return ok({ org: T('ed_orgs').find(function (o) { return o.id === m.org_id; }), role: m.role, members: T('ed_members').filter(function (x) { return x.org_id === m.org_id; }), invites: T('ed_invites').filter(function (x) { return x.org_id === m.org_id; }) });
     },
-    renameOrg: function (id, name) { T('ed_orgs').forEach(function (o) { if (o.id === id) o.name = name; }); persist(); return ok(); },
-    setMyName: function (oid, n) { T('ed_members').forEach(function (m) { if (m.user_id === D.me.id) m.name = n; }); persist(); return ok(); },
+    updateOrg: function (id, f) { T('ed_orgs').forEach(function (o) { if (o.id === id) Object.assign(o, f); }); persist(); return ok(); },
+    updateMe: function (oid, f) { T('ed_members').forEach(function (m) { if (m.user_id === D.me.id) Object.assign(m, f); }); persist(); return ok(); },
+    changeEmail: function (e) { D.me.email = e; T('ed_members').forEach(function (m) { if (m.user_id === D.me.id) m.email = e; }); persist(); return ok(); },
+    changePassword: function () { return ok(); },
     cancelInvite: function (c) { D.t.ed_invites = T('ed_invites').filter(function (x) { return x.code !== c; }); persist(); return ok(); },
     list: function (t, col, val) { return ok(T(t).filter(function (r) { return r[col] === val; })); },
     listIn: function (t, col, vals) { return ok(T(t).filter(function (r) { return vals.indexOf(r[col]) >= 0; })); },
@@ -182,8 +186,8 @@ function demoSeed() {
   var t = {}; function T(n) { return t[n] || (t[n] = []); }
   function add(n, row) { row = Object.assign({ id: uuid(), created_at: new Date().toISOString() }, row); T(n).push(row); return row; }
   var today = isoDay(new Date());
-  var org = add('ed_orgs', { name: 'GGG Ministries' }), O = org.id, me = { id: 'demo-user', email: 'you@example.com' };
-  T('ed_members').push({ org_id: O, user_id: me.id, email: me.email, name: 'Solomon', role: 'owner' }, { org_id: O, user_id: 'u2', email: 'pam@example.com', name: 'Pam Hughes', role: 'member' }, { org_id: O, user_id: 'u3', email: 'steve@example.com', name: 'Steve Moss', role: 'member' });
+  var org = add('ed_orgs', { name: 'GGG Ministries', about: 'A traveling ministry holding tent revivals, worship nights and prayer gatherings across northern Illinois.', phone: '(555) 555-0100', email: 'office@example.com', website: 'example.org', address: 'PO Box 100, Waterman, IL 60556', giving_link: 'https://example.org/give', timezone: 'America/Chicago' }), O = org.id, me = { id: 'demo-user', email: 'you@example.com' };
+  T('ed_members').push({ org_id: O, user_id: me.id, email: me.email, name: 'Solomon Rowland', role: 'owner', phone: '(555) 555-0100', prefs: {} }, { org_id: O, user_id: 'u2', email: 'pam@example.com', name: 'Pam Hughes', role: 'member' }, { org_id: O, user_id: 'u3', email: 'steve@example.com', name: 'Steve Moss', role: 'member' });
 
   // ---------- Directory
   var P = {};

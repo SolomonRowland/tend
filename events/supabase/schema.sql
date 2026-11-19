@@ -1,4 +1,4 @@
--- Tent & Table database (version 2).
+-- Tent & Table database (version 3).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -35,6 +35,17 @@ create table if not exists public.ed_members (
   joined_at timestamptz not null default now(),
   primary key (org_id, user_id)
 );
+
+-- Ministry profile and personal settings (added in version 3; safe to re-run).
+alter table public.ed_orgs add column if not exists website text not null default '' check (length(website) <= 300);
+alter table public.ed_orgs add column if not exists email text not null default '' check (length(email) <= 200);
+alter table public.ed_orgs add column if not exists phone text not null default '' check (length(phone) <= 40);
+alter table public.ed_orgs add column if not exists address text not null default '' check (length(address) <= 300);
+alter table public.ed_orgs add column if not exists about text not null default '' check (length(about) <= 2000);
+alter table public.ed_orgs add column if not exists giving_link text not null default '' check (length(giving_link) <= 300);
+alter table public.ed_orgs add column if not exists timezone text not null default 'America/Chicago' check (length(timezone) <= 60);
+alter table public.ed_members add column if not exists phone text not null default '' check (length(phone) <= 40);
+alter table public.ed_members add column if not exists prefs jsonb not null default '{}'::jsonb check (jsonb_typeof(prefs) = 'object' and pg_column_size(prefs) < 4000);
 
 create table if not exists public.ed_invites (
   code text primary key,
@@ -667,7 +678,8 @@ create policy ed_event_equipment_all on public.ed_event_equipment for all to aut
 -- ---------- grants
 revoke all on public.ed_orgs, public.ed_members, public.ed_invites from authenticated;
 grant select on public.ed_orgs, public.ed_members to authenticated;
-grant update (name) on public.ed_orgs, public.ed_members to authenticated;
+grant update (name, website, email, phone, address, about, giving_link, timezone) on public.ed_orgs to authenticated;
+grant update (name, phone, prefs) on public.ed_members to authenticated;
 grant select, delete on public.ed_invites to authenticated;
 grant select, insert, update, delete on public.ed_people, public.ed_vendors, public.ed_contacts, public.ed_equipment,
   public.ed_events, public.ed_budget, public.ed_event_people, public.ed_event_vendors, public.ed_event_contacts,

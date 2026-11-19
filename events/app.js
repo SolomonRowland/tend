@@ -64,6 +64,9 @@ var IC = {
   pin: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
   web: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>',
   warn: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  home: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/></svg>',
+  gear: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>',
+  box: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>',
   search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
 };
 
@@ -88,7 +91,7 @@ var PRESETS = {
 var DB = null;
 var S = {
   loading: true, user: null, acct: null, authMode: 'in', authMsg: '', busy: false,
-  tab: 'events', dirTab: 'people', dirQ: '', dirGroup: '', dirStatus: 'current', dirCat: '', budgetYear: new Date().getFullYear(),
+  tab: 'home', dirTab: 'people', dirQ: '', dirGroup: '', dirStatus: 'current', dirCat: '', budgetYear: new Date().getFullYear(),
   db: {}, ev: null, evTab: 'overview', sub: {}, calDay: null,
   sheet: null, toast: '', pubMode: '', pubSlug: '', pub: null, mine: [], cardDone: false, pubErr: '', cardErr: ''
 };
@@ -421,15 +424,20 @@ function viewSetup() {
 
 /* ================================================================ ministry shell */
 function viewShell() {
-  var body = S.tab === 'directory' ? viewDirectory() : S.tab === 'account' ? viewAccount() : viewEvents();
-  var title = { events: 'Events', directory: 'Directory', account: 'Account' }[S.tab];
-  return head(title, '', '<span class="brandmark" aria-hidden="true">' + IC.tent + '</span>', S.tab === 'events' ? addBtn('New Event', 'new-event') : '', org().name) +
+  if (S.tab === 'settings') return viewSettings();
+  var body = S.tab === 'directory' ? viewDirectory() : S.tab === 'events' ? viewEvents() : viewHome();
+  var me = myMember(), hr = new Date().getHours();
+  var title = S.tab === 'home' ? (hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening') + (me.name ? ', ' + me.name.split(' ')[0] : '') : { events: 'Events', directory: 'Directory' }[S.tab];
+  var sub = S.tab === 'home' ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : '';
+  return head(title, sub, '<span class="brandmark" aria-hidden="true">' + IC.tent + '</span>',
+      (S.tab === 'events' ? addBtn('New Event', 'new-event') : '') + '<button class="iconbtn" data-a="open-settings" aria-label="Settings">' + IC.gear + '</button>', org().name) +
     '<main>' + body + demoNote() + '</main>' +
-    '<nav class="bottomnav" aria-label="Main">' + [['events', 'Events', IC.cal], ['directory', 'Directory', IC.book], ['account', 'Account', IC.user]].map(function (t) {
+    '<nav class="bottomnav" aria-label="Main">' + [['home', 'Home', IC.home], ['events', 'Events', IC.cal], ['directory', 'Directory', IC.book]].map(function (t) {
       return '<button data-a="nav" data-v="' + t[0] + '"' + (S.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span></button>';
     }).join('') + '</nav>';
 }
 function demoNote() { return DB.mode === 'demo' ? '<p class="small muted demo-note">This is a demo ministry kept in your browser. <a href="#" data-a="reset-demo">Reset The Demo</a>' + (window.supabase && !window.ED_DEMO ? ' · <a href="#" data-a="leave-demo">Leave The Demo</a>' : '') + '</p>' : ''; }
+function myMember() { return ((S.acct && S.acct.members) || []).find(function (m) { return S.user && m.user_id === S.user.id; }) || {}; }
 
 function viewEvents() {
   var all = events(), up = [], past = [];
@@ -543,23 +551,96 @@ function editDir(t, rec, after) {
     after: after, delMsg: 'Delete this from the Directory?', delSub: rec && usedIn(t, rec.id).length ? 'It will also be removed from every event that uses it.' : '' });
 }
 
-/* ---------------------------------------------------------------- account */
-function viewAccount() {
-  var a = S.acct, owner = a.role === 'owner', me = a.members.find(function (m) { return m.user_id === S.user.id; }) || {};
-  return secHead('People With Access', owner && a.members.length < 10 ? addBtn('Invite', 'invite') : '', a.members.length + ' Of 10') +
+/* ---------------------------------------------------------------- home */
+function upcomingEvents() { return events().filter(function (e) { return (e.ends_on || e.starts_on || '9999') >= TODAY; }).sort(function (a, b) { return String(a.starts_on || '9').localeCompare(String(b.starts_on || '9')); }); }
+function withEvent(e, fn) { var keep = S.ev; S.ev = e; try { return fn(); } finally { S.ev = keep; } }
+function viewHome() {
+  var up = upcomingEvents(), next = up[0], wk = addDays(TODAY, 7);
+  var att = [], week = [], owed = 0, late = 0, cards = 0;
+  events().forEach(function (e) {
+    var isUp = up.indexOf(e) >= 0;
+    withEvent(e, function () {
+      if (isUp) attention(e).forEach(function (x) { att.push({ e: e, x: x }); });
+      cards += evRows('ed_cards').filter(function (c) { return c.status === 'new'; }).length;
+      if (!isUp) return;
+      payables(e).forEach(function (p) { owed += p.owed; });
+      late += evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on < TODAY; }).length;
+      if (on('calendar')) evRows('ed_schedule').filter(function (s) { return s.on_date >= TODAY && s.on_date <= wk; }).forEach(function (s) { week.push({ d: s.on_date, k: s.start_time || '', title: s.title, sub: [fmtTime(s.start_time), e.title].filter(Boolean).join(' · '), e: e, tab: 'calendar' }); });
+      if (on('tasks')) evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on >= TODAY && t.due_on <= wk; }).forEach(function (t) { week.push({ d: t.due_on, k: 'zz', title: t.title, sub: ['Task', t.owner, e.title].filter(Boolean).join(' · '), e: e, tab: 'tasks' }); });
+    });
+  });
+  week.sort(function (a, b) { return (a.d + a.k).localeCompare(b.d + b.k); });
+  att.sort(function (a, b) { return (a.x[0] === 'red' ? 0 : 1) - (b.x[0] === 'red' ? 0 : 1); });
+  var h = '';
+  if (next) {
+    var days = next.starts_on ? dayDiff(next.starts_on, TODAY) : null, ts = evRows('ed_tasks', next), td = ts.filter(function (t) { return t.done; }).length;
+    h += '<button class="hero herobtn" data-a="open-event" data-id="' + next.id + '"><div class="k">Next Up · ' + esc(fmtRange(next.starts_on, next.ends_on)) + '</div><div class="htitle">' + esc(next.title) + '</div>' +
+      (days != null && days > 1 ? '<div class="count"><b>' + days + '</b><span>days to go</span></div>' : '<div class="count"><b class="word">' + esc(countdown(next)) + '</b></div>') +
+      (ts.length ? '<div class="tl"><div class="tbar"><i style="width:' + Math.round(100 * td / ts.length) + '%"></i></div><div class="lbl"><span>' + td + ' of ' + ts.length + ' tasks done</span><span>Open Event →</span></div></div>' : '') + '</button>';
+  } else h += '<div class="card empty">No upcoming events. ' + addBtn('Plan An Event', 'new-event') + '</div>';
+  h += '<div class="stats">' + stat('Upcoming Events', up.length) + stat('Tasks Overdue', late, late > 0) + stat('Still Owed', money(owed), false) + stat('New Cards', cards, cards > 0) + stat('People', T('ed_people').filter(function (p) { return p.status === 'current'; }).length) + stat('Vendors', T('ed_vendors').length) + '</div>';
+  h += secHead('Needs Attention', '', att.length ? String(att.length) : '') + (att.length ? '<div class="list">' + att.slice(0, 8).map(function (a) {
+    return '<button class="row" data-a="open-event-tab" data-id="' + a.e.id + '" data-v="' + a.x[3] + '"><span class="dot ' + a.x[0] + '">' + IC.warn + '</span><div class="main"><div class="t">' + esc(a.x[1]) + '</div><div class="s">' + esc(a.e.title) + (a.x[2] ? ' · ' + esc(a.x[2]) : '') + '</div></div><span class="chev">' + IC.chev + '</span></button>';
+  }).join('') + '</div>' + (att.length > 8 ? '<p class="small muted">' + (att.length - 8) + ' more inside each event.</p>' : '') : '<div class="card empty good">' + IC.check + ' Everything is on track.</div>');
+  h += secHead('This Week') + listBox(week.slice(0, 8).map(function (w) {
+    return '<button class="row" data-a="open-event-tab" data-id="' + w.e.id + '" data-v="' + w.tab + '"><span class="datebox sm"><small>' + dt(w.d).toLocaleDateString('en-US', { weekday: 'short' }) + '</small><b>' + dt(w.d).getDate() + '</b></span><div class="main"><div class="t">' + esc(w.title) + '</div><div class="s">' + esc(w.sub) + '</div></div><span class="chev">' + IC.chev + '</span></button>';
+  }), 'Nothing scheduled in the next 7 days.');
+  h += secHead('Quick Add') + '<div class="quick">' + [['new-event', 'Event', IC.cal, ''], ['dir-add', 'Person', IC.user, 'ed_people'], ['dir-add', 'Vendor', IC.tent, 'ed_vendors'], ['dir-add', 'Equipment', IC.box, 'ed_equipment']].map(function (q) {
+    return '<button class="qa" data-a="' + q[0] + '"' + (q[3] ? ' data-id="' + q[3] + '"' : '') + '>' + q[2] + '<span>' + q[1] + '</span></button>';
+  }).join('') + '</div>';
+  return h;
+}
+
+/* ---------------------------------------------------------------- settings */
+var NOTIFY = [['weekly', 'Weekly Summary', 'Every Monday: what’s coming up, what’s overdue and what’s owed.'], ['tasks', 'My Tasks', 'A reminder the day before a task assigned to you is due.'], ['payments', 'Payments Due', 'Three days before a payment you’re responsible for is due.'], ['signups', 'New Sign-Ups', 'When someone signs up to serve or bring food.'], ['cards', 'New Connection Cards', 'When a guest fills out a connection card.'], ['events', 'Event Reminders', 'One week and one day before each event starts.']];
+var NOTIFY_DEF = { weekly: true, tasks: true, payments: true, signups: false, cards: true, events: true, channel: 'email' };
+function prefs() { return Object.assign({}, NOTIFY_DEF, myMember().prefs || {}); }
+function sw(on, act, id, label) { return '<button class="switch" role="switch" aria-checked="' + !!on + '" aria-label="' + esc(label) + '" data-a="' + act + '" data-id="' + esc(id) + '"><i></i></button>'; }
+function kv(pairs) {
+  return '<div class="kv">' + pairs.map(function (p) { return '<div><span>' + esc(p[0]) + '</span><b>' + (p[1] ? esc(p[1]) : '<em class="muted">Not Set</em>') + '</b></div>'; }).join('') + '</div>';
+}
+function viewSettings() {
+  var a = S.acct, o = a.org, owner = a.role === 'owner', me = myMember(), p = prefs();
+  var h = head('Settings', '', '<button class="iconbtn" data-a="close-settings" aria-label="Back">' + IC.back + '</button>', '', o.name) + '<main class="settings">';
+  h += secHead('Ministry Profile', owner ? '<button class="link" data-a="edit-org">Edit</button>' : '') +
+    '<div class="card profile"><div class="sheethead"><span class="brandmark big">' + IC.tent + '</span><div><h3>' + esc(o.name) + '</h3><p class="lead">' + esc(o.about || (owner ? 'Add a short description of your ministry.' : '')) + '</p></div></div>' +
+    kv([['Phone', o.phone], ['Email', o.email], ['Website', o.website], ['Address', o.address], ['Online Giving', o.giving_link], ['Time Zone', (TIMEZONES.find(function (z) { return z[0] === (o.timezone || 'America/Chicago'); }) || [, o.timezone])[1]]]) +
+    actions({ phone: o.phone, email: o.email, website: o.website, address: o.address }) + '</div>' +
+    (owner ? '' : '<p class="small muted">Only the account owner can change the ministry profile.</p>');
+  h += secHead('My Profile', '<button class="link" data-a="edit-me">Edit</button>') +
+    '<div class="card"><div class="sheethead">' + avatar(me.name || S.user.email) + '<div><h3>' + esc(me.name || 'Add Your Name') + '</h3><p class="lead">' + (owner ? 'Account Owner' : 'Member') + '</p></div></div>' +
+    kv([['Phone', me.phone], ['Login Email', S.user.email || me.email]]) +
+    '<div class="btnrow"><button class="btn sm ghost" data-a="change-email">Change Login Email</button><button class="btn sm ghost" data-a="change-pw">Change Password</button></div></div>';
+  h += secHead('Notifications') + '<div class="card"><div class="fld"><label for="n_ch">Send Them By</label><select class="inp" id="n_ch" data-change="notify-channel">' + [['email', 'Email'], ['text', 'Text Message'], ['both', 'Email And Text']].map(function (c) { return '<option value="' + c[0] + '"' + (p.channel === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>' +
+    '<div class="swlist">' + NOTIFY.map(function (n) { return '<div class="swrow"><div class="main"><b>' + esc(n[1]) + '</b><span>' + esc(n[2]) + '</span></div>' + sw(p[n[0]], 'notify', n[0], n[1]) + '</div>'; }).join('') + '</div>' +
+    ((p.channel !== 'email') && !me.phone ? '<p class="small danger">Add your phone number under My Profile to get texts.</p>' : '') + '</div>';
+  h += secHead('Team And Access', owner && a.members.length < 10 ? addBtn('Invite', 'invite') : '', a.members.length + ' Of 10') +
     '<div class="list">' + a.members.map(function (m) {
       var self = m.user_id === S.user.id;
-      return row({ lead: avatar(m.name || m.email), title: esc(m.name || m.email) + (self ? ' <span class="muted small">(You)</span>' : ''), sub: esc(m.email || ''), right: pill(m.role === 'owner' ? 'Owner' : 'Member', m.role === 'owner' ? 'red' : '') + (owner && !self ? '<button class="link" data-a="remove-member" data-id="' + esc(m.user_id) + '">Remove</button>' : '') });
+      return row({ lead: avatar(m.name || m.email), title: esc(m.name || m.email) + (self ? ' <span class="muted small">(You)</span>' : ''), sub: esc([m.email, m.phone].filter(Boolean).join(' · ')), right: (m.role === 'owner' ? pill('Owner', 'red') : '') + (owner && !self ? '<button class="iconbtn sm" data-a="remove-member" data-id="' + esc(m.user_id) + '" aria-label="Remove ' + esc(m.name || m.email) + '">' + IC.close + '</button>' : '') });
     }).join('') + '</div>' +
-    (a.invites.length ? secHead('Open Invites') + '<div class="list">' + a.invites.map(function (i) {
+    (a.invites.length ? '<div class="grouplbl">Open Invites</div><div class="list">' + a.invites.map(function (i) {
       return '<div class="row"><div class="main"><div class="t">Invite Link</div><div class="urlbox">' + esc(inviteUrl(i.code)) + '</div></div><button class="link" data-a="copy" data-v="' + esc(inviteUrl(i.code)) + '">Copy</button><button class="link" data-a="cancel-invite" data-id="' + esc(i.code) + '">Cancel</button></div>';
     }).join('') + '</div>' : '') +
-    '<p class="small muted">Each login belongs to one ministry. Someone who serves with another ministry signs up there with a different email.</p>' +
-    secHead('Settings') + '<div class="list">' +
-    (owner ? row({ act: 'rename-org', id: 'x', title: 'Ministry Name', sub: esc(a.org.name) }) : '') +
-    row({ act: 'my-name', id: 'x', title: 'Your Name', sub: esc(me.name || '') }) +
-    row({ act: 'leave-org', id: 'x', title: '<span class="danger">Leave This Ministry</span>' }) +
-    row({ act: 'signout', id: 'x', title: 'Sign Out', sub: esc(S.user.email || '') }) + '</div>';
+    '<p class="small muted">Each login belongs to one ministry. Someone who serves with another ministry signs up there with a different email.</p>';
+  h += secHead('Account') + '<div class="list">' +
+    (DB.mode === 'demo' ? row({ act: 'reset-demo', id: 'x', title: 'Reset The Demo', sub: 'Put the sample ministry back the way it started' }) : '') +
+    row({ act: 'signout', id: 'x', title: 'Sign Out', sub: esc(S.user.email || '') }) +
+    row({ act: 'leave-org', id: 'x', title: '<span class="danger">Leave This Ministry</span>', sub: 'You’ll lose access to its events and Directory' }) + '</div>';
+  return h + '<p class="small muted center" style="margin-top:22px">Tent &amp; Table</p></main>';
+}
+var TIMEZONES = [['America/New_York', 'Eastern'], ['America/Chicago', 'Central'], ['America/Denver', 'Mountain'], ['America/Phoenix', 'Arizona'], ['America/Los_Angeles', 'Pacific'], ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii']];
+var F_ORG = [
+  { k: 'name', label: 'Ministry Name', auto: true }, { k: 'about', label: 'About The Ministry', type: 'textarea', ph: 'Who you are and what you do.' },
+  { k: 'phone', label: 'Ministry Phone', type: 'tel', half: true }, { k: 'email', label: 'Ministry Email', type: 'email', half: true },
+  { k: 'website', label: 'Website', type: 'url', ph: 'yourministry.org' }, { k: 'address', label: 'Mailing Address' },
+  { k: 'giving_link', label: 'Online Giving Link', type: 'url', hint: 'New events start with this link.', half: true }, { k: 'timezone', label: 'Time Zone', type: 'select', opts: TIMEZONES, half: true }];
+var F_ME = [{ k: 'name', label: 'Your Name', auto: true }, { k: 'phone', label: 'Mobile Phone', type: 'tel', hint: 'Used for text reminders and shown to your team.' }];
+function editProfile(fields, base, title, fn) {
+  openSheet(function () { return '<h3>' + esc(title) + '</h3>' + formBody(fields, base) + sheetFoot(false); }, function () {
+    var v = readForm(fields, {}); if (!v[fields[0].k]) { sheetErr('Please fill in ' + fields[0].label + '.'); return; }
+    return busy(fn(v), 'Saved').then(function () { closeSheet(); render(); }).catch(function () {});
+  });
 }
 function inviteUrl(code) { return location.origin + location.pathname + '?join=' + code; }
 
@@ -1001,7 +1082,7 @@ function viewCard() {
 
 /* ================================================================ event actions */
 function editEvent(ev) {
-  var base = ev ? Object.assign({}, ev, { sections: ev.sections && ev.sections.length ? ev.sections : SECTIONS.map(function (s) { return s[0]; }) }) : { is_open: true, sections: PRESETS.big.on.slice(), budget: 0 };
+  var base = ev ? Object.assign({}, ev, { sections: ev.sections && ev.sections.length ? ev.sections : SECTIONS.map(function (s) { return s[0]; }) }) : { is_open: true, sections: PRESETS.big.on.slice(), budget: 0, giving_link: org().giving_link || '' };
   editRow('ed_events', ev ? base : null, F.event, { title: ev ? 'Event Details' : 'New Event', base: ev ? null : base, del: false,
     prep: function (v) {
       if (v.ends_on && v.starts_on && v.ends_on < v.starts_on) return 'The last day can’t be before the first day.';
@@ -1081,6 +1162,7 @@ document.addEventListener('change', function (ev) {
   if (k === 'dir-status') { S.dirStatus = t.value; render(); }
   if (k === 'dir-cat') { S.dirCat = t.value; render(); }
   if (k === 'budget-year') { S.budgetYear = +t.value; render(); }
+  if (k === 'notify-channel') { var me = myMember(), p = prefs(); p.channel = t.value; me.prefs = p; render(); DB.updateMe(org().id, { prefs: p }).catch(function (e) { toast(errMsg(e)); }); }
   if (k === 'ci-day') { S.sub.ciDay = t.value; render(); }
   if (k === 'eq-flag') {
     var r = byId('ed_event_equipment', t.getAttribute('data-id')), f = t.getAttribute('data-k'), v = Object.assign({}, r); v[f] = t.checked;
@@ -1099,7 +1181,7 @@ var A = {
   'auth-mode': function (t) { S.authMode = t.getAttribute('data-v'); S.authMsg = ''; render(); },
   'try-demo': function () { lset('ed.mode', 'demo'); location.reload(); },
   'leave-demo': function () { lset('ed.mode', null); location.href = location.pathname; },
-  'reset-demo': function () { ask('Put the demo back to its starting data?', 'Reset Demo', function () { DB.reset(); S.ev = null; S.tab = 'events'; return loadAll().then(function () { render(); toast('Demo reset'); }); }); },
+  'reset-demo': function () { ask('Put the demo back to its starting data?', 'Reset Demo', function () { DB.reset(); S.ev = null; S.tab = 'home'; return loadAll().then(function () { render(); toast('Demo reset'); }); }); },
   signout: function () { DB.signOut().then(function () { if (DB.mode === 'demo') { lset('ed.mode', null); location.href = location.pathname; return; } S.user = null; S.acct = null; S.db = {}; S.ev = null; render(); }); },
   // directory
   'dir-tab': function (t) { S.dirTab = t.getAttribute('data-v'); S.dirQ = ''; S.dirCat = ''; render(); },
@@ -1204,8 +1286,14 @@ var A = {
   'cancel-invite': function (t, id) { DB.cancelInvite(id).then(function () { S.acct.invites = S.acct.invites.filter(function (i) { return i.code !== id; }); render(); }); },
   'remove-member': function (t, id) { var m = S.acct.members.find(function (x) { return x.user_id === id; }); ask('Remove ' + (m.name || m.email) + ' from the ministry?', 'Remove', function () { return busy(DB.rpc('ed_remove_member', { oid: org().id, uid: id }), 'Removed').then(function () { S.acct.members = S.acct.members.filter(function (x) { return x.user_id !== id; }); render(); }); }); },
   'leave-org': function () { ask('Leave ' + org().name + '?', 'Leave', function () { return busy(DB.rpc('ed_remove_member', { oid: org().id, uid: S.user.id })).then(function () { S.acct = null; S.db = {}; render(); }); }, 'You’ll lose access to its events and Directory.'); },
-  'rename-org': function () { var f = [{ k: 'name', label: 'Ministry Name', auto: true }]; openSheet(function () { return '<h3>Ministry Name</h3>' + formBody(f, org()) + sheetFoot(false); }, function () { var v = readForm(f, {}); if (!v.name) { sheetErr('Add a name.'); return; } return busy(DB.renameOrg(org().id, v.name), 'Saved').then(function () { org().name = v.name; closeSheet(); render(); }); }); },
-  'my-name': function () { var me = S.acct.members.find(function (m) { return m.user_id === S.user.id; }), f = [{ k: 'name', label: 'Your Name', auto: true }]; openSheet(function () { return '<h3>Your Name</h3>' + formBody(f, me) + sheetFoot(false); }, function () { var v = readForm(f, {}); if (!v.name) { sheetErr('Add your name.'); return; } return busy(DB.setMyName(org().id, v.name), 'Saved').then(function () { me.name = v.name; closeSheet(); render(); }); }); }
+  'open-settings': function () { S.prevTab = S.tab; S.tab = 'settings'; render(); window.scrollTo(0, 0); },
+  'close-settings': function () { S.tab = S.prevTab || 'home'; render(); window.scrollTo(0, 0); },
+  'open-event-tab': function (t, id) { openEvent(id); S.evTab = t.getAttribute('data-v') || 'overview'; render(); },
+  'edit-org': function () { var o = org(); editProfile(F_ORG, o, 'Ministry Profile', function (v) { var f = {}; F_ORG.forEach(function (x) { f[x.k] = v[x.k] || ''; }); return DB.updateOrg(o.id, f).then(function () { Object.assign(o, f); }); }); },
+  'edit-me': function () { var me = myMember(); editProfile(F_ME, me, 'My Profile', function (v) { return DB.updateMe(org().id, { name: v.name, phone: v.phone || '' }).then(function () { me.name = v.name; me.phone = v.phone || ''; }); }); },
+  'change-email': function () { var f = [{ k: 'email', label: 'New Login Email', type: 'email', auto: true, hint: 'We’ll send a confirmation link to the new address. Your login changes once you click it.' }]; editProfile(f, {}, 'Change Login Email', function (v) { return DB.changeEmail(v.email).then(function () { if (DB.mode === 'demo') { S.user.email = v.email; myMember().email = v.email; } else toast('Check ' + v.email + ' for a confirmation link'); }); }); },
+  'change-pw': function () { var f = [{ k: 'pw', label: 'New Password', auto: true, hint: 'At least 8 characters.' }]; openSheet(function () { return '<h3>Change Password</h3><div class="fgrid"><div class="fld"><label for="f_pw">New Password</label><input class="inp" id="f_pw" name="pw" type="password" minlength="8" autocomplete="new-password" autofocus><span class="hint">At least 8 characters.</span></div></div>' + sheetFoot(false); }, function () { var v = $('#layer #f_pw').value; if (v.length < 8) { sheetErr('Use at least 8 characters.'); return; } return busy(DB.changePassword(v), 'Password changed').then(closeSheet).catch(function () {}); }); },
+  notify: function (t, k) { var me = myMember(), p = prefs(); p[k] = !p[k]; me.prefs = p; render(); DB.updateMe(org().id, { prefs: p }).catch(function (e) { toast(errMsg(e)); }); },
 };
 
 document.addEventListener('submit', function (ev) {
