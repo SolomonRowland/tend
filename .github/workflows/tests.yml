@@ -1,0 +1,24 @@
+name: Tests
+on:
+  push:
+    paths: ['home/**', 'tests/**', '.github/workflows/tests.yml']
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: pg }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci || npm install
+        working-directory: tests
+      - run: npx playwright install --with-deps chromium
+        working-directory: tests
+      - run: bash tests/run.sh
+        env: { PGHOST: 127.0.0.1, PGUSER: postgres, PGPASSWORD: pg }

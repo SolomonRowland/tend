@@ -1,0 +1,7 @@
+{
+  "name": "tend-tests",
+  "private": true,
+  "description": "Tests for Tend Home: database rules plus two-phone sync and every screen, in a real browser.",
+  "scripts": { "test": "bash run.sh" },
+  "dependencies": { "pg": "8.13.1", "playwright": "1.63.0" }
+}
