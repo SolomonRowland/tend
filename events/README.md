@@ -1,19 +1,20 @@
 # The Ministry Table
 
-A phone-friendly web app for running a ministry's events. One ministry account (up to 10 people) holds many events, from the annual tent revival to a monthly board meeting, and each event uses only the sections it needs:
+A phone-friendly web app for running a ministry's events, from the annual tent revival to a monthly board meeting.
 
-- Speakers, worship team (with set lists), counselors and team, agenda and meeting notes
-- Volunteers and food sign-ups, with day-of check-in
-- Vendors, setup and teardown tasks, equipment packing
-- Giving (offerings with two counters, deposits, costs) and follow-up on connection cards
-- Share links and QR codes for the public pages
+## How It's Organized
 
-The **Directory** is shared by every event: people, vendors, contacts, equipment inventory and the yearly budget.
-
-Volunteers and guests use two public pages with no account: `#/e/<event>` to sign up and `#/c/<event>` for a connection card.
+- **One login, one ministry.** A ministry account holds up to 10 logins. Each login (email) belongs to exactly one ministry; someone who serves with two ministries signs up for each with a different email. The database enforces this (`ed_members.user_id` is unique).
+- **Directory** (the ministry's pool), in tabs: People (team members with titles, worship, speakers, volunteers; status Current or Previous), Vendors, Contacts, Equipment inventory, and Budget by year. Every person, vendor and contact can be called, texted, emailed, mapped or visited from their card.
+- **Events.** Each event opens in its own workspace with tabs for the sections it uses (Overview, Calendar, People, Agenda, Vendors & Contacts, Equipment, Food, Tasks, Money, Follow-Up, Share). An event pulls what it needs from the Directory: the people serving and their role, vendors with cost, payment status, who pays and when it's due, contacts, and how many of each equipment item. Equipment that is double-booked across overlapping events is flagged.
+- **Annual events.** Open last year's event and choose **Start Next Year**: dates move to the new year, tasks and checklists reset, vendor payments reset, and sign-ups, volunteers and money are cleared (each is a checkbox). **Duplicate As A New Event** uses an event as a template for another.
+- **Public pages** (no account): `#/e/<event>` for volunteer and meal sign-ups, `#/c/<event>` for a connection card.
 
 ## Files
 
-- `index.html` is the app. It uses `../home/supabase.js` (the same Supabase client as Tend Home) and `qrcode.js` (MIT, Kazuhiko Arase) for QR codes.
-- `supabase/schema.sql` sets up the database. Paste it into Supabase's SQL Editor and run it; it is safe to run again. Every table starts with `ed_`, so it can share the Tend Home project without touching Tend's data.
-- Add `?demo` to the URL, or tap **Try the demo** on the sign-in screen, to explore with sample data kept in the browser.
+- `index.html` holds the styles and loads the scripts.
+- `data.js` is the data layer: `CloudDB` (Supabase) and `DemoDB` (browser storage, same API) plus the demo ministry.
+- `app.js` is the screens.
+- `supabase/schema.sql` sets up the database. Paste it into Supabase's SQL Editor and run it; it is safe to run again. Every table starts with `ed_`, so it can share the Tend Home project without touching Tend's data. Row-level security keeps each ministry's rows to its own members, and the public pages go through a few `security definer` functions.
+- `../home/supabase.js` is the Supabase client shared with Tend Home, and `qrcode.js` (MIT, Kazuhiko Arase) draws QR codes.
+- Add `?demo` to the URL, or tap **Try The Demo** on the sign-in screen, to explore with sample data kept in the browser.

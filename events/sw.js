@@ -1,6 +1,6 @@
 /* The Ministry Table: keep the app shell available offline. Data always comes from the network. */
-var CACHE = 'ministry-table-v1';
-var SHELL = ['./', './index.html', './qrcode.js', '../home/supabase.js', './icon.svg', './manifest.webmanifest'];
+var CACHE = 'ministry-table-v2';
+var SHELL = ['./', './index.html', './qrcode.js', './data.js', './app.js', '../home/supabase.js', './icon.svg', './manifest.webmanifest'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); })); });
 self.addEventListener('activate', function (e) { e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); })); });
 self.addEventListener('fetch', function (e) {
