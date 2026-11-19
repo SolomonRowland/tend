@@ -58,7 +58,7 @@ document.body.appendChild(photoInput);
 photoInput.addEventListener('change', function () {
   var f = photoInput.files && photoInput.files[0], tgt = photoInput.target; photoInput.value = '';
   if (!f || !tgt) return;
-  if (!C.online && !navigator.onLine) { toast('Adding photos needs a connection.'); return; }
+  if (!C.online && !navigator.onLine) { warn('Adding photos needs a connection.'); return; }
   var hid = C.hid, path = hid + '/' + tgt.id + '/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + '.jpg';
   ui.photoBusy = true; keepRender();
   shrinkPhoto(f).then(function (blob) {
@@ -69,7 +69,7 @@ photoInput.addEventListener('change', function () {
       o.photos = (o.photos || []).concat([{ p: path, at: iso(today()), by: db.user }]).slice(0, PHOTO_MAX);
       save();
     });
-  }).then(function () { ui.photoBusy = false; keepRender(); }, function (e) { ui.photoBusy = false; keepRender(); toast(cloudMsg(e)); });
+  }).then(function () { ui.photoBusy = false; keepRender(); }, function (e) { ui.photoBusy = false; keepRender(); warn(cloudMsg(e)); });
 });
 
 /* full-screen viewer */

@@ -52,16 +52,28 @@ function cloudInit() {
   });
   C.sb.auth.getSession().then(function (r) {
     var s = r && r.data && r.data.session; C.user = s ? s.user : null;
+    // Offline with an expired sign-in: the sign-in is still saved, it just can't be refreshed
+    // until there's signal. Keep showing the household's list instead of the sign-in screen.
+    if (!C.user && cached && hasSavedSignIn() && !navigator.onLine) { C.user = { id: cached.uid, email: cached.email || '' }; C.waitingForSignal = true; }
     if (C.user && cached && cached.uid === C.user.id) useHousehold(cached);
-    C.ready = true; render(); afterAuth();
+    C.ready = true; render(); if (!C.waitingForSignal) afterAuth();
   }, function () { C.ready = true; render(); });
-  window.addEventListener('online', function () { pull(); schedulePush(); });
+  window.addEventListener('online', function () {
+    if (C.waitingForSignal) { C.waitingForSignal = false; C.sb.auth.getSession().then(function (r) { var s = r && r.data && r.data.session; if (!s) { C.user = null; afterAuth(); } else { C.user = s.user; pull(); schedulePush(); } }); return; }
+    pull(); schedulePush();
+  });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && C.hid) { pull(); schedulePush(); checkStillMember(); } });
   setInterval(function () { if (C.hid && document.visibilityState === 'visible') { pull(); if (pendingCount()) push(); } }, 60000);
 }
+function hasSavedSignIn() { try { for (var i = 0; i < localStorage.length; i++) if (/^sb-.+-auth-token$/.test(localStorage.key(i))) return true; } catch (e) {} return false; }
 /* Runs once per sign-in, even though both the sign-in screen and the auth listener ask for it. */
 function afterAuth() {
-  if (!C.user) { C.authP = null; C.authUid = null; dropHousehold(); render(); return Promise.resolve(); }
+  if (!C.user) {
+    // signed out (here, or the sign-in ran out): this phone stops getting that household's heads-up and keeps no copy of it
+    var was = C.hid; if (!was) { try { was = (JSON.parse(cget('house') || 'null') || {}).hid; } catch (e) {} }
+    if (was) { forgetHousehold(was); notifyForget().catch(function () {}); }
+    C.authP = null; C.authUid = null; dropHousehold(); render(); return Promise.resolve();
+  }
   if (C.authP && C.authUid === C.user.id) return C.authP;
   C.authUid = C.user.id;
   var p = C.authP = refreshHousehold().then(function () {
@@ -85,7 +97,7 @@ function refreshHousehold() {
     if (r.error) throw r.error;
     var row = r.data && r.data[0];
     if (!row) { if (C.hid) dropHousehold(); return; }
-    useHousehold({ uid: C.user.id, hid: row.household_id, name: row.households ? row.households.name : 'Our Home', role: row.role });
+    useHousehold({ uid: C.user.id, email: C.user.email || '', hid: row.household_id, name: row.households ? row.households.name : 'Our Home', role: row.role });
     return loadMembers();
   });
 }
@@ -112,6 +124,10 @@ function loadMembers() {
     C.members = r.data || [];
     var me = C.members.find(function (x) { return x.user_id === C.user.id; }), pf = getProfile().first;
     if (me && pf && me.name !== pf) { me.name = pf; C.sb.from('members').update({ name: pf }).eq('household_id', hid).eq('user_id', C.user.id).then(function () {}); }
+    // The shared list of names (for "Whose job" and birthdays) follows who is actually in the household,
+    // so people who left drop off. Every phone reads the same table, so they all agree.
+    var names = []; C.members.forEach(function (x) { if (x.name && names.indexOf(x.name) < 0) names.push(x.name); });
+    if (db && names.length && stable(names) !== stable(db.members)) { db.members = names; save(); }
     if (C.role !== 'owner') return;
     return C.sb.from('invites').select('code, expires_at').eq('household_id', hid).order('created_at').then(function (q) {
       if (q.error) return; C.invites = q.data || [];
@@ -207,17 +223,21 @@ function pull() {
     return q.order('updated_at', { ascending: true }).range(from, from + 999).then(function (r) {
       if (r.error) throw r.error;
       var got = r.data || [];
-      got.forEach(function (x) { var k = x.kind + ':' + x.id + '@' + x.updated_at; if (!seen[k]) { seen[k] = 1; rows.push(x); } });
+      got.forEach(function (x) { var k = x.kind + ':' + x.id; if (!seen[k] || seen[k].updated_at <= x.updated_at) seen[k] = x; }); // newest version of each wins
       if (got.length < 1000) return;
       var last = got[got.length - 1].updated_at;
       return last === cursor ? page(cursor, from + 1000) : page(last, 0);
     });
   }
-  return page(since, 0).then(function () { if (hid === C.hid) { C.firstPull = true; C.pullErr = ''; applyRows(rows); setOnline(true); } }, function (e) {
+  return page(since, 0).then(function () {
+    if (hid !== C.hid) return;
+    Object.keys(seen).forEach(function (k) { rows.push(seen[k]); });
+    rows.sort(function (a, b) { return a.updated_at < b.updated_at ? -1 : a.updated_at > b.updated_at ? 1 : 0; });
+    C.firstPull = true; C.pullErr = ''; applyRows(rows); setOnline(true);
+  }).catch(function (e) {
     if (hid !== C.hid) return;
     setOnline(false, e); if (!db) { C.pullErr = cloudMsg(e); render(); } else refreshView();
-  })
-    .then(function () { C.pulling = false; if (C.pullAgain) { C.pullAgain = false; return pull(); } });
+  }).then(function () { C.pulling = false; if (C.pullAgain) { C.pullAgain = false; return pull(); } });
 }
 function mergeHistory(a, b) {
   var seen = {}, out = [];
@@ -229,6 +249,7 @@ function applyRows(rows) {
   var base = db || blank(), cur = recMap(base), changed = {}, keepLocal = {}, any = false;
   rows.forEach(function (r) {
     if (!C.since || r.updated_at > C.since) C.since = r.updated_at;
+    if (!r.deleted && (!r.data || typeof r.data !== 'object' || Array.isArray(r.data))) return; // a damaged record is skipped, never allowed to stop sync
     var k = r.kind + ':' + r.id, local = cur[k], localJ = local ? stable(local) : undefined;
     // a change only counts as ours-and-unsent if it isn't already on its way to the server
     var dirty = localJ !== C.snap[k] && !(local && C.inflight[k] === localJ);
@@ -302,7 +323,7 @@ function makeInvite() {
     var text = 'Join our household on Tend so we share one list of what needs doing. Open this link, create an account, and you’re in:';
     if (navigator.share) navigator.share({ title: 'Join our Tend household', text: text, url: C.inviteLink }).catch(function () {});
     keepRender();
-  }).catch(function (e) { toast(cloudMsg(e)); });
+  }).catch(function (e) { warn(cloudMsg(e)); });
 }
 function signOut() {
   var hid = C.hid;
@@ -379,8 +400,8 @@ function cloudSettings() {
   h += '<p class="note" style="text-align:left;padding:8px 20px 0">' + (!C.online ? 'Offline. ' + (pend ? pend + (pend === 1 ? ' change' : ' changes') + ' will sync when you’re back online.' : 'Your list will update when you’re back online.')
     : pend ? 'Syncing ' + pend + (pend === 1 ? ' change' : ' changes') + '…' : 'Everything is synced' + (C.lastSync ? ' · ' + new Date(C.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '') + '.') + '</p>';
   h += '<div class="stack" style="margin-top:6px">' +
-    (!owner ? '<button class="btn secondary" data-act="house-leave"' + (ui.armed === 'leave' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'leave' ? 'Tap Again to Leave' : 'Leave Household') + '</button>' : '') +
-    '<button class="btn secondary" data-act="sign-out"' + (ui.armed === 'signout' ? ' style="background:var(--rose);color:#fff"' : '') + '>' + (ui.armed === 'signout' ? (pend ? 'Tap Again: ' + pend + ' Unsynced Changes Will Be Lost' : 'Tap Again to Sign Out') : 'Sign Out') + '</button></div>';
+    (!owner ? '<button class="btn secondary" data-act="house-leave"' + (ui.armed === 'leave' ? ' style="background:var(--fill);color:#fff"' : '') + '>' + (ui.armed === 'leave' ? 'Tap Again to Leave' : 'Leave Household') + '</button>' : '') +
+    '<button class="btn secondary" data-act="sign-out"' + (ui.armed === 'signout' ? ' style="background:var(--fill);color:#fff"' : '') + '>' + (ui.armed === 'signout' ? (pend ? 'Tap Again: ' + pend + ' Unsynced Changes Will Be Lost' : 'Tap Again to Sign Out') : 'Sign Out') + '</button></div>';
   return h;
 }
 
@@ -424,20 +445,20 @@ function cloudAct(a, el) {
     case 'invite': makeInvite(); return true;
     case 'invite-copy': copyText(C.inviteLink, el); return true;
     case 'invite-cancel':
-      C.sb.from('invites').delete().eq('code', el.getAttribute('data-code')).then(function () { C.inviteLink = ''; return loadMembers(); }).then(function () { keepRender(); }, function (e) { toast(cloudMsg(e)); });
+      C.sb.from('invites').delete().eq('code', el.getAttribute('data-code')).then(function () { C.inviteLink = ''; return loadMembers(); }).then(function () { keepRender(); }, function (e) { warn(cloudMsg(e)); });
       return true;
     case 'member-rm':
       var uid = el.getAttribute('data-uid');
       if (ui.armed !== 'rm-' + uid) { ui.armed = 'rm-' + uid; keepRender(); return true; }
       ui.armed = null;
-      C.sb.rpc('remove_member', { hid: C.hid, uid: uid }).then(function (r) { if (r.error) throw r.error; return loadMembers(); }).then(function () { keepRender(); toast('Removed from the household.'); }, function (e) { toast(cloudMsg(e)); });
+      C.sb.rpc('remove_member', { hid: C.hid, uid: uid }).then(function (r) { if (r.error) throw r.error; return loadMembers(); }).then(function () { keepRender(); toast('Removed from the household.'); }, function (e) { warn(cloudMsg(e)); });
       return true;
     case 'house-leave':
       if (ui.armed !== 'leave') { ui.armed = 'leave'; keepRender(); return true; }
       ui.armed = null;
       C.sb.rpc('remove_member', { hid: C.hid, uid: C.user.id }).then(function (r) {
         if (r.error) throw r.error; var hid = C.hid; try { localStorage.removeItem('tend.data.h.' + hid); } catch (e) {} cset('sync.' + hid, null); dropHousehold(); ui.stack = []; ui.screen = 'home'; render();
-      }).catch(function (e) { toast(cloudMsg(e)); });
+      }).catch(function (e) { warn(cloudMsg(e)); });
       return true;
     case 'sign-out':
       if (ui.screen === 'settings' && ui.armed !== 'signout') { ui.armed = 'signout'; keepRender(); return true; }

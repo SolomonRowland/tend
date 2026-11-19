@@ -1,7 +1,7 @@
 // Browser-side stand-in for supabase-js, talking to mock/server.js.
 window.TEND_CLOUD_FACTORY = function () {
   var BASE = 'http://localhost:8790', listeners = [];
-  function sess() { try { return JSON.parse(localStorage.getItem('mock.session') || 'null'); } catch (e) { return null; } }
+  function sess() { try { return JSON.parse(localStorage.getItem('sb-mock-auth-token') || 'null'); } catch (e) { return null; } }
   function post(path, body) {
     if (window.__offline) return Promise.reject(new TypeError('Failed to fetch'));
     var s = sess(); body.token = s ? s.access_token : null;
@@ -25,9 +25,9 @@ window.TEND_CLOUD_FACTORY = function () {
     auth: {
       onAuthStateChange: function (f) { listeners.push(f); return { data: { subscription: { unsubscribe: function () {} } } }; },
       getSession: function () { return Promise.resolve({ data: { session: sess() } }); },
-      signUp: function (o) { return post('/signup', o).then(function (r) { if (r.data) { localStorage.setItem('mock.session', JSON.stringify(r.data.session)); emit('SIGNED_IN', r.data.session); } return r; }); },
-      signInWithPassword: function (o) { return post('/signin', o).then(function (r) { if (r.data) { localStorage.setItem('mock.session', JSON.stringify(r.data.session)); emit('SIGNED_IN', r.data.session); } return r; }); },
-      signOut: function () { localStorage.removeItem('mock.session'); emit('SIGNED_OUT', null); return Promise.resolve({}); },
+      signUp: function (o) { return post('/signup', o).then(function (r) { if (r.data) { localStorage.setItem('sb-mock-auth-token', JSON.stringify(r.data.session)); emit('SIGNED_IN', r.data.session); } return r; }); },
+      signInWithPassword: function (o) { return post('/signin', o).then(function (r) { if (r.data) { localStorage.setItem('sb-mock-auth-token', JSON.stringify(r.data.session)); emit('SIGNED_IN', r.data.session); } return r; }); },
+      signOut: function () { localStorage.removeItem('sb-mock-auth-token'); emit('SIGNED_OUT', null); return Promise.resolve({}); },
       resetPasswordForEmail: function () { return Promise.resolve({}); },
       updateUser: function () { return Promise.resolve({}); }
     },

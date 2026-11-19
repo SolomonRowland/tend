@@ -12,7 +12,7 @@ var FREQS = [['Weekly',0,7],['Every 2 weeks',0,14],['Monthly',1,0],['Every 2 mon
 var FREQ = {}; FREQS.forEach(function (f) { FREQ[f[0]] = { mo: f[1], dy: f[2] }; });
 var MILESTONES = [0,0.5,1,3,6,9,12,15,18,24,30,36,48,60,72,84,96,108,120,132,144,156,168,180,192,204,216];
 var WHERE_GROUPS = [
-  ['People', ['Family', 'Adults', 'Kids', 'Solomon', 'Kelly', 'Solomon & Kelly', 'Pets']],
+  ['People', ['Family', 'Adults', 'Kids', 'Pets']], // plus everyone in the household (added from the list itself)
   ['Inside', ['Whole house', 'Kitchen', 'Bathrooms', 'Kitchen & baths', 'Bedrooms', 'All beds', 'Living areas', 'Laundry', 'Laundry / Kitchen', 'Basement', 'Attic', 'HVAC', 'Utility', 'Home office', 'Home']],
   ['Outside', ['Exterior', 'Roof & gutters', 'Garage', 'Yard', 'Patio', 'Deck', 'Pool', 'Driveway']],
   ['Vehicles', ['All vehicles', "Kids' car seats"]],
@@ -58,13 +58,13 @@ function load() {
 function save() {
   db.savedAt = new Date().toISOString();
   try { localStorage.setItem(KEY, JSON.stringify(db)); storageOk = true; }
-  catch (e) { storageOk = false; toast('Couldn\u2019t save on this phone. Save a backup now.'); }
+  catch (e) { storageOk = false; warn('Couldn\u2019t save on this phone. Save a backup now.'); }
   if (C.on && C.hid) schedulePush();
 }
 function normalize(d) {
   var out = blank();
   out.user = d.user || '';
-  out.members = Array.isArray(d.members) ? d.members.filter(Boolean).map(String).slice(0, 6) : [];
+  out.members = Array.isArray(d.members) ? d.members.filter(Boolean).map(String).slice(0, 12) : [];
   out.lastBackup = d.lastBackup || null; out.noBday = !!d.noBday;
   var n = 1;
   out.contacts = (d.contacts || []).map(function (c) {
@@ -211,21 +211,24 @@ function rows() {
 }
 
 /* ---------- ui state ---------- */
-var ui = { screen: 'home', stack: [], filter: 'all', cat: '', q: '', cq: '', bq: '', dir: 'contacts', st: null, itemId: null, taskId: null, conId: null, flash: null, undo: null, calY: 0, calM: 0, calDay: null, form: null, armed: null, mine: false };
+var ui = { screen: 'home', stack: [], filter: 'all', cat: '', q: '', cq: '', bq: '', dir: 'contacts', st: null, itemId: null, taskId: null, conId: null, calY: 0, calM: 0, calDay: null, form: null, armed: null, mine: false };
 try { ui.mine = localStorage.getItem('tend.mine') === '1'; } catch (e) {}
 function go(screen, opts, push) {
   if (push) ui.stack.push({ screen: ui.screen, taskId: ui.taskId, conId: ui.conId, itemId: ui.itemId, scroll: view.scrollTop });
   else ui.stack = [];
-  hideToast(); ui.screen = screen; ui.flash = null; ui.undo = null; ui.armed = null; ui.completing = null;
+  hideToast(); ui.screen = screen; ui.armed = null; ui.completing = null;
   Object.keys(opts || {}).forEach(function (k) { ui[k] = opts[k]; });
   render(); view.scrollTop = 0;
 }
 function back() {
   var p = ui.stack.pop(); if (!p) { go('home'); return; }
-  hideToast(); ui.screen = p.screen; ui.taskId = p.taskId; ui.conId = p.conId; if (p.itemId !== undefined) ui.itemId = p.itemId; ui.flash = null; ui.undo = null; ui.armed = null; ui.form = null;
+  hideToast(); ui.screen = p.screen; ui.taskId = p.taskId; ui.conId = p.conId; if (p.itemId !== undefined) ui.itemId = p.itemId; ui.armed = null; ui.form = null;
   render(); view.scrollTop = p.scroll || 0;
 }
-function toast(msg) { ui.flash = msg; ui.undo = null; render(); }
+/* A short message that floats above the tab bar, wherever the person has scrolled to.
+   warn() is the same for problems: a different look, and read out right away by VoiceOver. */
+function toast(msg) { render(); showToast(msg); }
+function warn(msg) { render(); showToast(msg, null, true); }
 
 /* ---------- icons ---------- */
 var I = {
@@ -233,7 +236,7 @@ var I = {
   tasks: '<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6l1 1 2-2"/><path d="M4 12l1 1 2-2"/><path d="M4 18l1 1 2-2"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>',
   people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M21.5 20a6.5 6.5 0 0 0-4-6"/>',
-  back: '<path d="M15 18l-6-6 6-6"/>', next: '<path d="M9 6l6 6-6 6"/>', check: '<path d="M20 6L9 17l-5-5"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>', next: '<path d="M9 6l6 6-6 6"/>', check: '<path d="M20 6L9 17l-5-5"/>', alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5h.01"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', x: '<path d="M18 6L6 18"/><path d="M6 6l12 12"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>', down: '<path d="M6 9l6 6 6-6"/>',

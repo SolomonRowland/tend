@@ -27,7 +27,7 @@ async function swipe(p, sel, dx, dy) {
     const ctx = await b.newContext({ ...devices['iPhone 13'], deviceScaleFactor: 1 });
     await ctx.addInitScript(MOCK);
     await ctx.addInitScript(([f, x]) => {
-      localStorage.setItem('tend.tickHint', '1');
+      localStorage.setItem('tend.swipeHint', '1');
       if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: f, last: 'Rowland', phone: '(630) 555-0100', email: f + '@x.com', dob: '1990-03-14', prefsSet: true }));
       if (x && !localStorage.getItem('tend.data.v1')) localStorage.setItem('tend.data.v1', x);
     }, [first, extra || null]);

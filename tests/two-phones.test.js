@@ -49,7 +49,7 @@ async function waitFor(p, fn, arg, ms = 8000) { const t = Date.now(); while (Dat
   check('A gets kelly birthday', await waitFor(A, () => db.tasks.some(t => t.auto === 'birthday' && t.who === 'Kelly')));
   check('members both', await waitFor(A, () => db.members.indexOf('Kelly') >= 0 && db.members.indexOf('Solomon') >= 0));
   // Kelly ticks first task on home
-  await B.evaluate(() => { localStorage.setItem('tend.tickHint', '1'); go('home'); });
+  await B.evaluate(() => { localStorage.setItem('tend.swipeHint', '1'); go('home'); });
   const tid = await B.evaluate(() => document.querySelector('.row.split .tick').getAttribute('data-id'));
   await B.click('.row.split .tick');
   check('A sees Kelly completion', await waitFor(A, id => { const t = db.tasks.find(x => x.id === id); return t && t.history[0] && t.history[0].by === 'Kelly'; }, tid), tid);

@@ -14,7 +14,7 @@ async function waitFor(p, fn, arg, ms = 8000) { const t = Date.now(); while (Dat
   async function phone(first) {
     const ctx = await b.newContext({ ...devices['iPhone 13'], deviceScaleFactor: 1 });
     await ctx.addInitScript(MOCK);
-    await ctx.addInitScript(f => { localStorage.setItem('tend.tickHint', '1'); if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: f, last: 'Rowland', phone: '(630) 555-0100', email: f + '@x.com', dob: '1990-03-14', prefsSet: true })); }, first);
+    await ctx.addInitScript(f => { localStorage.setItem('tend.swipeHint', '1'); if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: f, last: 'Rowland', phone: '(630) 555-0100', email: f + '@x.com', dob: '1990-03-14', prefsSet: true })); }, first);
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(first + ': ' + e.message)); return p;
   }
   const A = await phone('Solomon');

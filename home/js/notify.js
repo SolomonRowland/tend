@@ -31,7 +31,7 @@ function notifyCheck() {
       if (row && row.household_id !== C.hid) saveSub(sub).catch(function () {});
       if (ui.screen === 'settings') keepRender();
     });
-  }).catch(function () { N.state = 'off'; });
+  }).catch(function () { N.state = 'off'; if (ui.screen === 'settings') keepRender(); });
 }
 function phoneTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago'; } catch (e) { return 'America/Chicago'; } }
 /* save (or take over) this phone's subscription for the signed-in person and household */
@@ -87,8 +87,9 @@ function notifyOff() {
 function notifyHour(h) {
   N.hour = h; keepRender();
   swReady().then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
-    if (sub) return C.sb.from('push_subs').update({ hour: h, tz: phoneTz() }).eq('endpoint', sub.endpoint).then(function (r) { if (r.error) throw r.error; });
-  }).then(function () { toast('You’ll get your heads-up at ' + hourLabel(h) + '.'); }, function (e) { toast(cloudMsg(e)); });
+    // through save_push_sub, so it lands even if this phone's row needs taking over
+    if (sub) return saveSub(sub);
+  }).then(function () { toast('You’ll get your heads-up at ' + hourLabel(h) + '.'); }, function (e) { warn(cloudMsg(e)); });
 }
 function notifyTest() {
   N.busy = true; keepRender();
@@ -96,7 +97,7 @@ function notifyTest() {
     N.busy = false; keepRender();
     if (r.error) throw r.error;
     toast(r.data && r.data.sent ? 'Test sent. It should pop up in a few seconds.' : 'Nothing was sent. Try turning notifications off and on again.');
-  }).catch(function (e) { N.busy = false; keepRender(); toast(cloudMsg(e)); });
+  }).catch(function (e) { N.busy = false; keepRender(); warn(cloudMsg(e)); });
 }
 function hourLabel(h) { var m = NOTIFY_HOURS.find(function (x) { return x[0] === h; }); return m ? m[1] : h + ':00'; }
 
@@ -120,7 +121,7 @@ function notifySettings() {
   h += '<div class="listcard" role="radiogroup">' + NOTIFY_HOURS.map(function (x) {
     var on = x[0] === N.hour;
     return '<button type="button" class="lrow" role="radio" aria-checked="' + on + '" data-act="notify-hour" data-v="' + x[0] + '"><span class="t">' + x[1] + '</span>' +
-      '<span style="width:24px;height:24px;flex:0 0 24px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (on ? 'background:var(--rose);color:#fff' : 'border:2px solid var(--dusty)') + '">' + (on ? ic('check', 13, 3) : '') + '</span></button>';
+      '<span style="width:24px;height:24px;flex:0 0 24px;border-radius:999px;display:flex;align-items:center;justify-content:center;' + (on ? 'background:var(--fill);color:#fff' : 'border:2px solid var(--dusty)') + '">' + (on ? ic('check', 13, 3) : '') + '</span></button>';
   }).join('') + '</div>';
   if (N.msg) h += '<p class="cerr" style="margin:8px 16px 0">' + esc(N.msg) + '</p>';
   h += '<div class="btns2" style="margin:10px 16px 0"><button class="btn secondary" data-act="notify-test"' + (N.busy ? ' disabled' : '') + '>Send a Test</button><button class="btn secondary" data-act="notify-off"' + (N.busy ? ' disabled' : '') + '>Turn Off</button></div>';

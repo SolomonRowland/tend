@@ -37,7 +37,6 @@ function quickDone(qid, qrow) {
   var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
   var qm = qrow.querySelector('.open .st .meta'); if (qm) qm.textContent = qn ? 'Next ' + fmt(qn) : '';
   if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
-  ui.flash = null; ui.undo = null;
   var box = qrow.closest('.swipe') || qrow;
   setTimeout(function () { box.classList.add('gone'); }, 900);
   var on = ui.screen; // if they've moved on to another screen by then, don't pop a toast over it
@@ -53,6 +52,8 @@ function quickSnooze(id, row) {
   setTimeout(function () { if (ui.screen !== on) return; keepRender(); showToast('Snoozed ' + t.name + ' until ' + fmt(until) + '.', qb); }, 300);
 }
 /* Undo keeps a copy of just the one task it changes, so a housemate's edits that sync in meanwhile are never rolled back */
+/* new contacts start in the state most of your contacts are in */
+function usualState() { var n = {}, best = ''; db.contacts.forEach(function (c) { if (c.state) { n[c.state] = (n[c.state] || 0) + 1; if (!best || n[c.state] > n[best]) best = c.state; } }); return best; }
 function snapshot(id) { var t = db.tasks.find(function (x) { return x.id === id; }); return t ? JSON.stringify(t) : null; }
 function restoreSnap(snap) {
   if (!snap) return; var old = JSON.parse(snap), i = db.tasks.findIndex(function (x) { return x.id === old.id; });
@@ -68,8 +69,7 @@ function markDone(dateIso, note) {
   t.last = t.history[0].date; t.snooze = null;
   save();
   var n = nextDue(t);
-  ui.flash = 'Done' + (dateIso !== iso(today()) ? ' on ' + fmt(parse(dateIso)) : '') + '. ' + (n ? 'Next due ' + fmt(n, true) + '.' : t.freq === 'One-time' ? 'All finished.' : '');
-  ui.undo = before; render();
+  render(); showToast('Done' + (dateIso !== iso(today()) ? ' on ' + fmt(parse(dateIso)) : '') + '. ' + (n ? 'Next due ' + fmt(n, true) + '.' : t.freq === 'One-time' ? 'All finished.' : ''), before);
 }
 function downloadFile(name, text, type) {
   var file;
@@ -119,14 +119,14 @@ function googleCalUrl(t) {
 }
 function restoreFrom(text) {
   var d;
-  try { d = JSON.parse(text); } catch (e) { toast('That file isn\u2019t a Tend file.'); return; }
-  if (!d || !Array.isArray(d.tasks)) { toast('That file isn\u2019t a Tend file.'); return; }
+  try { d = JSON.parse(text); } catch (e) { warn('That file isn\u2019t a Tend file.'); return; }
+  if (!d || !Array.isArray(d.tasks)) { warn('That file isn\u2019t a Tend file.'); return; }
   var had = !!db;
   if (d.profile && !profileDone() && profileDone(d.profile)) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(d.profile)); } catch (e) {} }
   db = normalize(d);
   syncUser();
   save(); ui.stack = []; ui.screen = 'home';
-  ui.flash = null; render(); view.scrollTop = 0;
+  render(); view.scrollTop = 0;
   if (had) { ui.screen = 'settings'; toast('Restored ' + db.tasks.length + ' tasks and ' + db.contacts.length + ' contacts.'); }
 }
 var fileInput = document.getElementById('restoreFile');
@@ -223,7 +223,7 @@ document.addEventListener('click', function (e) {
     case 'settings': go('settings', {}, true); break;
     case 'list': go('list', { filter: el.getAttribute('data-filter') || 'all', cat: el.getAttribute('data-cat') || '', q: '' }); break;
     case 'mine': ui.mine = !ui.mine; try { localStorage.setItem('tend.mine', ui.mine ? '1' : ''); } catch (x) {} keepRender(); break;
-    case 'filter': ui.filter = el.getAttribute('data-filter'); ui.flash = null; ui.undo = null; render(); break;
+    case 'filter': ui.filter = el.getAttribute('data-filter'); render(); break;
     case 'task': go('task', { taskId: el.getAttribute('data-id') }, true); break;
     case 'contact': go('contact', { conId: el.getAttribute('data-id') }, true); break;
     case 'back': back(); break;
@@ -234,20 +234,19 @@ document.addEventListener('click', function (e) {
     case 'cal-today': ui.calY = T.getFullYear(); ui.calM = T.getMonth(); ui.calDay = iso(T); render(); break;
     case 'month': var m = new Date(ui.calY, ui.calM + (+el.getAttribute('data-step')), 1); ui.calY = m.getFullYear(); ui.calM = m.getMonth(); ui.calDay = iso(m); render(); break;
     case 'done': markDone(iso(T)); break;
-    case 'complete-open': ui.completing = ui.taskId; ui.flash = null; ui.undo = null; keepRender(); break;
+    case 'complete-open': ui.completing = ui.taskId; keepRender(); break;
     case 'complete-cancel': ui.completing = null; keepRender(); break;
     case 'complete-save':
       var dd = document.getElementById('doneDate'), dv = dd && dd.value;
-      if (!dv || !parse(dv)) { toast('Pick the date you finished it.'); break; }
-      if (dv > iso(T)) { toast('Pick today or an earlier day.'); break; }
+      if (!dv || !parse(dv)) { warn('Pick the date you finished it.'); break; }
+      if (dv > iso(T)) { warn('Pick today or an earlier day.'); break; }
       var dn = document.getElementById('doneNote'); ui.completing = null; markDone(dv, dn ? dn.value.trim() : ''); break;
     case 'quick-done': quickDone(el.getAttribute('data-id'), el.closest('.row')); break;
     case 'undo-toast': if (showToast.undo) { restoreSnap(showToast.undo); hideToast(); keepRender(); showToast('Undone.'); } break;
     case 'hint-ok': hideHint(); keepRender(); break;
-    case 'undo': if (ui.undo) { var uk = view.scrollTop; restoreSnap(ui.undo); ui.undo = null; ui.flash = 'Undone.'; render(); view.scrollTop = uk; } break;
     case 'snooze':
       var st = db.tasks.find(function (x) { return x.id === ui.taskId; });
-      if (st) { var on = st.snooze && parse(st.snooze) > T; st.snooze = on ? null : iso(addDays(T, 7)); save(); toast(on ? 'Snooze removed.' : 'Snoozed until ' + fmt(addDays(T, 7)) + '. It still turns red if the deadline passes.'); }
+      if (st) { var sb4 = snapshot(st.id), on = st.snooze && parse(st.snooze) > T; st.snooze = on ? null : iso(addDays(T, 7)); save(); keepRender(); showToast(on ? 'Snooze removed.' : 'Snoozed until ' + fmt(addDays(T, 7)) + '. It still turns red if the deadline passes.', sb4); }
       break;
     case 'ics':
       var it = db.tasks.find(function (x) { return x.id === ui.taskId; });
@@ -259,7 +258,7 @@ document.addEventListener('click', function (e) {
       var k = 'hist' + el.getAttribute('data-idx');
       if (ui.armed !== k) { ui.armed = k; render(); break; }
       var ht = db.tasks.find(function (x) { return x.id === ui.taskId; });
-      if (ht) { var before = snapshot(ht.id); ht.history.splice(+el.getAttribute('data-idx'), 1); ht.last = ht.history[0] ? ht.history[0].date : null; save(); ui.armed = null; ui.flash = 'Entry removed.'; ui.undo = before; render(); }
+      if (ht) { var before = snapshot(ht.id); ht.history.splice(+el.getAttribute('data-idx'), 1); ht.last = ht.history[0] ? ht.history[0].date : null; save(); ui.armed = null; keepRender(); showToast('Completion removed.', before); }
       break;
     case 'edit-task':
       var et = db.tasks.find(function (x) { return x.id === ui.taskId; });
@@ -274,7 +273,7 @@ document.addEventListener('click', function (e) {
       db.tasks = db.tasks.filter(function (x) { return x.id !== ui.form.id; }); save(); ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); toast('Task deleted.'); break;
     case 'edit-contact':
       var ec = db.contacts.find(function (x) { return x.id === ui.conId; }); go('edit-contact', { form: Object.assign({}, ec, { items: db.items.filter(function (b) { return b.contacts.indexOf(ec.id) >= 0; }).map(function (b) { return b.id; }) }) }, true); break;
-    case 'new-contact': go('edit-contact', { form: { id: null, name: '', role: '', phone: '', text: '', email: '', street: '', city: '', state: 'IL', zip: '', web: '', login: '', notes: '', items: [] } }, true); break;
+    case 'new-contact': go('edit-contact', { form: { id: null, name: '', role: '', phone: '', text: '', email: '', street: '', city: '', state: usualState(), zip: '', web: '', login: '', notes: '', items: [] } }, true); break;
     case 'save-contact': saveContact(); break;
     case 'del-contact':
       if (ui.armed !== 'del-contact') { readForm('contactForm'); ui.armed = 'del-contact'; render(); break; }
@@ -319,7 +318,7 @@ document.addEventListener('change', function (e) {
     ui.form[key] = (ui.form[key] || []).concat([rv]); ui.form.addRel = ''; keepRender(); return;
   }
   if (el.id === 'catSel') { ui.cat = el.value; render(); }
-  else if (el.id === 'otherDate' && el.value) { if (el.value > iso(today())) { toast('Pick today or an earlier day.'); return; } markDone(el.value); }
+  else if (el.id === 'otherDate' && el.value) { if (el.value > iso(today())) { warn('Pick today or an earlier day.'); return; } markDone(el.value); }
   else if (el.getAttribute && el.getAttribute('data-rerender')) { readForm(el.form ? el.form.id : 'taskForm'); render(); var nx = document.querySelector('input[name=whoOther], input[name=roleOther]'); if (nx && el.value === '__other') nx.focus(); }
 });
 document.addEventListener('input', function (e) {
@@ -341,9 +340,9 @@ document.addEventListener('input', function (e) {
 function saveTask() {
   readForm('taskForm'); var f = ui.form;
   f.name = (f.name || '').trim();
-  if (!f.name) { toast('Give the task a name.'); return; }
+  if (!f.name) { warn('Give the task a name.'); return; }
   if (f.first && !parse(f.first)) f.first = '';
-  if (f.last && f.last > iso(today())) { toast('Last completed can\u2019t be in the future.'); return; }
+  if (f.last && f.last > iso(today())) { warn('Last completed can\u2019t be in the future.'); return; }
   var early = parseInt(f.early, 10); early = isNaN(early) ? 0 : Math.max(0, Math.min(365, early));
   if (f.who === '__other') f.who = (f.whoOther || '').trim();
   var hol = f.cat === 'Celebrations' && HOLIDAYS[f.holiday] ? f.holiday : '';
@@ -369,8 +368,8 @@ function saveTask() {
 function saveContact() {
   readForm('contactForm'); var f = ui.form;
   f.name = (f.name || '').trim();
-  if (!f.name) { toast('Give the contact a name.'); return; }
-  if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { toast('That email doesn\u2019t look right.'); return; }
+  if (!f.name) { warn('Give the contact a name.'); return; }
+  if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { warn('That email doesn\u2019t look right.'); return; }
   if (f.role === '__other') f.role = (f.roleOther || '').trim();
   var c;
   if (f.id) c = db.contacts.find(function (x) { return x.id === f.id; });

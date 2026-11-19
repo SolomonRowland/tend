@@ -2,8 +2,6 @@
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once.
 
-create extension if not exists pgcrypto;
-
 -- ---------- tables ----------
 create table if not exists public.households (
   id uuid primary key default gen_random_uuid(),
@@ -91,7 +89,8 @@ declare c text;
 begin
   if not public.is_owner(hid) then raise exception 'Only the household owner can invite'; end if;
   if (select count(*) from public.members where household_id = hid) >= 8 then raise exception 'This household already has 8 people'; end if;
-  c := translate(encode(gen_random_bytes(9), 'base64'), '+/=', 'xyz');
+  -- gen_random_uuid is built into Postgres (no extension needed); 16 random hex characters
+  c := left(replace(gen_random_uuid()::text, '-', ''), 16);
   insert into public.invites (code, household_id, created_by) values (c, hid, auth.uid());
   return c;
 end $$;
@@ -102,15 +101,16 @@ language plpgsql security definer set search_path = public as $$
 declare inv public.invites; existing uuid;
 begin
   if auth.uid() is null then raise exception 'Sign in first'; end if;
-  select * into inv from public.invites where code = trim(p_code) and expires_at > now();
+  -- using the code up in the same step it's checked, so two people can't both use one link
+  delete from public.invites where code = trim(p_code) and expires_at > now() returning * into inv;
   if inv.code is null then raise exception 'That invite has expired or was already used. Ask for a new one.'; end if;
   select household_id into existing from public.members where user_id = auth.uid() limit 1;
   if existing is not null and existing <> inv.household_id then raise exception 'You are already in a household. Leave it first in Settings.'; end if;
+  perform 1 from public.households where id = inv.household_id for update; -- one join at a time, so the 8-person cap holds
   if (select count(*) from public.members where household_id = inv.household_id) >= 8 then raise exception 'This household already has 8 people'; end if;
   insert into public.members (household_id, user_id, email, name, role)
     values (inv.household_id, auth.uid(), auth.jwt() ->> 'email', nullif(trim(p_display), ''), 'member')
     on conflict (household_id, user_id) do nothing;
-  delete from public.invites where code = inv.code;
   return inv.household_id;
 end $$;
 
@@ -235,11 +235,14 @@ create or replace function public.save_push_sub(p_endpoint text, p_household uui
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if auth.uid() is null or not public.is_member(p_household) then raise exception 'Not a member of that household'; end if;
-  if p_endpoint !~ '^https://' or length(p_endpoint) > 1000 or length(p_p256dh) > 200 or length(p_auth) > 100 then raise exception 'That doesn''t look like a phone subscription'; end if;
+  -- only the real push services (Apple, Google, Mozilla, Microsoft), so the server never posts anywhere else
+  if p_endpoint !~ '^https://([a-z0-9-]+\.)*(push\.apple\.com|fcm\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.example)/' or length(p_endpoint) > 1000 or length(p_p256dh) > 200 or length(p_auth) > 100 then raise exception 'That doesn''t look like a phone subscription'; end if;
   insert into public.push_subs (endpoint, user_id, household_id, p256dh, auth, hour, tz)
   values (p_endpoint, auth.uid(), p_household, p_p256dh, p_auth, least(greatest(coalesce(p_hour, 8), 0), 23), left(coalesce(nullif(p_tz, ''), 'America/Chicago'), 64))
   on conflict (endpoint) do update set user_id = excluded.user_id, household_id = excluded.household_id, p256dh = excluded.p256dh,
-    auth = excluded.auth, hour = excluded.hour, tz = excluded.tz, last_sent = null;
+    auth = excluded.auth, hour = excluded.hour, tz = excluded.tz,
+    -- a new person or household on this phone gets today's heads-up; just changing the hour doesn't repeat it
+    last_sent = case when push_subs.user_id = excluded.user_id and push_subs.household_id = excluded.household_id then push_subs.last_sent end;
 end $$;
 revoke all on function public.save_push_sub(text, uuid, text, text, int, text) from public, anon;
 grant execute on function public.save_push_sub(text, uuid, text, text, int, text) to authenticated;

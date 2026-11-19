@@ -28,7 +28,7 @@ const FAKE_PUSH = () => {
     const ctx = await b.newContext({ ...devices['iPhone 13'], deviceScaleFactor: 1 });
     await ctx.grantPermissions(['notifications'], { origin: 'http://localhost:8766' });
     await ctx.addInitScript(MOCK);
-    await ctx.addInitScript(([f, s]) => { window.__standalone = s; localStorage.setItem('tend.tickHint', '1'); if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: f, last: 'Rowland', phone: '(630) 555-0100', email: f + '@x.com', dob: '1990-03-14', prefsSet: true })); }, [first, standalone]);
+    await ctx.addInitScript(([f, s]) => { window.__standalone = s; localStorage.setItem('tend.swipeHint', '1'); if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: f, last: 'Rowland', phone: '(630) 555-0100', email: f + '@x.com', dob: '1990-03-14', prefsSet: true })); }, [first, standalone]);
     await ctx.addInitScript(FAKE_PUSH);
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(first + ': ' + e.message)); return p;
   }
@@ -61,7 +61,7 @@ const FAKE_PUSH = () => {
   await H.click('[data-act=notify-hour][data-v="19"]');
   check('hour changed', await waitFor(H, () => C.sb.from('push_subs').select('hour').then(r => r.data[0].hour === 19)));
   await H.click('[data-act=notify-test]');
-  check('test sent', await waitFor(H, () => /Test sent/.test(document.querySelector('#view').innerText)));
+  check('test sent', await waitFor(H, () => /Test sent/.test(document.body.innerText)));
   // other people can't see this phone
   const K = await phone('Kelly', true);
   await K.goto(APP); if ((await K.textContent('#authForm button[type=submit]')) !== 'Create Account') await K.click('[data-act=auth-mode]');
