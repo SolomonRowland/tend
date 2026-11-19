@@ -334,7 +334,7 @@ function contactLine(r) { return esc([r.phone, r.email].filter(Boolean).join(' Â
 function optsOf(f) { var o = typeof f.opts === 'function' ? f.opts() : (f.opts || []); return o.map(function (x) { return Array.isArray(x) ? x : [x, x]; }); }
 function fieldHtml(f, data) {
   var id = 'f_' + f.k.replace(/\./g, '_'), v = getPath(data || {}, f.k); if (v == null || v === '') v = f.def != null && !(data && data.id) ? (typeof f.def === 'function' ? f.def() : f.def) : (v == null ? '' : v);
-  var cls = 'fld' + (f.half ? ' half' : ''), lab = '<label for="' + id + '">' + esc(f.label) + '</label>', hint = f.hint ? '<span class="hint">' + esc(f.hint) + '</span>' : '', inp;
+  var cls = 'fld' + (f.w ? ' w' + f.w : f.half ? ' half' : ''), lab = '<label for="' + id + '">' + esc(f.label) + '</label>', hint = f.hint ? '<span class="hint">' + esc(f.hint) + '</span>' : '', inp;
   if (f.type === 'check') return '<div class="' + cls + '"><label class="cbx"><input type="checkbox" id="' + id + '" name="' + f.k + '"' + (v ? ' checked' : '') + '><span>' + esc(f.label) + '</span></label>' + hint + '</div>';
   if (f.type === 'multi') {
     var vals = Array.isArray(v) ? v : [];
@@ -450,8 +450,8 @@ var F = {
   task: [
     { k: 'title', label: 'Task', auto: true, ph: 'Book portable restrooms' }, 
     { k: 'phase', label: 'Segment', type: 'select', opts: PHASES, half: true }, { k: 'area', label: 'Area', type: 'list', opts: function () { return taskAreas(evRows('ed_tasks')).concat(TASK_AREAS).filter(function (x, i, l) { return l.indexOf(x) === i; }).map(function (x) { return [x, x]; }); }, half: true, ph: 'Food, Stage, AVâ€¦' },
-    { k: 'due_on', label: 'Due Date', type: 'date', half: true }, { k: 'due_time', label: 'Time', half: true, ph: '10 AM' },
-    { k: 'needed', label: 'People Needed', type: 'select', opts: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(function (n) { return [n, String(n)]; }), def: 1, hint: 'How many hands it takes, like 4 to set up the stage.' },
+    { k: 'due_on', label: 'Due Date', type: 'date', w: 6 }, { k: 'due_time', label: 'Time', w: 3, ph: '10 AM' },
+    { k: 'needed', label: 'People', type: 'select', opts: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(function (n) { return [n, String(n)]; }), def: 1, w: 3 },
     { k: 'assignee_refs', label: 'Assigned To', type: 'contacts', filter: taskEligible, hint: 'Pick as many as you need: team members, board, prayer team, volunteers, vendors or other contacts.' },
     { k: 'owner_typed', label: 'Or Type A Name', ph: 'Not in contacts? Type names, separated by commas.' },
     { k: 'done', label: 'Done', type: 'check' }, { k: 'notes', label: 'Notes', type: 'textarea' }],
