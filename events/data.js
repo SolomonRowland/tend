@@ -71,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v5', D = null;
+  var KEY = 'ed.demo.v6', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -96,7 +96,7 @@ function DemoDB() {
     var org = T('ed_orgs').find(function (o) { return o.id === ev.org_id; }) || {};
     return { event: { slug: ev.slug, title: ev.title, starts_on: ev.starts_on, ends_on: ev.ends_on, time_label: ev.time_label, place: ev.place, address: ev.address, about: ev.about, contact_line: ev.contact_line, giving_link: ev.giving_link, is_open: ev.is_open, sections: ev.sections || [], ministry: org.name },
       items: T('ed_items').filter(function (i) { return i.event_id === ev.id; }).sort(function (a, b) { return String(a.on_date || '').localeCompare(String(b.on_date || '')) || a.sort - b.sort; }).map(function (i) {
-        return { id: i.id, kind: i.kind, title: i.title, on_date: i.on_date, time_label: i.time_label, needed: i.needed, notes: i.notes, names: T('ed_signups').filter(function (s) { return s.item_id === i.id; }).map(function (s) { return s.name.split(' ')[0]; }) };
+        return { id: i.id, kind: i.kind, title: i.title, on_date: i.on_date, time_label: i.time_label, needed: i.needed, notes: i.notes, taken: T('ed_signups').filter(function (s) { return s.item_id === i.id; }).reduce(function (n, s) { return n + (i.kind === 'attend' ? (s.party || 1) : 1); }, 0), names: i.kind === 'attend' ? [] : T('ed_signups').filter(function (s) { return s.item_id === i.id; }).map(function (s) { return s.name.split(' ')[0]; }) };
       }) };
   }
   var RPC = {
@@ -111,8 +111,10 @@ function DemoDB() {
       var it = T('ed_items').find(function (i) { return i.id === a.p_item; }); if (!it) throw new Error('That spot was removed. Refresh the page.');
       if (!String(a.p_name || '').trim()) throw new Error('Please add your name.');
       if (!String(a.p_phone || '').trim() && !String(a.p_email || '').trim()) throw new Error('Please add a phone number or email so the team can reach you.');
-      if (T('ed_signups').filter(function (s) { return s.item_id === it.id; }).length >= it.needed) throw new Error('That one just filled up. Please pick another.');
-      return put('ed_signups', { event_id: it.event_id, item_id: it.id, name: a.p_name.trim(), phone: a.p_phone || '', email: a.p_email || '', note: a.p_note || '', checked_in_at: null }).token;
+      var pty = it.kind === 'attend' ? Math.min(50, Math.max(1, parseInt(a.p_party, 10) || 1)) : 1;
+      var taken = T('ed_signups').filter(function (s) { return s.item_id === it.id; }).reduce(function (n, s) { return n + (it.kind === 'attend' ? (s.party || 1) : 1); }, 0);
+      if (taken + pty > it.needed) throw new Error(it.kind === 'attend' && taken < it.needed ? 'Only ' + (it.needed - taken) + ' seats are left for this one.' : 'That one just filled up. Please pick another.');
+      return put('ed_signups', { event_id: it.event_id, item_id: it.id, name: a.p_name.trim(), phone: a.p_phone || '', email: a.p_email || '', note: a.p_note || '', party: pty, checked_in_at: null }).token;
     },
     ed_unsign: function (a) { D.t.ed_signups = T('ed_signups').filter(function (s) { return s.token !== a.p_token; }); return null; },
     ed_mine: function (a) { return T('ed_signups').filter(function (s) { return a.p_tokens.indexOf(s.token) >= 0; }).map(function (s) { return { token: s.token, item_id: s.item_id, name: s.name }; }); },
@@ -275,7 +277,7 @@ function demoSeed() {
   // sign-ups
   var sort = 0;
   function item(kind, title, d, needed, notes, tl) { return add('ed_items', { event_id: R, kind: kind, title: title, on_date: d, time_label: tl || '', needed: needed, notes: notes || '', sort: sort++ }); }
-  function su(it, name, phone, extra) { add('ed_signups', Object.assign({ event_id: R, item_id: it.id, name: name, phone: phone, email: '', note: '', token: token(), checked_in_at: null }, extra || {})); }
+  function su(it, name, phone, extra) { add('ed_signups', Object.assign({ event_id: R, item_id: it.id, name: name, phone: phone, email: '', note: '', token: token(), checked_in_at: null, party: 1 }, extra || {})); }
   var setup = item('serve', 'Setup Crew', addDays(revStart, -1), 12, 'Meet at the field. Bring work gloves.', '8 AM');
   ['Marcus Reed', 'Tony Alvarez', 'Luke Harmon', 'Josh Whitfield', 'Caleb Ortiz', 'Sam Tate', 'Eli Brooks'].forEach(function (n, i) { su(setup, n, '(555) 201-00' + (20 + i)); });
   nights.forEach(function (d, i) {
@@ -283,6 +285,8 @@ function demoSeed() {
     var g = item('serve', 'Greeters', d, 4, '', '6:15 PM');
     var u = item('serve', 'Ushers And Offering', d, 4, '', '6:30 PM');
     var k = item('serve', 'Kids Tent', d, 3, 'Background check required.', '6:30 PM');
+    var at = item('attend', 'Night ' + (i + 1) + ' Service', d, 400, 'Doors open at 6:30 PM.', '7 PM');
+    [['The Morales Family', '(555) 501-0001', 5], ['Dorothy Pruitt', '(555) 501-0002', 1], ['Kevin And Amy Shaw', '(555) 501-0003', 2], ['Grace Fellowship Youth', '(555) 501-0004', 14], ['Walter Hines', '(555) 501-0005', 1], ['The Okafor Family', '(555) 501-0006', 4]].slice(0, 6 - i).forEach(function (r, j) { su(at, r[0], r[1], { party: r[2], checked_in_at: i === 0 && j < 2 ? new Date().toISOString() : null }); });
     su(p, 'Ray Dunn', '(555) 301-1001'); su(p, 'Eli Brooks', '(555) 301-1002'); if (i < 2) su(p, 'Sam Tate', '(555) 301-1003');
     su(g, 'Grace Kim', '(555) 301-2001'); su(g, 'Ruth Allen', '(555) 301-2002'); if (i !== 2) su(g, 'Naomi Fields', '(555) 301-2003');
     su(u, 'Aaron Webb', '(555) 301-3001'); su(u, 'Paul Greer', '(555) 301-3002'); if (i < 3) su(u, 'Mike Duval', '(555) 301-3003');

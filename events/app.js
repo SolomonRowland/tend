@@ -283,6 +283,11 @@ function fieldHtml(f, data) {
   }
   return '<div class="' + cls + '">' + lab + inp + hint + '</div>';
 }
+function itemFields(kind) {
+  if (kind !== 'attend') return F.item;
+  return [{ k: 'title', label: 'Service Or Night', auto: true, ph: 'Night 1 Service' }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'time_label', label: 'Time', half: true, ph: '7 PM' },
+    { k: 'needed', label: 'Seats Available', type: 'int', half: true, def: 200 }, { k: 'notes', label: 'Details For Guests', type: 'textarea', ph: 'Doors open at 6:30 PM.' }];
+}
 function formBody(fields, data) { return '<div class="fgrid">' + fields.map(function (f) { return f.html ? f.html(data) : fieldHtml(f, data); }).join('') + '</div>'; }
 function readForm(fields, base) {
   var out = JSON.parse(JSON.stringify(base || {})), root = $('#layer .sheet');
@@ -368,6 +373,7 @@ var F = {
     { k: 'title', label: 'What', auto: true }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'time_label', label: 'Time', half: true, ph: '6 PM' },
     { k: 'needed', label: 'How Many Needed', type: 'int', half: true, def: 1 }, { k: 'notes', label: 'Details For People Signing Up', type: 'textarea' }],
   signup: [{ k: 'name', label: 'Name', auto: true }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true }, { k: 'note', label: 'Note' }],
+  rsvp: [{ k: 'name', label: 'Name', auto: true }, { k: 'party', label: 'How Many Coming', type: 'int', half: true, def: 1, hint: 'Including you.' }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email' }, { k: 'note', label: 'Anything We Should Know?' }],
   offering: [
     { k: 'service', label: 'Service', auto: true, ph: 'Night 1' }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'deposited', label: 'Deposited At The Bank', type: 'check', half: true },
     { k: 'cash', label: 'Cash', type: 'money', half: true }, { k: 'checks', label: 'Checks', type: 'money', half: true }, { k: 'online', label: 'Online Or Card', type: 'money', half: true }, { k: 'other', label: 'Other', type: 'money', half: true },
@@ -659,11 +665,11 @@ var SEC_IC = { calendar: 'cal', people: 'users', agenda: 'list', vendors: 'store
 var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['dir', 'Directory'], ['money', 'Money'], ['guests', 'Guests']];
 var AREA_SUBS = {
   plan: [['schedule', 'Schedule', 'calendar'], ['tasks', 'Tasks', 'tasks'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'people']],
-  dir: [['people', 'People', 'people'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors'], ['equipment', 'Equipment', 'equipment']],
-  guests: [['signups', 'Sign-Ups', 'signups'], ['checkin', 'Check-In', 'people'], ['followup', 'Follow-Up', 'followup'], ['share', 'Share', 'share']]
+  dir: [['people', 'People', 'people'], ['volunteers', 'Volunteers', 'vols'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors'], ['equipment', 'Equipment', 'equipment']],
+  guests: [['attending', 'Attending', 'always'], ['checkin', 'Check-In', 'always'], ['followup', 'Follow-Up', 'followup'], ['share', 'Share', 'always']]
 };
-var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], people: ['dir', 'people'], vendors: ['dir', 'vendors'], contacts: ['dir', 'contacts'], equipment: ['dir', 'equipment'], food: ['guests', 'signups'], signups: ['guests', 'signups'], checkin: ['guests', 'checkin'], followup: ['guests', 'followup'], share: ['guests', 'share'], money: ['money'], payments: ['money'] };
-function subOn(x) { return x[2] === 'signups' ? (on('people') || on('food')) : on(x[2]); }
+var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], people: ['dir', 'people'], vendors: ['dir', 'vendors'], contacts: ['dir', 'contacts'], equipment: ['dir', 'equipment'], food: ['dir', 'volunteers'], signups: ['dir', 'volunteers'], volunteers: ['dir', 'volunteers'], attending: ['guests', 'attending'], checkin: ['guests', 'checkin'], followup: ['guests', 'followup'], share: ['guests', 'share'], money: ['money'], payments: ['money'] };
+function subOn(x) { return x[2] === 'always' ? true : x[2] === 'vols' ? (on('people') || on('food')) : on(x[2]); }
 function areaSubs(k) { return (AREA_SUBS[k] || []).filter(subOn); }
 function areaOn(k) { return k === 'overview' || (k === 'money' ? on('money') : areaSubs(k).length > 0); }
 function goArea(key) {
@@ -672,6 +678,7 @@ function goArea(key) {
   if (j[1]) S.sub['area_' + j[0]] = j[1];
   if (key === 'money' || key === 'payments') S.sub.money = 'payments';
   if (key === 'food') S.sub.signkind = 'meal';
+  if (key === 'signups' || key === 'volunteers') S.sub.signkind = 'serve';
 }
 function hidden(fn) { S.hideSub = true; try { return fn(); } finally { S.hideSub = false; } }
 function viewWorkspace() {
@@ -699,17 +706,52 @@ function areaView(area, sub, e) {
   if (sub === 'people') return dirPeople(e);
   if (sub === 'vendors' || sub === 'contacts') { S.sub.vendors = sub; return hidden(function () { return wsVendors(e); }); }
   if (sub === 'equipment') return wsEquipment(e);
-  if (sub === 'checkin') { S.sub.people = 'checkin'; return hidden(function () { return wsPeople(e); }); }
+  if (sub === 'checkin') return checkinView(e);
   if (sub === 'followup') return wsFollowup(e);
   if (sub === 'share') return wsShare(e);
-  if (sub === 'signups') {
-    var kinds = [];
-    if (on('people')) kinds.push(['serve', 'Volunteer Spots']);
-    if (on('food')) kinds.push(['meal', 'Meals']);
-    var st = subTabs('signkind', kinds, 'serve');
-    return (kinds.length > 1 ? st.html.replace('class="subtabs"', 'class="subtabs mini"') : '') + (st.cur === 'meal' ? wsFood(e) : signupBlock('serve', 'Volunteer Spots', 'Add Spot'));
-  }
+  if (sub === 'attending') return attendingView(e);
+  if (sub === 'volunteers') return volunteersView(e);
   return '';
+}
+function volunteersView(e) {
+  var kinds = [];
+  if (on('people')) kinds.push(['serve', 'Volunteers']);
+  if (on('food')) kinds.push(['meal', 'Meals']);
+  var st = subTabs('signkind', kinds, 'serve');
+  var top = kinds.length > 1 ? st.html.replace('class="subtabs"', 'class="subtabs mini"') : '';
+  if (st.cur === 'meal') return top + wsFood(e);
+  var av = assigned('volunteer');
+  return top + secHead('Volunteer Team', addBtn('Add From Directory', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
+    listBox(av.map(function (x) { return personRow(x); }), 'Volunteers you place yourself, straight from the Directory.') +
+    signupBlock('serve', 'Volunteer Spots', 'Add Spot');
+}
+function attendingView(e) {
+  var its = evRows('ed_items').filter(function (i) { return i.kind === 'attend'; }), f = fill('attend'), people = 0, here = 0;
+  its.forEach(function (i) { signups(i.id).forEach(function (s) { people += 1; if (s.checked_in_at) here += (s.party || 1); }); });
+  return (its.length ? '<div class="stats three">' + stat('Coming', f.have) + stat('RSVPs', people) + stat('Checked In', here) + '</div>' : '') +
+    signupBlock('attend', 'Who’s Coming', 'Add Service') +
+    (its.length ? '' : '<p class="small muted">Add each service or night people can RSVP for, with how many seats you have. Guests RSVP from the event’s public page under Share.</p>');
+}
+function checkinView(e) {
+  var its0 = evRows('ed_items').filter(function (i) { return i.kind === 'attend' || i.kind === 'serve'; }), days = [];
+  its0.forEach(function (i) { var d = i.on_date || ''; if (days.indexOf(d) < 0) days.push(d); }); days.sort();
+  if (!days.length) return '<div class="empty card">Add RSVP services under Attending, or volunteer spots under Directory, then check people in here.</div>';
+  var day = S.sub.ciDay != null && days.indexOf(S.sub.ciDay) >= 0 ? S.sub.ciDay : (days.indexOf(TODAY) >= 0 ? TODAY : days.find(function (d) { return d >= TODAY; }) || days[0]);
+  S.sub.ciDay = day;
+  var its = its0.filter(function (i) { return (i.on_date || '') === day; }), all = 0, here = 0;
+  function block(kind, label) {
+    var list = its.filter(function (i) { return i.kind === kind; }); if (!list.length) return '';
+    return secHead(label) + list.map(function (i) {
+      var su = signups(i.id).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+      su.forEach(function (s) { var n = kind === 'attend' ? (s.party || 1) : 1; all += n; if (s.checked_in_at) here += n; });
+      return '<div class="grouplbl">' + esc(i.title) + '</div>' + listBox(su.map(function (s) {
+        return '<div class="row">' + ck(!!s.checked_in_at, 'checkin', s.id, 'Checked in') + '<div class="main"><div class="t">' + esc(s.name) + '</div><div class="s">' + esc([kind === 'attend' && (s.party || 1) > 1 ? 'Party of ' + s.party : '', s.phone || s.email].filter(Boolean).join(' · ')) + '</div></div>' + (s.checked_in_at ? pill('Here', 'green') : '') + '</div>';
+      }), 'No one yet.');
+    }).join('');
+  }
+  var body = block('attend', 'Guests') + block('serve', 'Volunteers');
+  return '<div class="toolbar"><label class="sr" for="ci_day">Day</label><select class="inp sm" id="ci_day" data-change="ci-day">' + days.map(function (d) { return '<option value="' + d + '"' + (d === day ? ' selected' : '') + '>' + esc(d ? fmtLong(d) : 'No Date') + '</option>'; }).join('') + '</select></div>' +
+    '<div class="stats">' + stat('Checked In', here + ' / ' + all, true) + '</div>' + body;
 }
 function setlistsView() {
   var sets = evRows('ed_setlists').sort(function (a, b) { return String(a.on_date || '').localeCompare(String(b.on_date || '')); });
@@ -717,9 +759,9 @@ function setlistsView() {
     return '<button class="card setlist" data-a="edit-setlist" data-id="' + s.id + '"><div class="sl-head"><b>' + esc(s.title || 'Set List') + '</b><span class="muted small">' + esc([s.on_date ? fmtDay(s.on_date) : '', s.rehearsal].filter(Boolean).join(' · ')) + '</span></div><ol>' + String(s.songs || '').split('\n').filter(Boolean).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></button>';
   }).join('') : '<div class="empty">No set lists yet.</div>');
 }
-var DIR_TEAMS = [['leader', 'Leadership', 'Who is leading this event?'], ['team', 'Ministry Team', 'Altar counselors, prayer team, security, host…'], ['speaker', 'Speakers', 'Guest and in-house speakers.'], ['worship', 'Worship Team', 'Musicians, vocalists and sound.'], ['volunteer', 'Volunteers', 'Volunteers you place yourself. Public sign-ups are under Guests.']];
+var DIR_TEAMS = [['leader', 'Leadership', 'Who is leading this event?'], ['team', 'Ministry Team', 'Altar counselors, prayer team, security, host…'], ['speaker', 'Speakers', 'Guest and in-house speakers.'], ['worship', 'Worship Team', 'Musicians, vocalists and sound.']];
 function dirPeople(e) {
-  var f = S.sub.dirTeam || 'all', total = evRows('ed_event_people').length;
+  var f = S.sub.dirTeam || 'all', total = evRows('ed_event_people').filter(function (x) { return x.team !== 'volunteer'; }).length;
   var h = '<div class="toolbar"><label class="sr" for="dt_team">Team</label><select class="inp sm" id="dt_team" data-change="dir-team"><option value="all">All Teams · ' + total + '</option>' + DIR_TEAMS.map(function (t) { return '<option value="' + t[0] + '"' + (f === t[0] ? ' selected' : '') + '>' + t[1] + ' · ' + assigned(t[0]).length + '</option>'; }).join('') + '</select></div>';
   DIR_TEAMS.filter(function (t) { return f === 'all' || f === t[0]; }).forEach(function (t) {
     var list = assigned(t[0]);
@@ -763,7 +805,7 @@ function attention(e) {
     var sp = evRows('ed_event_people').filter(function (p) { return p.team === 'speaker' && (p.details || {}).status === 'Invited'; });
     if (sp.length) out.push(['amber', plural(sp.length, 'Speaker') + ' Not Confirmed', sp.map(function (p) { return (byId('ed_people', p.person_id) || {}).name; }).join(', '), 'people']);
     var open = evRows('ed_items').filter(function (i) { return i.kind === 'serve'; }).reduce(function (s, i) { return s + Math.max(0, i.needed - signups(i.id).length); }, 0);
-    if (open) out.push(['amber', plural(open, 'Volunteer Spot') + ' Still Open', 'Share the sign-up link.', 'people']);
+    if (open) out.push(['amber', plural(open, 'Volunteer Spot') + ' Still Open', 'Share the sign-up link.', 'volunteers']);
   }
   if (on('food')) { var mo = evRows('ed_items').filter(function (i) { return i.kind === 'meal'; }).reduce(function (s, i) { return s + Math.max(0, i.needed - signups(i.id).length); }, 0); if (mo) out.push(['amber', plural(mo, 'Meal Spot') + ' Still Open', '', 'food']); }
   if (on('equipment')) {
@@ -786,7 +828,8 @@ function wsOverview(e) {
   var days = e.starts_on ? Math.round((dt(e.starts_on) - dt(TODAY)) / 864e5) : null, ts = evRows('ed_tasks'), td = ts.filter(function (t) { return t.done; }).length, pct = ts.length ? Math.round(100 * td / ts.length) : 0;
   var g = [];
   function tile(k, v, jump, hl) { g.push('<button class="stat' + (hl ? ' hl' : '') + '" data-a="ev-tab" data-id="' + jump + '"><div class="v">' + v + '</div><div class="k">' + esc(k) + '</div></button>'); }
-  if (on('people')) { var sv = fill('serve'); tile('Volunteers', sv.need ? sv.have + '/' + sv.need : evRows('ed_event_people').length, sv.need ? 'signups' : 'people'); }
+  if (on('people')) { var sv = fill('serve'); tile('Volunteers', sv.need ? sv.have + '/' + sv.need : assigned('volunteer').length, 'volunteers'); }
+  if (fill('attend').need) tile('Coming', fill('attend').have, 'attending');
   if (on('food') && fill('meal').need) { var ml = fill('meal'); tile('Meals', ml.have + '/' + ml.need, 'food'); }
   if (on('equipment')) { var eq = evRows('ed_event_equipment'); tile('Loaded', eq.filter(function (x) { return x.loaded; }).length + '/' + eq.length, 'equipment'); }
   if (on('vendors')) { var ow = payables(e).filter(function (p) { return p.t === 'v'; }).reduce(function (s, p) { return s + p.owed; }, 0); tile('Vendors Owed', money(ow), 'vendors', ow > 0); }
@@ -803,7 +846,8 @@ function wsOverview(e) {
     (up.length ? secHead('Coming Up') + listBox(up.slice(0, 5).map(function (u) { return row({ act: 'ev-tab', id: u.tab, lead: '<span class="datebox sm"><small>' + dt(u.d).toLocaleDateString('en-US', { month: 'short' }) + '</small><b>' + dt(u.d).getDate() + '</b></span>', title: esc(u.title), sub: esc(u.sub) }); }), '') : '');
 }
 function signups(itemId) { return T('ed_signups').filter(function (s) { return s.item_id === itemId; }); }
-function fill(kind) { var need = 0, have = 0; evRows('ed_items').filter(function (i) { return i.kind === kind; }).forEach(function (i) { need += i.needed; have += Math.min(i.needed, signups(i.id).length); }); return { need: need, have: have }; }
+function taken(i) { return signups(i.id).reduce(function (n, s) { return n + (i.kind === 'attend' ? (s.party || 1) : 1); }, 0); }
+function fill(kind) { var need = 0, have = 0; evRows('ed_items').filter(function (i) { return i.kind === kind; }).forEach(function (i) { need += i.needed; have += Math.min(i.needed, taken(i)); }); return { need: need, have: have }; }
 
 /* ---------- calendar */
 function eventDays(e) {
@@ -886,17 +930,18 @@ function signupBlock(kind, title, addLabel) {
   var list = evRows('ed_items').filter(function (i) { return i.kind === kind; }).sort(function (a, b) { return String(a.on_date || '').localeCompare(String(b.on_date || '')) || a.sort - b.sort; });
   var f = fill(kind), groups = [];
   list.forEach(function (i) { var g = groups.find(function (x) { return x.d === (i.on_date || ''); }); if (!g) groups.push(g = { d: i.on_date || '', items: [] }); g.items.push(i); });
-  return secHead(title, addBtn(addLabel, 'add-item', kind, 'ghost'), f.have + ' Of ' + f.need + ' Filled') +
+  var att = kind === 'attend';
+  return secHead(title, addBtn(addLabel, 'add-item', kind, 'ghost'), att ? '' : f.have + ' Of ' + f.need + ' Filled') +
     '<div class="btnrow"><button class="btn sm plain" data-a="csv-signups" data-id="' + kind + '">Download List</button><button class="btn sm plain" data-a="ev-tab" data-id="share">Share Sign-Up Link</button></div>' +
     (groups.length ? groups.map(function (g) {
       return '<div class="grouplbl">' + esc(g.d ? fmtLong(g.d) : 'Any Day') + '</div>' + g.items.map(function (i) {
-        var su = signups(i.id), open = i.needed - su.length;
+        var su = signups(i.id), tk = taken(i), open = i.needed - tk;
         return '<div class="card slotcard"><div class="slot-head"><div class="main"><b>' + esc(i.title) + '</b>' + (i.time_label || i.notes ? '<div class="small muted">' + esc([i.time_label, i.notes].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>' +
-          pill(su.length + ' / ' + i.needed, open > 0 ? 'amber' : 'green') + '<button class="link" data-a="edit-item" data-id="' + i.id + '">Edit</button></div>' + meter(Math.min(su.length, i.needed), i.needed) +
+          pill(att ? tk + ' Coming' : tk + ' / ' + i.needed, att ? (open > 0 ? 'green' : 'amber') : open > 0 ? 'amber' : 'green') + '<button class="link" data-a="edit-item" data-id="' + i.id + '">Edit</button></div>' + meter(Math.min(su.length, i.needed), i.needed) +
           (su.length ? '<div class="list inner">' + su.map(function (s) {
-            return '<div class="row"><div class="main"><div class="t">' + esc(s.name) + (s.checked_in_at ? ' ' + pill('Here', 'green') : '') + '</div><div class="s">' + esc([s.phone, s.email, s.note].filter(Boolean).join(' · ')) + '</div></div>' +
+            return '<div class="row"><div class="main"><div class="t">' + esc(s.name) + (s.checked_in_at ? ' ' + pill('Here', 'green') : '') + '</div><div class="s">' + esc([att && (s.party || 1) > 1 ? 'Party of ' + s.party : '', s.phone, s.email, s.note].filter(Boolean).join(' · ')) + '</div></div>' +
               (s.phone ? '<a class="link" href="sms:' + esc(digits(s.phone)) + '">Text</a>' : '') + '<button class="link" data-a="del-signup" data-id="' + s.id + '">Remove</button></div>';
-          }).join('') + '</div>' : '') + (open > 0 ? '<button class="link" data-a="add-signup" data-id="' + i.id + '">' + IC.plus + ' Add A Person</button>' : '') + '</div>';
+          }).join('') + '</div>' : '') + (open > 0 ? '<button class="link" data-a="add-signup" data-id="' + i.id + '">' + IC.plus + (att ? ' Add An RSVP' : ' Add A Person') + '</button>' : '') + '</div>';
       }).join('');
     }).join('') : '<div class="empty card">Nothing for people to sign up for yet.</div>') +
     (kind === 'serve' ? '<div class="card tip"><b>Keep Your Volunteers</b><p class="small muted">Save everyone who signed up to the Directory as current volunteers, so you can invite them next time.</p><button class="btn sm ghost" data-a="vols-to-dir">Add Them To The Directory</button></div>' : '');
@@ -1132,16 +1177,16 @@ function backLink() { return S.user || window.ED_DEMO ? '<p class="center"><a hr
 function viewPublic() {
   if (S.pubErr) return '<main class="auth"><div class="logo">' + IC.tent + '</div><h1>Not Found</h1><p class="lead">' + esc(S.pubErr) + '</p>' + backLink() + '</main>';
   if (!S.pub) return '<main class="auth"><p class="muted">Loading…</p></main>';
-  var e = S.pub.event, its = S.pub.items.filter(function (i) { return pubOn(i.kind === 'meal' ? 'food' : 'people'); }), mineIds = S.mine.map(function (m) { return m.item_id; });
+  var e = S.pub.event, its = S.pub.items.filter(function (i) { return i.kind === 'attend' || pubOn(i.kind === 'meal' ? 'food' : 'people'); }), mineIds = S.mine.map(function (m) { return m.item_id; });
   function section(kind, title, lead) {
     var list = its.filter(function (i) { return i.kind === kind; }); if (!list.length) return '';
     var html = '', day = null;
     list.forEach(function (i) {
       if ((i.on_date || '') !== day) { day = i.on_date || ''; html += '<div class="grouplbl">' + esc(day ? fmtLong(day) : 'Any Day') + '</div>'; }
-      var left = i.needed - i.names.length, mine = mineIds.indexOf(i.id) >= 0;
+      var tk = i.taken != null ? i.taken : i.names.length, left = i.needed - tk, mine = mineIds.indexOf(i.id) >= 0, att = kind === 'attend';
       html += '<div class="slot' + (left <= 0 && !mine ? ' full' : '') + '"><div class="main"><div class="t">' + esc(i.title) + '</div><div class="s">' + esc([i.time_label, i.notes].filter(Boolean).join(' · ')) + (i.time_label || i.notes ? '<br>' : '') +
-        (left > 0 ? '<b class="red">' + plural(left, 'Spot') + ' Left</b>' : 'Full') + (i.names.length ? ' · ' + esc(i.names.join(', ')) : '') + '</div></div>' +
-        (mine ? pill('You’re In', 'green') : left > 0 && e.is_open ? '<button class="btn sm" data-a="pub-sign" data-id="' + i.id + '">Sign Up</button>' : '') + '</div>';
+        (att ? (left > 0 ? (left <= 25 ? '<b class="red">' + plural(left, 'Seat') + ' Left</b>' : 'Seats available') : 'Full') : (left > 0 ? '<b class="red">' + plural(left, 'Spot') + ' Left</b>' : 'Full') + (i.names.length ? ' · ' + esc(i.names.join(', ')) : '')) + '</div></div>' +
+        (mine ? pill(att ? 'You’re Coming' : 'You’re In', 'green') : left > 0 && e.is_open ? '<button class="btn sm" data-a="pub-sign" data-id="' + i.id + '">' + (att ? 'RSVP' : 'Sign Up') + '</button>' : '') + '</div>';
     });
     return secHead(title) + '<p class="lead small">' + esc(lead) + '</p>' + html;
   }
@@ -1152,7 +1197,7 @@ function viewPublic() {
   return '<main class="pub">' + pubHero((e.about ? '<p class="about">' + esc(e.about) + '</p>' : '') + (e.contact_line ? '<p class="small muted">' + esc(e.contact_line) + '</p>' : '') +
       '<div class="btnrow">' + (e.giving_link && pubOn('money') ? '<a class="btn" href="' + esc(webUrl(e.giving_link)) + '" target="_blank" rel="noopener">Give Online</a>' : '') + (pubOn('followup') ? '<button class="btn ghost" data-a="pub-go" data-id="c">Connection Card</button>' : '') + (e.address ? '<a class="btn ghost" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">Directions</a>' : '') + '</div>') +
     mine + (e.is_open ? '' : '<div class="err">Sign-ups for this event are closed.</div>') +
-    section('serve', 'Serve', 'Pick a spot. The team will reach out with details.') + section('meal', 'Bring Food', 'Sign up to bring a meal or dish for the team.') +
+    section('attend', 'Attend', 'Let us know you’re coming so we can save you a seat.') + section('serve', 'Serve', 'Pick a spot. The team will reach out with details.') + section('meal', 'Bring Food', 'Sign up to bring a meal or dish for the team.') +
     (!its.length ? '<div class="empty card">Nothing to sign up for yet. Check back soon.</div>' : '') + backLink() + '</main>';
 }
 function viewCard() {
@@ -1325,9 +1370,9 @@ var A = {
   'add-setlist': function () { editRow('ed_setlists', null, F.setlist, { title: 'Add Set List', base: { event_id: S.ev.id, on_date: S.ev.starts_on } }); },
   'edit-setlist': function (t, id) { editRow('ed_setlists', byId('ed_setlists', id), F.setlist, { title: 'Edit Set List' }); },
   // sign-ups
-  'add-item': function (t, kind) { editRow('ed_items', null, F.item, { title: kind === 'meal' ? 'Add Meal' : 'Add Volunteer Spot', base: { event_id: S.ev.id, kind: kind, needed: 1, on_date: S.ev.starts_on, sort: evRows('ed_items').length }, prep: function (v) { v.needed = Math.max(1, Math.min(500, v.needed || 1)); return v; } }); },
-  'edit-item': function (t, id) { var it = byId('ed_items', id); editRow('ed_items', it, F.item, { title: it.kind === 'meal' ? 'Edit Meal' : 'Edit Volunteer Spot', prep: function (v) { v.needed = Math.max(1, Math.min(500, v.needed || 1)); return v; }, delMsg: 'Delete this spot?', delSub: signups(id).length ? 'The ' + plural(signups(id).length, 'person', 'people') + ' signed up will be removed too.' : '' }); },
-  'add-signup': function (t, id) { var it = byId('ed_items', id); editRow('ed_signups', null, F.signup, { title: 'Add A Person', sub: it.title + (it.on_date ? ' · ' + fmtDay(it.on_date) : ''), base: { event_id: S.ev.id, item_id: id, checked_in_at: null, note: '' }, saveLabel: 'Add' }); },
+  'add-item': function (t, kind) { editRow('ed_items', null, itemFields(kind), { title: kind === 'meal' ? 'Add Meal' : kind === 'attend' ? 'Add A Service' : 'Add Volunteer Spot', base: { event_id: S.ev.id, kind: kind, needed: kind === 'attend' ? 200 : 1, on_date: S.ev.starts_on, sort: evRows('ed_items').length }, prep: function (v) { v.needed = Math.max(1, Math.min(5000, v.needed || 1)); return v; } }); },
+  'edit-item': function (t, id) { var it = byId('ed_items', id); editRow('ed_items', it, itemFields(it.kind), { title: it.kind === 'meal' ? 'Edit Meal' : it.kind === 'attend' ? 'Edit Service' : 'Edit Volunteer Spot', prep: function (v) { v.needed = Math.max(1, Math.min(5000, v.needed || 1)); return v; }, delMsg: 'Delete this spot?', delSub: signups(id).length ? 'The ' + plural(signups(id).length, 'person', 'people') + ' signed up will be removed too.' : '' }); },
+  'add-signup': function (t, id) { var it = byId('ed_items', id); editRow('ed_signups', null, it.kind === 'attend' ? F.rsvp : F.signup, { title: it.kind === 'attend' ? 'Add An RSVP' : 'Add A Person', sub: it.title + (it.on_date ? ' · ' + fmtDay(it.on_date) : ''), base: { event_id: S.ev.id, item_id: id, checked_in_at: null, note: '', party: 1 }, prep: function (v) { v.party = Math.max(1, Math.min(50, v.party || 1)); return v; }, saveLabel: 'Add' }); },
   'del-signup': function (t, id) { var s = byId('ed_signups', id); ask('Remove ' + s.name + ' from this spot?', 'Remove', function () { return remove('ed_signups', id, 'Removed').then(render); }); },
   checkin: function (t, id) { toggle('ed_signups', id, 'checked_in_at', function (r) { return r.checked_in_at ? null : new Date().toISOString(); }); },
   'vols-to-dir': function () {
@@ -1347,9 +1392,9 @@ var A = {
   'edit-card': function (t, id) { var c = byId('ed_cards', id); editRow('ed_cards', c, F.card, { title: 'Connection Card', top: function () { return actions(c); }, delMsg: 'Delete this card?' }); },
   'csv-cards': function () { download(S.ev.slug + '-connection-cards.csv', csv([['Name', 'Phone', 'Email', 'Responses', 'Prayer Request', 'Status', 'Follow-Up By', 'Notes', 'Date']].concat(evRows('ed_cards').map(function (c) { return [c.name, c.phone, c.email, (c.responses || []).join('; '), c.prayer, c.status, c.follow_up_by, c.notes, String(c.created_at || '').slice(0, 10)]; })))); },
   'csv-signups': function (t, kind) {
-    var rows = [['Date', 'Spot', 'Name', 'Phone', 'Email', 'Note', 'Checked In']];
-    evRows('ed_items').filter(function (i) { return i.kind === kind; }).forEach(function (i) { signups(i.id).forEach(function (s) { rows.push([i.on_date, i.title, s.name, s.phone, s.email, s.note, s.checked_in_at ? 'Yes' : '']); }); });
-    download(S.ev.slug + (kind === 'meal' ? '-food' : '-volunteers') + '.csv', csv(rows));
+    var rows = [['Date', 'Spot', 'Name', 'Phone', 'Email', 'Note', 'Checked In', 'Party']];
+    evRows('ed_items').filter(function (i) { return i.kind === kind; }).forEach(function (i) { signups(i.id).forEach(function (s) { rows.push([i.on_date, i.title, s.name, s.phone, s.email, s.note, s.checked_in_at ? 'Yes' : '', s.party || 1]); }); });
+    download(S.ev.slug + (kind === 'meal' ? '-food' : kind === 'attend' ? '-attending' : '-volunteers') + '.csv', csv(rows));
   },
   // share + public
   copy: function (t) { copyText(t.getAttribute('data-v')); },
@@ -1363,12 +1408,12 @@ var A = {
   },
   'pub-sign': function (t, id) {
     var it = S.pub.items.find(function (x) { return x.id === id; });
-    var f = F.signup.map(function (x) { return x.k === 'note' ? Object.assign({}, x, { label: it.kind === 'meal' ? 'What Are You Bringing?' : 'Anything We Should Know?' }) : x; });
-    openSheet(function () { return '<h3>Sign Up</h3><p class="lead">' + esc(it.title + (it.on_date ? ' · ' + fmtLong(it.on_date) : '') + (it.time_label ? ' · ' + it.time_label : '')) + '</p>' + formBody(f, {}) + '<p class="small muted">Add a phone or email so the team can reach you. Only your first name is shown to others.</p>' + sheetFoot(false, 'Sign Me Up'); },
+    var f = it.kind === 'attend' ? F.rsvp : F.signup.map(function (x) { return x.k === 'note' ? Object.assign({}, x, { label: it.kind === 'meal' ? 'What Are You Bringing?' : 'Anything We Should Know?' }) : x; });
+    openSheet(function () { return '<h3>' + (it.kind === 'attend' ? 'RSVP' : 'Sign Up') + '</h3><p class="lead">' + esc(it.title + (it.on_date ? ' · ' + fmtLong(it.on_date) : '') + (it.time_label ? ' · ' + it.time_label : '')) + '</p>' + formBody(f, {}) + '<p class="small muted">Add a phone or email so the team can reach you. ' + (it.kind === 'attend' ? 'Your name is not shown to others.' : 'Only your first name is shown to others.') + '</p>' + sheetFoot(false, 'Sign Me Up'); },
       function () {
         var v = readForm(f, {});
-        return busy(DB.rpc('ed_sign', { p_slug: S.pubSlug, p_item: id, p_name: v.name, p_phone: v.phone, p_email: v.email, p_note: v.note })).then(function (tok) {
-          lset('ed.tok.' + S.pubSlug, JSON.stringify(S.mine.map(function (m) { return m.token; }).concat([tok]))); closeSheet(); toast('You’re signed up. Thank you!'); return loadPublic();
+        return busy(DB.rpc('ed_sign', { p_slug: S.pubSlug, p_item: id, p_name: v.name, p_phone: v.phone, p_email: v.email, p_note: v.note, p_party: it.kind === 'attend' ? Math.max(1, Math.min(50, v.party || 1)) : 1 })).then(function (tok) {
+          lset('ed.tok.' + S.pubSlug, JSON.stringify(S.mine.map(function (m) { return m.token; }).concat([tok]))); closeSheet(); toast(it.kind === 'attend' ? 'You’re on the list. See you there!' : 'You’re signed up. Thank you!'); return loadPublic();
         });
       });
   },

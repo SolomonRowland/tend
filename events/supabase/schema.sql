@@ -1,4 +1,4 @@
--- Tent & Table database (version 3).
+-- Tent & Table database (version 4).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -311,6 +311,14 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 4: guest RSVPs ("attend" items) and party size
+alter table public.ed_items drop constraint if exists ed_items_kind_check;
+alter table public.ed_items add constraint ed_items_kind_check check (kind in ('serve', 'meal', 'attend'));
+alter table public.ed_items drop constraint if exists ed_items_needed_check;
+alter table public.ed_items add constraint ed_items_needed_check check (needed between 1 and 5000);
+alter table public.ed_signups add column if not exists party int not null default 1;
+alter table public.ed_signups drop constraint if exists ed_signups_party_check;
+alter table public.ed_signups add constraint ed_signups_party_check check (party between 1 and 50);
 
 -- ---------- money
 create table if not exists public.ed_offerings (
@@ -561,17 +569,20 @@ begin
     'items', coalesce((
       select jsonb_agg(jsonb_build_object('id', i.id, 'kind', i.kind, 'title', i.title, 'on_date', i.on_date,
         'time_label', i.time_label, 'needed', i.needed, 'notes', i.notes,
-        'names', coalesce((select jsonb_agg(split_part(s.name, ' ', 1) order by s.created_at)
-                           from public.ed_signups s where s.item_id = i.id), '[]'::jsonb))
+        'taken', coalesce((select case when i.kind = 'attend' then sum(s.party) else count(*) end
+                           from public.ed_signups s where s.item_id = i.id), 0),
+        'names', case when i.kind = 'attend' then '[]'::jsonb else coalesce((select jsonb_agg(split_part(s.name, ' ', 1) order by s.created_at)
+                           from public.ed_signups s where s.item_id = i.id), '[]'::jsonb) end)
         order by i.on_date nulls first, i.sort, i.created_at)
       from public.ed_items i where i.event_id = ev.id), '[]'::jsonb)
   ) into res;
   return res;
 end $$;
 
-create or replace function public.ed_sign(p_slug text, p_item uuid, p_name text, p_phone text, p_email text, p_note text)
+drop function if exists public.ed_sign(text, uuid, text, text, text, text);
+create or replace function public.ed_sign(p_slug text, p_item uuid, p_name text, p_phone text, p_email text, p_note text, p_party int default 1)
 returns text language plpgsql security definer set search_path = public as $$
-declare ev public.ed_events; it public.ed_items; taken int; tok text;
+declare ev public.ed_events; it public.ed_items; taken int; tok text; pty int;
   nm text := ed_clip(p_name, 80); ph text := ed_clip(p_phone, 40); em text := lower(ed_clip(p_email, 120));
 begin
   select * into ev from public.ed_events where slug = lower(trim(p_slug));
@@ -585,10 +596,15 @@ begin
              and ((ph <> '' and phone = ph) or (em <> '' and email = em))) then
     raise exception 'You are already signed up for this one.';
   end if;
-  select count(*) into taken from public.ed_signups where item_id = it.id;
-  if taken >= it.needed then raise exception 'That one just filled up. Please pick another.'; end if;
-  insert into public.ed_signups (event_id, item_id, name, phone, email, note)
-    values (ev.id, it.id, nm, ph, em, ed_clip(p_note, 300)) returning token into tok;
+  pty := case when it.kind = 'attend' then least(greatest(coalesce(p_party, 1), 1), 50) else 1 end;
+  select coalesce(sum(party), 0) into taken from public.ed_signups where item_id = it.id;
+  if it.kind <> 'attend' then select count(*) into taken from public.ed_signups where item_id = it.id; end if;
+  if taken + pty > it.needed then
+    if it.kind = 'attend' and taken < it.needed then raise exception 'Only % seats are left for this one.', it.needed - taken; end if;
+    raise exception 'That one just filled up. Please pick another.';
+  end if;
+  insert into public.ed_signups (event_id, item_id, name, phone, email, note, party)
+    values (ev.id, it.id, nm, ph, em, ed_clip(p_note, 300), pty) returning token into tok;
   return tok;
 end $$;
 
@@ -689,10 +705,10 @@ grant select, insert, update, delete on public.ed_people, public.ed_vendors, pub
 revoke all on function public.ed_is_member(uuid), public.ed_is_owner(uuid), public.ed_can_event(uuid), public.ed_same_org(uuid, text, uuid),
   public.ed_create_org(text, text), public.ed_create_invite(uuid), public.ed_accept_invite(text, text), public.ed_remove_member(uuid, uuid),
   public.ed_renew_event(uuid, date, date, jsonb), public.ed_copy_event(uuid, text, date),
-  public.ed_public(text), public.ed_sign(text, uuid, text, text, text, text), public.ed_unsign(text), public.ed_mine(text[]),
+  public.ed_public(text), public.ed_sign(text, uuid, text, text, text, text, int), public.ed_unsign(text), public.ed_mine(text[]),
   public.ed_connect(text, text, text, text, text[], text) from public;
 grant execute on function public.ed_is_member(uuid), public.ed_is_owner(uuid), public.ed_can_event(uuid), public.ed_same_org(uuid, text, uuid),
   public.ed_create_org(text, text), public.ed_create_invite(uuid), public.ed_accept_invite(text, text), public.ed_remove_member(uuid, uuid),
   public.ed_renew_event(uuid, date, date, jsonb), public.ed_copy_event(uuid, text, date) to authenticated;
-grant execute on function public.ed_public(text), public.ed_sign(text, uuid, text, text, text, text), public.ed_unsign(text),
+grant execute on function public.ed_public(text), public.ed_sign(text, uuid, text, text, text, text, int), public.ed_unsign(text),
   public.ed_mine(text[]), public.ed_connect(text, text, text, text, text[], text) to anon, authenticated;
