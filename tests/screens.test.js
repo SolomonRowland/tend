@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const MOCK = fs.readFileSync(__dirname + '/mock-client.js', 'utf8');
-const APP = 'http://localhost:8766/home/';
+const APP = 'http://localhost:8766/';
 (async () => {
   const b = await chromium.launch(); const errs = []; const issues = [];
   let n = 0;

@@ -1,4 +1,4 @@
-// Tend Home: daily heads-up notifications.
+// Tend: daily heads-up notifications.
 // Runs every hour (see supabase/notifications.sql). For each phone that turned
 // notifications on, if it's that phone's chosen hour and it hasn't had today's
 // heads-up yet, it sends a short list of what's overdue, due today and coming up.
@@ -9,7 +9,7 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.3';
 
-const APP_URL = 'https://solomonrowland.github.io/tend/home/';
+const APP_URL = 'https://solomonrowland.github.io/tend/';
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       schedules.set(s.household_id, rec ? rec.data : null);
     }
     let msg = buildDigest(schedules.get(s.household_id), t.date, mem.name || '');
-    if (onlyUser) msg = msg ? { ...msg, title: 'Test: ' + msg.title } : { title: 'Test from Tend Home', body: 'Notifications are working. Nothing is due this week.', count: 0 };
+    if (onlyUser) msg = msg ? { ...msg, title: 'Test: ' + msg.title } : { title: 'Test from Tend', body: 'Notifications are working. Nothing is due this week.', count: 0 };
     if (!msg) continue;
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

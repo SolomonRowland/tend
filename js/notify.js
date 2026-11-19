@@ -108,10 +108,10 @@ function notifySettings() {
   var note = function (t) { return '<p class="note" style="text-align:left;padding:0 20px 8px">' + t + '</p>'; };
   if (N.state === 'unsupported' || (isIOS() && !isStandalone())) {
     return h + '<div class="tip" style="margin:0 16px">' + (isIOS() && !isStandalone()
-      ? 'To get a daily heads-up, open Tend Home from your Home Screen. In Safari, tap Share, then Add to Home Screen.'
-      : 'This browser can’t show notifications. On iPhone, open Tend Home from your Home Screen (iOS 16.4 or newer).') + '</div>';
+      ? 'To get a daily heads-up, open Tend from your Home Screen. In Safari, tap Share, then Add to Home Screen.'
+      : 'This browser can’t show notifications. On iPhone, open Tend from your Home Screen (iOS 16.4 or newer).') + '</div>';
   }
-  if (N.state === 'blocked') return h + '<div class="tip" style="margin:0 16px">Notifications are blocked for Tend Home. Turn them on in your phone’s Settings → Notifications → Tend Home, then come back here.</div>';
+  if (N.state === 'blocked') return h + '<div class="tip" style="margin:0 16px">Notifications are blocked for Tend. Turn them on in your phone’s Settings → Notifications → Tend, then come back here.</div>';
   if (N.state !== 'on') {
     return h + note('Get one short heads-up a day on this phone: what’s overdue, due today and coming up this week.') +
       (N.msg ? '<p class="cerr" style="margin:0 16px 8px">' + esc(N.msg) + '</p>' : '') +

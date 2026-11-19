@@ -1,8 +1,8 @@
 {
-  "name": "Tend Home",
-  "short_name": "Tend Home",
+  "name": "Tend",
+  "short_name": "Tend",
   "description": "Household maintenance, kids' visits and the people you call for them.",
-  "start_url": "./home/",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#F4F7FC",

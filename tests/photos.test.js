@@ -2,7 +2,7 @@
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
 const MOCK = fs.readFileSync(__dirname + '/mock-client.js', 'utf8');
-const APP = 'http://localhost:8766/home/';
+const APP = 'http://localhost:8766/';
 const D = __dirname + '/screenshots'; fs.mkdirSync(D, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let ok = 0, bad = 0;

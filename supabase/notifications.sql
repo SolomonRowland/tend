@@ -1,4 +1,4 @@
--- Tend Home: run the tend-notify function at the top of every hour.
+-- Tend: run the tend-notify function at the top of every hour.
 -- Run this once in Supabase's SQL Editor, AFTER running schema.sql and deploying the
 -- tend-notify function (with "Verify JWT" turned off; the function checks callers itself).
 -- Safe to run again.

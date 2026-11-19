@@ -1,6 +1,6 @@
 // Checks the wording and rules of the daily heads-up (the same code the tend-notify function runs).
 const fs = require('fs');
-const src = fs.readFileSync(__dirname + '/../home/supabase/functions/tend-notify/index.ts', 'utf8');
+const src = fs.readFileSync(__dirname + '/../supabase/functions/tend-notify/index.ts', 'utf8');
 const block = src.split('// --- digest start')[1].split('// --- digest end ---')[0].replace(/^[^\n]*\n/, '');
 const { localToday, buildDigest } = new Function(block + '; return { localToday, buildDigest };')();
 let ok = 0, bad = 0;

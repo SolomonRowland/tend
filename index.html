@@ -1,19 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tend</title>
 <meta name="theme-color" content="#0A5DD6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tend">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta http-equiv="refresh" content="0; url=./home/">
-<script>
-  // Tend now lives at Tend Home. Your list from the original app stays on this phone,
-  // and Tend Home offers to bring it over. The original is kept at ./classic/ as a backup.
-  location.replace('./home/' + location.search + location.hash);
-</script>
-<style>body{margin:0;font:16px -apple-system,system-ui,sans-serif;background:#F4F7FC;color:#14233D;display:flex;min-height:100vh;align-items:center;justify-content:center}a{color:#0A5DD6}</style>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="css/app.css">
 </head>
-<body><p>Opening <a href="./home/">Tend Home</a>…</p></body>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <div id="fab"></div>
+  <div id="modal"></div>
+  <div id="toast"></div>
+  <nav class="tabs" id="tabs" aria-label="Main"></nav>
+</div>
+<input type="file" id="restoreFile" accept=".json,application/json" class="sr" tabindex="-1" aria-hidden="true">
+<script src="vendor/supabase.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/core.js"></script>
+<script src="js/screens.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/notify.js"></script>
+<script src="js/starter.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/swipe.js"></script>
+<script src="js/data.js"></script>
+<script src="js/main.js"></script>
+</body>
 </html>

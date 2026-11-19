@@ -1,9 +1,9 @@
 // Swipe to complete/snooze, "Whose job is it?", Recently done, undo that only touches its own task,
-// a delete that isn't lost to a housemate's edit, and moving over from the original Tend.
+// a delete that isn't lost to a housemate's edit, moving over from the original Tend, and old links forwarding.
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
 const MOCK = fs.readFileSync(__dirname + '/mock-client.js', 'utf8');
-const ROOT = 'http://localhost:8766/', APP = ROOT + 'home/';
+const ROOT = 'http://localhost:8766/', APP = ROOT;
 const D = __dirname + '/screenshots'; fs.mkdirSync(D, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let ok = 0, bad = 0;
@@ -39,8 +39,8 @@ async function swipe(p, sel, dx, dy) {
     { id: 't2', name: 'Rotate tires', cat: 'Vehicles', freq: 'Every 6 months', last: '2026-06-10', early: 14, history: [] },
     { id: 't3', name: 'Clean dryer vent', cat: 'Home', freq: 'Yearly', last: '2025-10-01', early: 30, history: [] }], contacts: [], items: [] });
   const A = await phone('Solomon', old);
-  await A.goto(ROOT);
-  check('the original address opens Tend Home', await waitFor(A, () => location.pathname.endsWith('/home/')), A.url());
+  await A.goto(ROOT + 'home/');
+  check('the old Tend Home address opens Tend', await waitFor(A, () => location.pathname === '/' && !!document.querySelector('#authForm')), A.url());
   await A.click('[data-act=auth-mode]'); await A.fill('#authEmail', 'sol@x.com'); await A.fill('#authPass', 'password123'); await A.click('#authForm button[type=submit]');
   await A.waitForSelector('#houseName'); await A.click('[data-act=house-create]');
   await A.waitForSelector('.welcome [data-act=bring-old]');
@@ -56,7 +56,8 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => go('settings', {}, true)); await A.click('[data-act=invite]'); await A.waitForSelector('.clink');
   const link = await A.evaluate(() => C.inviteLink);
   const B = await phone('Kelly');
-  await B.goto(link); await B.fill('#authEmail', 'kelly@x.com'); await B.fill('#authPass', 'password456'); await B.click('#authForm button[type=submit]');
+  await B.goto(link.replace(ROOT, ROOT + 'home/')); // an invite sent before the move still works
+  await B.waitForURL(ROOT); await B.waitForSelector('#authForm'); await B.fill('#authEmail', 'kelly@x.com'); await B.fill('#authPass', 'password456'); await B.click('#authForm button[type=submit]');
   check('Kelly joined', await waitFor(B, () => window.db && db.tasks.length > 10 && db.members.indexOf('Solomon') >= 0));
   check('Solomon sees Kelly as a member', await waitFor(A, () => db.members.indexOf('Kelly') >= 0));
   // ---- swipe right to complete ----
@@ -128,9 +129,6 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => { window.__offline = false; window.dispatchEvent(new Event('online')); });
   check('Solomon\'s delete wins', await waitFor(A, id => !db.tasks.some(t => t.id === id) && pendingCount() === 0, did));
   check('and reaches Kelly', await waitFor(B, id => !db.tasks.some(t => t.id === id), did));
-  // ---- the original app is still there as a backup ----
-  await A.goto(ROOT + 'classic/'); await sleep(800);
-  check('original kept at /classic/', /Rotate tires|Replace furnace filter/.test(await A.evaluate(() => document.body.innerText)));
   console.log('errors', errs); console.log(ok, 'passed', bad, 'failed');
   await b.close(); process.exit(bad || errs.length ? 1 : 0);
 })();
