@@ -603,6 +603,19 @@ input[type=date].inp::-webkit-date-and-time-value{min-height:22px}
 .sharebar .main b{font-size:15px}
 .row .pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .row b.amt{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* picker: New Person until you pick someone, then Add N */
+.sheet .pick-only{display:none}
+.sheet.picking .pick-only{display:grid;margin-bottom:10px}
+.sheet .pickfoot .pf-add,.sheet .pickfoot .pf-clear{display:none}
+.sheet.picking .pickfoot .pf-add,.sheet.picking .pickfoot .pf-clear{display:inline-flex}
+.sheet.picking .pickfoot .pf-new{display:none}
+.sheet .acts{flex-wrap:nowrap}
+.sheet .acts .btn{flex:0 1 auto;min-width:0;padding:0 16px}
+@media(max-width:360px){.sheet .acts .btn{padding:0 12px;font-size:14px}}
+.qr-tools{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:12px 0 0}
+.multi:not(.one){grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:340px){.multi:not(.one){grid-template-columns:1fr}}
+.phero .lead{margin-top:12px;color:var(--ink)}
 </style>
 </head>
 <body>

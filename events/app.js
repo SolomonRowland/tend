@@ -278,7 +278,7 @@ function fieldHtml(f, data) {
   if (f.type === 'check') return '<div class="' + cls + '"><label class="cbx"><input type="checkbox" id="' + id + '" name="' + f.k + '"' + (v ? ' checked' : '') + '><span>' + esc(f.label) + '</span></label>' + hint + '</div>';
   if (f.type === 'multi') {
     var vals = Array.isArray(v) ? v : [];
-    return '<fieldset class="' + cls + '"><legend>' + esc(f.label) + '</legend><div class="multi">' + optsOf(f).map(function (o, i) {
+    return '<fieldset class="' + cls + '"><legend>' + esc(f.label) + '</legend><div class="multi' + (f.one ? ' one' : '') + '">' + optsOf(f).map(function (o, i) {
       return '<label class="cbx"><input type="checkbox" id="' + id + '_' + i + '" name="' + f.k + '" value="' + esc(o[0]) + '"' + (vals.indexOf(o[0]) >= 0 ? ' checked' : '') + '><span>' + esc(o[1]) + '</span></label>';
     }).join('') + '</div>' + hint + '</fieldset>';
   }
@@ -288,7 +288,7 @@ function fieldHtml(f, data) {
   else {
     var type = { tel: 'tel', email: 'email', url: 'url', date: 'date', time: 'time' }[f.type] || 'text';
     var mode = f.type === 'money' ? ' inputmode="decimal"' : f.type === 'int' ? ' inputmode="numeric"' : '';
-    inp = '<input class="inp" id="' + id + '" name="' + f.k + '" type="' + type + '"' + mode + ' value="' + esc(f.type === 'money' && v !== '' ? num(v) : v) + '" placeholder="' + esc(f.ph || '') + '"' + (f.auto ? ' autofocus' : '') + '>';
+    inp = '<input class="inp" id="' + id + '" name="' + f.k + '" type="' + type + '"' + mode + ' value="' + esc(f.type === 'money' && v !== '' ? num(v) : v) + '" placeholder="' + esc(f.ph || (f.type === 'money' ? '$0' : '')) + '"' + (f.auto ? ' autofocus' : '') + '>';
   }
   return '<div class="' + cls + '">' + lab + inp + hint + '</div>';
 }
@@ -369,7 +369,7 @@ var F = {
     { k: 'location', label: 'Location', half: true }, { k: 'start_time', label: 'Starts', type: 'time', half: true }, { k: 'end_time', label: 'Ends', type: 'time', half: true },
     { k: 'owner', label: 'Who’s In Charge', type: 'list', opts: function () { return peopleNames(); } }, { k: 'notes', label: 'Notes', type: 'textarea' }],
   task: [
-    { k: 'title', label: 'Task', auto: true }, { k: 'phase', label: 'Phase', type: 'select', opts: PHASES, half: true },
+    { k: 'title', label: 'Task', auto: true, ph: 'Book portable restrooms' }, { k: 'phase', label: 'Phase', type: 'select', opts: PHASES, half: true },
     { k: 'owner', label: 'Who', type: 'list', opts: function () { return peopleNames(); }, half: true },
     { k: 'due_on', label: 'Due Date', type: 'date', half: true }, { k: 'due_time', label: 'Time', half: true, ph: '10 AM' },
     { k: 'done', label: 'Done', type: 'check' }, { k: 'notes', label: 'Notes', type: 'textarea' }],
@@ -380,24 +380,23 @@ var F = {
     { k: 'title', label: 'Name', auto: true, ph: 'Night 1' }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'rehearsal', label: 'Rehearsal', half: true, ph: '5:30 PM Sound Check' },
     { k: 'songs', label: 'Songs, One Per Line', type: 'textarea' }],
   item: [
-    { k: 'title', label: 'What', auto: true }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'time_label', label: 'Time', half: true, ph: '6 PM' },
+    { k: 'title', label: 'What', auto: true, ph: 'Parking Team' }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'time_label', label: 'Time', half: true, ph: '6 PM' },
     { k: 'needed', label: 'How Many Needed', type: 'int', half: true, def: 1 }, { k: 'notes', label: 'Details For People Signing Up', type: 'textarea' }],
   signup: [{ k: 'name', label: 'Name', auto: true }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true }, { k: 'note', label: 'Note' }],
   rsvp: [{ k: 'name', label: 'Name', auto: true }, { k: 'party', label: 'How Many Coming', type: 'int', half: true, def: 1, hint: 'Including you.' }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email' }, { k: 'note', label: 'Anything We Should Know?' }],
   offering: [
-    { k: 'service', label: 'Service', auto: true, ph: 'Night 1' }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'deposited', label: 'Deposited At The Bank', type: 'check', half: true },
-    { k: 'cash', label: 'Cash', type: 'money', half: true }, { k: 'checks', label: 'Checks', type: 'money', half: true }, { k: 'online', label: 'Online Or Card', type: 'money', half: true }, { k: 'other', label: 'Other', type: 'money', half: true },
-    { k: 'counter1', label: 'Counted By', type: 'list', opts: function () { return peopleNames(); }, half: true }, { k: 'counter2', label: 'Second Counter', type: 'list', opts: function () { return peopleNames(); }, half: true, hint: 'Two people count every offering.' },
+    { k: 'service', label: 'Service', auto: true, ph: 'Night 1' }, { k: 'on_date', label: 'Date', type: 'date' }, { k: 'cash', label: 'Cash', type: 'money', half: true }, { k: 'checks', label: 'Checks', type: 'money', half: true }, { k: 'online', label: 'Online Or Card', type: 'money', half: true }, { k: 'other', label: 'Other', type: 'money', half: true },
+    { k: 'counter1', label: 'Counted By', type: 'list', opts: function () { return peopleNames(); }, half: true }, { k: 'counter2', label: 'Second Counter', type: 'list', opts: function () { return peopleNames(); }, half: true, hint: 'Two people count every offering.' }, { k: 'deposited', label: 'Deposited at the bank', type: 'check' },
     { k: 'notes', label: 'Notes', type: 'textarea' }],
   expense: [
-    { k: 'description', label: 'What For', auto: true }, { k: 'category', label: 'Category', type: 'list', opts: ['Food', 'Hospitality', 'Permits', 'Printing', 'Supplies', 'Travel', 'Other'], half: true }, { k: 'amount', label: 'Amount', type: 'money', half: true },
+    { k: 'description', label: 'What For', auto: true, ph: 'Water and ice' }, { k: 'category', label: 'Category', type: 'list', opts: ['Food', 'Hospitality', 'Permits', 'Printing', 'Supplies', 'Travel', 'Other'], half: true }, { k: 'amount', label: 'Amount', type: 'money', half: true },
     { k: 'pay_status', label: 'Payment Status', type: 'select', opts: PAY, half: true }, { k: 'due_on', label: 'Due Date', type: 'date', half: true },
     { k: 'payer', label: 'Who Pays It', type: 'list', opts: function () { return peopleNames(); } }, { k: 'notes', label: 'Notes', type: 'textarea' }],
   card: [
     { k: 'name', label: 'Name', auto: true }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true },
     { k: 'status', label: 'Status', type: 'select', opts: [['new', 'New'], ['contacted', 'Contacted'], ['connected', 'Connected']], half: true },
     { k: 'follow_up_by', label: 'Follow-Up By', type: 'list', opts: function () { return peopleNames(); }, half: true },
-    { k: 'responses', label: 'Responses', type: 'multi', opts: RESPONSES }, { k: 'prayer', label: 'Prayer Request', type: 'textarea' }, { k: 'notes', label: 'Follow-Up Notes', type: 'textarea' }]
+    { k: 'responses', label: 'Responses', type: 'multi', opts: RESPONSES, one: true }, { k: 'prayer', label: 'Prayer Request', type: 'textarea' }, { k: 'notes', label: 'Follow-Up Notes', type: 'textarea' }]
 };
 var F_ASSIGN = {
   person: function (team) {
@@ -1057,7 +1056,7 @@ function showQr(k) {
   var url = pubUrl(k);
   openSheet(function () {
     return '<h3>' + esc(SHARE[k][0]) + '</h3><p class="lead">' + esc(SHARE[k][1]) + ' Text the link, post it, or print the QR code for the tent and tables.</p><div class="qrbig-sheet">' + qrSvg(url) + '</div><div class="urlbox">' + esc(url) + '</div>' +
-      '<div class="acts"><button class="btn plain" data-a="open-pub" data-id="' + k + '">Open Page</button><span class="grow"></span>' + (window.ED_DEMO ? '' : '<button class="btn plain" data-a="print-qr" data-id="' + k + '">Print Poster</button>') + '<button class="btn" data-a="copy" data-v="' + esc(url) + '">Copy Link</button></div>';
+      '<div class="qr-tools"><button class="btn sm plain" data-a="copy" data-v="' + esc(url) + '">Copy Link</button><button class="btn sm plain" data-a="open-pub" data-id="' + k + '">Open Page</button>' + (window.ED_DEMO ? '' : '<button class="btn sm plain" data-a="print-qr" data-id="' + k + '">Print Poster</button>') + '</div><div class="acts"><span class="grow"></span><button class="btn" data-a="close">Done</button></div>';
   });
 }
 /* ================================================================ pickers */
@@ -1071,17 +1070,17 @@ function pick(t, team) {
   var groupHint = { leader: 'Team Member', team: 'Prayer Team', speaker: 'Speaker', worship: 'Worship', volunteer: 'Volunteer' }[team];
   var list = cfg.list.slice().sort(function (a, b) {
     var ga = t === 'ed_people' && (a.groups || []).indexOf(groupHint) >= 0 ? 0 : 1, gb = t === 'ed_people' && (b.groups || []).indexOf(groupHint) >= 0 ? 0 : 1;
-    return ga - gb || a.name.localeCompare(b.name);
+    return (cfg.has(a) ? 1 : 0) - (cfg.has(b) ? 1 : 0) || ga - gb || a.name.localeCompare(b.name);
   });
   openSheet(function () {
     return '<h3>' + esc(cfg.title) + '</h3><p class="lead">From the Directory. ' + (t === 'ed_people' ? 'People in the ' + esc(groupHint) + ' group are listed first.' : '') + '</p>' +
       '<label class="search block">' + IC.search + '<input type="search" placeholder="Search" data-input="pick-q" aria-label="Search" autofocus></label>' +
-      (t === 'ed_people' ? '<div class="fgrid"><div class="fld half"><label for="pk_role">Role At This Event</label><input class="inp" id="pk_role" list="pk_roles" placeholder="Optional"><datalist id="pk_roles">' + TITLES.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist></div></div>' : '') +
+      (t === 'ed_people' ? '<div class="fgrid pick-only"><div class="fld"><label for="pk_role">Role At This Event</label><input class="inp" id="pk_role" list="pk_roles" placeholder="Optional"><datalist id="pk_roles">' + TITLES.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist></div></div>' : '') +
       '<div class="picklist">' + list.map(function (r) {
         var has = cfg.has(r);
         return '<label class="pickrow' + (has ? ' has' : '') + '" data-name="' + esc((r.name + ' ' + cfg.sub(r)).toLowerCase()) + '"><input type="checkbox" value="' + r.id + '"' + (has ? ' disabled checked' : '') + '>' + (t !== 'ed_equipment' ? avatar(r.name) : '') + '<span class="main"><span class="t">' + esc(r.name) + '</span><span class="s">' + esc(has ? 'Already Added' : cfg.sub(r)) + '</span></span></label>';
       }).join('') + (list.length ? '' : '<p class="muted small">The Directory has nothing here yet.</p>') + '</div>' +
-      '<div class="acts"><button class="btn ghost" data-a="pick-new" data-t="' + t + '" data-id="' + esc(team || '') + '">' + IC.plus + ' ' + esc(cfg.newLabel) + '</button><span class="grow"></span><button class="btn plain" data-a="close">Cancel</button><button class="btn" data-save data-a="sheet-save">Add Selected</button></div>';
+      '<div class="acts pickfoot"><button class="btn ghost pf-new" data-a="pick-new" data-t="' + t + '" data-id="' + esc(team || '') + '">' + IC.plus + ' ' + esc(cfg.newLabel) + '</button><button class="btn plain pf-clear" data-a="pick-clear">Clear</button><span class="grow"></span><button class="btn plain" data-a="close">Cancel</button><button class="btn pf-add" data-save data-a="sheet-save">Add</button></div>';
   }, function () {
     var root = $('#layer .sheet'), ids = $$('.picklist input:checked:not(:disabled)', root).map(function (x) { return x.value; });
     if (!ids.length) { sheetErr('Pick at least one.'); return; }
@@ -1112,7 +1111,8 @@ function editAssign(t, a) {
     ed_event_contacts: [F_ASSIGN.contact, 'ed_contacts', a.contact_id, 'Remove this contact from the event?'],
     ed_event_equipment: [F_ASSIGN.equipment, 'ed_equipment', a.equipment_id, 'Take this off the equipment list?']
   }[t];
-  editRow(t, a, cfg[0], { title: 'At This Event', top: assignTop(cfg[1], cfg[2]), required: cfg[0][0].k, delMsg: cfg[3], prep: function (v) {
+  var src = byId(cfg[1], cfg[2]) || {}, team = t === 'ed_event_people' ? (TEAMS.find(function (x) { return x[0] === a.team; }) || [, 'Team'])[1] : '';
+  editRow(t, a, cfg[0], { title: { ed_event_people: team, ed_event_vendors: 'Vendor For This Event', ed_event_contacts: 'Contact For This Event', ed_event_equipment: 'Equipment For This Event' }[t] || 'This Event', top: assignTop(cfg[1], cfg[2]), required: cfg[0][0].k, delMsg: cfg[3], prep: function (v) {
     if (t === 'ed_event_vendors' && v.pay_status === 'Paid In Full') v.paid = v.cost;
     if (t === 'ed_event_equipment') { v.quantity = Math.max(1, v.quantity || 1); }
     return v;
@@ -1356,7 +1356,14 @@ document.addEventListener('input', function (ev) {
   if (k === 'dir-q') { S.dirQ = ev.target.value; var pos = ev.target.selectionStart; render(); var el = $('#dir_q'); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {} } }
   if (k === 'pick-q') { var q = ev.target.value.toLowerCase(); $$('#layer .pickrow').forEach(function (r) { r.hidden = q && r.getAttribute('data-name').indexOf(q) < 0; }); }
 });
+function pickFoot() {
+  var sh = $('#layer .sheet'); if (!sh || !sh.querySelector('.pickfoot')) return;
+  var n = $$('.picklist input:checked:not(:disabled)', sh).length;
+  sh.classList.toggle('picking', n > 0);
+  var b = sh.querySelector('.pf-add'); if (b) b.textContent = n ? 'Add ' + n : 'Add';
+}
 document.addEventListener('change', function (ev) {
+  if (ev.target.closest && ev.target.closest('.pickrow')) pickFoot();
   var t = ev.target, k = t.getAttribute('data-change'); if (!k) return;
   if (k === 'dir-group') { S.dirGroup = t.value; render(); }
   if (k === 'dir-status') { S.dirStatus = t.value; render(); }
@@ -1412,6 +1419,7 @@ var A = {
   // assignments
   'pick-people': function (t, id) { pick('ed_people', id); },
   pick: function (t, id) { pick(id); },
+  'pick-clear': function () { $$('#layer .picklist input:checked:not(:disabled)').forEach(function (x) { x.checked = false; }); pickFoot(); },
   'pick-new': function (t, team) {
     var tb = t.getAttribute('data-t');
     editDir(tb, null, function (r) { DB.save(assignTable(tb), assignRow(tb, r.id, team || null, '')).then(function (x) { put(assignTable(tb), x); render(); toast('Added to the Directory and this event'); }); });
