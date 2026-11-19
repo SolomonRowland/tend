@@ -89,10 +89,18 @@ var TEAMS = [['leader', 'Leadership'], ['team', 'Ministry Team'], ['speaker', 'S
 var RESPONSES = ['I gave my life to Jesus', 'I recommitted my life to Jesus', 'I’d like someone to pray with me', 'I’m looking for a church home', 'I’d like to be baptized', 'I’d like to serve'];
 var PHASES = [['planning', 'Planning'], ['setup', 'Setup'], ['during', 'During The Event'], ['teardown', 'Teardown']];
 var TABS = [['overview', 'Overview'], ['calendar', 'Calendar'], ['people', 'People'], ['agenda', 'Agenda'], ['vendors', 'Vendors & Contacts'], ['equipment', 'Equipment'], ['food', 'Food'], ['tasks', 'Tasks'], ['money', 'Money'], ['followup', 'Follow-Up'], ['share', 'Share']];
-var SECTIONS = TABS.filter(function (t) { return t[0] !== 'overview' && t[0] !== 'share'; });
+var SECTIONS = [['calendar', 'Schedule'], ['tasks', 'Tasks'], ['agenda', 'Agenda'], ['people', 'Leadership And Team'], ['speakers', 'Speakers'], ['worship', 'Worship Team'], ['volunteers', 'Volunteers'], ['food', 'Meals'], ['guests', 'Guests And RSVPs'], ['vendors', 'Vendors And Contacts'], ['equipment', 'Equipment'], ['money', 'Money'], ['followup', 'Connection Cards']];
+// Events saved before speakers, worship, volunteers and guests had their own switches follow the old People switch.
+var LEGACY_SEC = { speakers: 'people', worship: 'people', volunteers: 'people', guests: '' };
+function secOn(s, sec) {
+  s = s || [];
+  if (sec === 'overview' || sec === 'share' || !s.length || s.indexOf(sec) >= 0) return true;
+  if (s.indexOf('v2') < 0 && sec in LEGACY_SEC) return !LEGACY_SEC[sec] || s.indexOf(LEGACY_SEC[sec]) >= 0;
+  return false;
+}
 var PRESETS = {
-  big: { label: 'Big Event', on: ['calendar', 'people', 'vendors', 'equipment', 'food', 'tasks', 'money', 'followup'] },
-  night: { label: 'Worship Or Prayer Night', on: ['calendar', 'people', 'equipment', 'tasks', 'money', 'followup'] },
+  big: { label: 'Big Event', on: ['calendar', 'people', 'speakers', 'worship', 'volunteers', 'guests', 'vendors', 'equipment', 'food', 'tasks', 'money', 'followup'] },
+  night: { label: 'Worship Or Prayer Night', on: ['calendar', 'people', 'worship', 'volunteers', 'guests', 'equipment', 'tasks', 'money', 'followup'] },
   meeting: { label: 'Meeting', on: ['calendar', 'people', 'agenda', 'tasks', 'food'] }
 };
 
@@ -112,7 +120,7 @@ function put(t, row) { var a = T(t), i = a.findIndex(function (r) { return r.id 
 function drop(t, id) { (CASCADE[t] || []).forEach(function (c) { T(c[0]).filter(function (r) { return r[c[1]] === id; }).forEach(function (r) { drop(c[0], r.id); }); }); S.db[t] = T(t).filter(function (r) { return r.id !== id; }); }
 function save(t, row, msg) { return busy(DB.save(t, row), msg === undefined ? 'Saved' : msg).then(function (r) { put(t, r); return r; }); }
 function remove(t, id, msg) { return busy(DB.remove(t, id), msg || 'Deleted').then(function () { drop(t, id); }); }
-function on(sec, ev) { ev = ev || S.ev; var s = (ev && ev.sections) || []; return sec === 'overview' || sec === 'share' || !s.length || s.indexOf(sec) >= 0; }
+function on(sec, ev) { ev = ev || S.ev; return secOn(ev && ev.sections, sec); }
 function memberNames() { return ((S.acct && S.acct.members) || []).map(function (m) { return m.name || m.email; }).filter(Boolean); }
 function peopleNames() { var s = {}; memberNames().concat(T('ed_people').filter(function (p) { return p.status === 'current'; }).map(function (p) { return p.name; })).forEach(function (n) { s[n] = 1; }); return Object.keys(s).sort(); }
 function events() { return T('ed_events').slice(); }
@@ -215,7 +223,7 @@ function renderLayer() {
 function refreshSheetErr() { var e = $('#layer .sheet .err'); if (!e || !S.sheet) return; e.hidden = !S.sheet.err; e.textContent = S.sheet.err || ''; }
 function openSheet(html, onSave, extra) { S.sheet = Object.assign({ html: typeof html === 'function' ? html : function () { return html; }, save: onSave, err: '' }, extra || {}); renderLayer(); }
 function closeSheet() { S.sheet = null; renderLayer(); }
-function redrawSheet() { if (S.sheet) { S.sheet.drawn = false; renderLayer(); } }
+function redrawSheet() { if (!S.sheet) return; var sh = $('#layer .sheet'); if (sh && S.sheet.drawn) { sh.innerHTML = S.sheet.html() + '<div class="err" hidden></div>'; if (S.sheet.after) S.sheet.after(sh); refreshSheetErr(); } else { S.sheet.drawn = false; renderLayer(); } }
 function sheetErr(m) { S.sheet.err = m; refreshSheetErr(); }
 function ask(msg, yes, fn, sub) {
   openSheet('<h3>' + esc(msg) + '</h3>' + (sub ? '<p class="lead">' + esc(sub) + '</p>' : '') + '<div class="acts"><button class="btn plain" data-a="close">Cancel</button><button class="btn" data-save data-a="sheet-save">' + esc(yes) + '</button></div>',
@@ -352,9 +360,10 @@ var F = {
     { k: 'about', label: 'About This Event', type: 'textarea', hint: 'Shown on the public sign-up page.' },
     { k: 'contact_line', label: 'Public Contact Line', ph: 'Questions? Text Steve at (555) 555-0142' },
     { k: 'giving_link', label: 'Online Giving Link', type: 'url', ph: 'https://…', half: true }, { k: 'budget', label: 'Budget', type: 'money', half: true },
+    { k: 'volunteer_goal', label: 'Volunteer Goal', type: 'int', half: true, hint: 'How many volunteers you need in all.' },
     { k: 'is_open', label: 'Public Sign-Ups Are Open', type: 'check', def: true },
     { html: function () { return '<div class="fld"><label>Start From A Preset</label><div class="seg wrap">' + Object.keys(PRESETS).map(function (k) { return '<button type="button" data-a="preset" data-v="' + k + '">' + esc(PRESETS[k].label) + '</button>'; }).join('') + '</div></div>'; } },
-    { k: 'sections', label: 'Tabs This Event Uses', type: 'multi', opts: SECTIONS, hint: 'Overview and Share are always there.' }],
+    { k: 'sections', label: 'What This Event Uses', type: 'multi', opts: SECTIONS, hint: 'Overview is always there.' }],
   schedule: [
     { k: 'title', label: 'What', auto: true, ph: 'Sound Check' }, { k: 'on_date', label: 'Date', type: 'date', half: true },
     { k: 'location', label: 'Location', half: true }, { k: 'start_time', label: 'Starts', type: 'time', half: true }, { k: 'end_time', label: 'Ends', type: 'time', half: true },
@@ -665,12 +674,12 @@ function inviteUrl(code) { return location.origin + location.pathname + '?join='
 var SEC_IC = { calendar: 'cal', people: 'users', agenda: 'list', vendors: 'store', equipment: 'box', food: 'food', tasks: 'check2', money: 'dollar', followup: 'heart', share: 'share' };
 var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['dir', 'Directory'], ['money', 'Money'], ['guests', 'Guests']];
 var AREA_SUBS = {
-  plan: [['schedule', 'Schedule', 'calendar'], ['tasks', 'Tasks', 'tasks'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'people']],
-  dir: [['people', 'People', 'people'], ['volunteers', 'Volunteers', 'vols'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors'], ['equipment', 'Equipment', 'equipment']],
-  guests: [['attending', 'Attending', 'always'], ['checkin', 'Check-In', 'always'], ['followup', 'Follow-Up', 'followup']]
+  plan: [['schedule', 'Schedule', 'calendar'], ['tasks', 'Tasks', 'tasks'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'worship']],
+  dir: [['people', 'People', 'team'], ['volunteers', 'Volunteers', 'vols'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors'], ['equipment', 'Equipment', 'equipment']],
+  guests: [['attending', 'Attending', 'guests'], ['checkin', 'Check-In', 'ci'], ['followup', 'Follow-Up', 'followup']]
 };
 var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], people: ['dir', 'people'], vendors: ['dir', 'vendors'], contacts: ['dir', 'contacts'], equipment: ['dir', 'equipment'], food: ['dir', 'volunteers'], signups: ['dir', 'volunteers'], volunteers: ['dir', 'volunteers'], attending: ['guests', 'attending'], checkin: ['guests', 'checkin'], followup: ['guests', 'followup'], share: ['guests', 'attending'], money: ['money'], payments: ['money'] };
-function subOn(x) { return x[2] === 'always' ? true : x[2] === 'vols' ? (on('people') || on('food')) : on(x[2]); }
+function subOn(x) { var k = x[2]; return k === 'always' ? true : k === 'vols' ? (on('volunteers') || on('food')) : k === 'team' ? (on('people') || on('speakers') || on('worship')) : k === 'ci' ? (on('guests') || on('volunteers')) : on(k); }
 function areaSubs(k) { return (AREA_SUBS[k] || []).filter(subOn); }
 function areaOn(k) { return k === 'overview' || (k === 'money' ? on('money') : areaSubs(k).length > 0); }
 function goArea(key) {
@@ -715,15 +724,22 @@ function areaView(area, sub, e) {
 }
 function volunteersView(e) {
   var kinds = [];
-  if (on('people')) kinds.push(['serve', 'Volunteers']);
+  if (on('volunteers')) kinds.push(['serve', 'Volunteers']);
   if (on('food')) kinds.push(['meal', 'Meals']);
   var st = subTabs('signkind', kinds, 'serve');
   var top = kinds.length > 1 ? st.html.replace('class="subtabs"', 'class="subtabs mini"') : '';
   if (st.cur === 'meal') return top + shareBar('v') + wsFood(e);
   var av = assigned('volunteer');
-  return top + shareBar('v') + secHead('Volunteer Team', addBtn('Add From Directory', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
+  return top + shareBar('v') + goalCard(e) + secHead('Volunteer Team', addBtn('Add From Directory', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
     listBox(av.map(function (x) { return personRow(x); }), 'Volunteers you place yourself, straight from the Directory.') +
     signupBlock('serve', 'Volunteer Spots', 'Add Spot');
+}
+function volCount() { return assigned('volunteer').length + evRows('ed_signups').filter(function (s) { var i = byId('ed_items', s.item_id); return i && i.kind === 'serve'; }).length; }
+function goalCard(e) {
+  var g = num(e.volunteer_goal), n = volCount();
+  if (!g) return '<button class="goal empty-goal" data-a="set-goal"><b>Set A Volunteer Goal</b><span>How many volunteers do you need? We’ll track it here and on the sign-up page.</span></button>';
+  var short = Math.max(0, g - n), pct = Math.min(100, Math.round(100 * n / g));
+  return '<button class="goal' + (short ? '' : ' met') + '" data-a="set-goal"><div class="g-top"><div><div class="g-k">Volunteer Goal</div><div class="g-v"><b>' + n + '</b> of ' + g + '</div></div><div class="g-side">' + (short ? '<b>' + short + '</b> still needed' : 'Goal met') + '</div></div><div class="cd-bar"><i style="width:' + pct + '%"></i></div></button>';
 }
 function attendingView(e) {
   var its = evRows('ed_items').filter(function (i) { return i.kind === 'attend'; }), f = fill('attend'), people = 0, here = 0;
@@ -760,10 +776,11 @@ function setlistsView() {
   }).join('') : '<div class="empty">No set lists yet.</div>');
 }
 var DIR_TEAMS = [['leader', 'Leadership', 'Who is leading this event?'], ['team', 'Ministry Team', 'Altar counselors, prayer team, security, host…'], ['speaker', 'Speakers', 'Guest and in-house speakers.'], ['worship', 'Worship Team', 'Musicians, vocalists and sound.']];
+var TEAM_SEC = { leader: 'people', team: 'people', speaker: 'speakers', worship: 'worship', volunteer: 'volunteers' };
 function dirPeople(e) {
   var f = S.sub.dirTeam || 'all', total = evRows('ed_event_people').filter(function (x) { return x.team !== 'volunteer'; }).length;
-  var h = '<div class="toolbar"><label class="sr" for="dt_team">Team</label><select class="inp sm" id="dt_team" data-change="dir-team"><option value="all">All Teams · ' + total + '</option>' + DIR_TEAMS.map(function (t) { return '<option value="' + t[0] + '"' + (f === t[0] ? ' selected' : '') + '>' + t[1] + ' · ' + assigned(t[0]).length + '</option>'; }).join('') + '</select></div>';
-  DIR_TEAMS.filter(function (t) { return f === 'all' || f === t[0]; }).forEach(function (t) {
+  var h = '<div class="toolbar"><label class="sr" for="dt_team">Team</label><select class="inp sm" id="dt_team" data-change="dir-team"><option value="all">All Teams · ' + total + '</option>' + DIR_TEAMS.filter(function (t) { return on(TEAM_SEC[t[0]]); }).map(function (t) { return '<option value="' + t[0] + '"' + (f === t[0] ? ' selected' : '') + '>' + t[1] + ' · ' + assigned(t[0]).length + '</option>'; }).join('') + '</select></div>';
+  DIR_TEAMS.filter(function (t) { return (f === 'all' || f === t[0]) && on(TEAM_SEC[t[0]]); }).forEach(function (t) {
     var list = assigned(t[0]);
     if (t[0] === 'speaker') list.sort(function (a, b) { return String((a.a.details || {}).date || '9').localeCompare(String((b.a.details || {}).date || '9')); });
     h += secHead(t[1], addBtn('Add', 'pick-people', t[0]), list.length ? String(list.length) : '') + listBox(list.map(function (x) {
@@ -795,17 +812,18 @@ function subTabs(key, list, def) { var cur = S.sub[key] || def; if (!list.some(f
 function attention(e) {
   var out = [], soon = addDays(TODAY, 14), started = e.starts_on && e.starts_on <= TODAY, ended = (e.ends_on || e.starts_on) && (e.ends_on || e.starts_on) < TODAY;
   if (on('tasks')) { var late = evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on < TODAY; }); if (late.length) out.push(['red', plural(late.length, 'Task') + ' Overdue', late.slice(0, 3).map(function (t) { return t.title; }).join(', '), 'tasks']); }
-  if (on('money') || on('vendors') || on('people')) {
+  if (on('money') || on('vendors') || on('speakers') || on('people')) {
     var pays = payables(e), od = pays.filter(function (p) { return p.owed > 0 && p.due && p.due < TODAY; }), ds = pays.filter(function (p) { return p.owed > 0 && p.due && p.due >= TODAY && p.due <= soon; });
     if (od.length) out.push(['red', plural(od.length, 'Payment') + ' Overdue', od.map(function (p) { return p.name + ' ' + money(p.owed); }).join(', '), 'money']);
     if (ds.length) out.push(['amber', plural(ds.length, 'Payment') + ' Due In The Next 2 Weeks', ds.map(function (p) { return p.name + ' ' + money(p.owed) + ' by ' + fmtDay(p.due, { month: 'short', day: 'numeric' }); }).join(', '), 'money']);
   }
   if (on('vendors')) { var q = evRows('ed_event_vendors').filter(function (v) { return v.status === 'Quoted'; }); if (q.length) out.push(['amber', plural(q.length, 'Vendor') + ' Not Booked Yet', q.map(function (v) { return (byId('ed_vendors', v.vendor_id) || {}).name; }).join(', '), 'vendors']); }
-  if (on('people')) {
+  if (on('volunteers') && num(e.volunteer_goal) && volCount() < num(e.volunteer_goal)) out.push([num(e.volunteer_goal) - volCount() > num(e.volunteer_goal) / 4 ? 'red' : 'amber', (num(e.volunteer_goal) - volCount()) + ' Volunteers Short Of Your Goal', volCount() + ' of ' + num(e.volunteer_goal) + ' so far. Share the volunteer link.', 'volunteers']);
+  if (on('speakers') || on('volunteers')) {
     var sp = evRows('ed_event_people').filter(function (p) { return p.team === 'speaker' && (p.details || {}).status === 'Invited'; });
-    if (sp.length) out.push(['amber', plural(sp.length, 'Speaker') + ' Not Confirmed', sp.map(function (p) { return (byId('ed_people', p.person_id) || {}).name; }).join(', '), 'people']);
+    if (sp.length && on('speakers')) out.push(['amber', plural(sp.length, 'Speaker') + ' Not Confirmed', sp.map(function (p) { return (byId('ed_people', p.person_id) || {}).name; }).join(', '), 'people']);
     var open = evRows('ed_items').filter(function (i) { return i.kind === 'serve'; }).reduce(function (s, i) { return s + Math.max(0, i.needed - signups(i.id).length); }, 0);
-    if (open) out.push(['amber', plural(open, 'Volunteer Spot') + ' Still Open', 'Share the sign-up link.', 'volunteers']);
+    if (open && on('volunteers') && !(num(e.volunteer_goal) && volCount() < num(e.volunteer_goal))) out.push(['amber', plural(open, 'Volunteer Spot') + ' Still Open', 'Share the sign-up link.', 'volunteers']);
   }
   if (on('food')) { var mo = evRows('ed_items').filter(function (i) { return i.kind === 'meal'; }).reduce(function (s, i) { return s + Math.max(0, i.needed - signups(i.id).length); }, 0); if (mo) out.push(['amber', plural(mo, 'Meal Spot') + ' Still Open', '', 'food']); }
   if (on('equipment')) {
@@ -828,8 +846,8 @@ function wsOverview(e) {
   var days = e.starts_on ? Math.round((dt(e.starts_on) - dt(TODAY)) / 864e5) : null, ts = evRows('ed_tasks'), td = ts.filter(function (t) { return t.done; }).length, pct = ts.length ? Math.round(100 * td / ts.length) : 0;
   var g = [];
   function tile(k, v, jump, hl) { g.push('<button class="stat' + (hl ? ' hl' : '') + '" data-a="ev-tab" data-id="' + jump + '"><div class="v">' + v + '</div><div class="k">' + esc(k) + '</div></button>'); }
-  if (on('people')) { var sv = fill('serve'); tile('Volunteers', sv.need ? sv.have + '/' + sv.need : assigned('volunteer').length, 'volunteers'); }
-  if (fill('attend').need) tile('Coming', fill('attend').have, 'attending');
+  if (on('volunteers')) tile(num(e.volunteer_goal) ? 'Volunteer Goal' : 'Volunteers', num(e.volunteer_goal) ? volCount() + '/' + num(e.volunteer_goal) : volCount(), 'volunteers', num(e.volunteer_goal) > volCount());
+  if (on('guests') && fill('attend').need) tile('Coming', fill('attend').have, 'attending');
   if (on('food') && fill('meal').need) { var ml = fill('meal'); tile('Meals', ml.have + '/' + ml.need, 'food'); }
   if (on('equipment')) { var eq = evRows('ed_event_equipment'); tile('Loaded', eq.filter(function (x) { return x.loaded; }).length + '/' + eq.length, 'equipment'); }
   if (on('vendors')) { var ow = payables(e).filter(function (p) { return p.t === 'v'; }).reduce(function (s, p) { return s + p.owed; }, 0); tile('Vendors Owed', money(ow), 'vendors', ow > 0); }
@@ -1180,17 +1198,21 @@ function loadPublic() {
     return (toks.length ? DB.rpc('ed_mine', { p_tokens: toks }) : Promise.resolve([])).then(function (m) { S.mine = m || []; lset('ed.tok.' + S.pubSlug, JSON.stringify(S.mine.map(function (x) { return x.token; }))); render(); });
   }).catch(function (e) { S.pubErr = errMsg(e); render(); });
 }
-function pubOn(k) { var s = (S.pub.event.sections || []); return !s.length || s.indexOf(k) >= 0; }
+function pubOn(k) { return secOn(S.pub.event.sections, k); }
 function pubHero(extra) {
   var e = S.pub.event;
   return '<div class="phero"><div class="in"><div class="eyebrow">' + esc(e.ministry || 'You’re Invited') + '</div><h1>' + esc(e.title) + '</h1><div class="meta">' +
     esc([fmtRange(e.starts_on, e.ends_on), e.time_label].filter(Boolean).join(' · ')) + (e.place || e.address ? '<br>' + esc([e.place, e.address].filter(Boolean).join(', ')) : '') + '</div>' + (extra || '') + '</div></div>';
 }
+function pubGoal(e) {
+  var g = num(e.volunteer_goal), n = Math.min(g, num(e.volunteer_count)), pct = Math.round(100 * n / g);
+  return '<div class="card pgoal"><div class="g-top"><div><div class="g-k">Volunteers</div><div class="g-v"><b>' + n + '</b> of ' + g + ' signed up</div></div><div class="g-side">' + (g - n > 0 ? 'We need <b>' + (g - n) + '</b> more' : 'Thank you!') + '</div></div><div class="cd-bar"><i style="width:' + pct + '%"></i></div></div>';
+}
 function backLink() { return S.user || window.ED_DEMO ? '<p class="center"><a href="#" data-a="leave-pub" class="small">Back To Tent &amp; Table</a></p>' : ''; }
 function viewPublic() {
   if (S.pubErr) return '<main class="auth"><div class="logo">' + IC.tent + '</div><h1>Not Found</h1><p class="lead">' + esc(S.pubErr) + '</p>' + backLink() + '</main>';
   if (!S.pub) return '<main class="auth"><p class="muted">Loading…</p></main>';
-  var e = S.pub.event, its = S.pub.items.filter(function (i) { var md = S.pubMode; if (md === 'v' && i.kind === 'attend') return false; if (md === 'r' && i.kind !== 'attend') return false; return i.kind === 'attend' || pubOn(i.kind === 'meal' ? 'food' : 'people'); }), mineIds = S.mine.map(function (m) { return m.item_id; });
+  var e = S.pub.event, its = S.pub.items.filter(function (i) { var md = S.pubMode; if (md === 'v' && i.kind === 'attend') return false; if (md === 'r' && i.kind !== 'attend') return false; return pubOn(i.kind === 'meal' ? 'food' : i.kind === 'attend' ? 'guests' : 'volunteers'); }), mineIds = S.mine.map(function (m) { return m.item_id; });
   function section(kind, title, lead) {
     var list = its.filter(function (i) { return i.kind === kind; }); if (!list.length) return '';
     var html = '', day = null;
@@ -1210,7 +1232,7 @@ function viewPublic() {
   return '<main class="pub">' + pubHero((e.about ? '<p class="about">' + esc(e.about) + '</p>' : '') + (e.contact_line ? '<p class="small muted">' + esc(e.contact_line) + '</p>' : '') +
       '<div class="btnrow">' + (e.giving_link && pubOn('money') ? '<a class="btn" href="' + esc(webUrl(e.giving_link)) + '" target="_blank" rel="noopener">Give Online</a>' : '') + (pubOn('followup') ? '<button class="btn ghost" data-a="pub-go" data-id="c">Connection Card</button>' : '') + (e.address ? '<a class="btn ghost" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">Directions</a>' : '') + '</div>') +
     mine + (e.is_open ? '' : '<div class="err">Sign-ups for this event are closed.</div>') +
-    section('attend', 'Attend', 'Let us know you’re coming so we can save you a seat.') + section('serve', 'Serve', 'Pick a spot. The team will reach out with details.') + section('meal', 'Bring Food', 'Sign up to bring a meal or dish for the team.') +
+    (S.pubMode !== 'r' && e.volunteer_goal && pubOn('volunteers') ? pubGoal(e) : '') + section('attend', 'Attend', 'Let us know you’re coming so we can save you a seat.') + section('serve', 'Serve', 'Pick a spot. The team will reach out with details.') + section('meal', 'Bring Food', 'Sign up to bring a meal or dish for the team.') +
     (!its.length ? '<div class="empty card">Nothing to sign up for yet. Check back soon.</div>' : '') + backLink() + '</main>';
 }
 function viewCard() {
@@ -1227,21 +1249,118 @@ function viewCard() {
     '<div class="fld"><label for="c_pr">How Can We Pray For You?</label><textarea class="inp" id="c_pr" name="prayer"></textarea></div>' +
     '<div class="fld"><button class="btn block" type="submit"' + (S.busy ? ' disabled' : '') + '>Send My Card</button></div></form>' +
     (S.cardErr ? '<div class="err">' + esc(S.cardErr) + '</div>' : '') +
-    (pubOn('people') || pubOn('food') ? '<p><a href="#" data-a="pub-go" data-id="e" class="small">Want to serve or bring food? Sign up here.</a></p>' : '') + backLink() + '</main>';
+    (pubOn('volunteers') || pubOn('food') ? '<p><a href="#" data-a="pub-go" data-id="v" class="small">Want to serve or bring food? Sign up here.</a></p>' : '') + backLink() + '</main>';
 }
 
 /* ================================================================ event actions */
 function editEvent(ev) {
-  var base = ev ? Object.assign({}, ev, { sections: ev.sections && ev.sections.length ? ev.sections : SECTIONS.map(function (s) { return s[0]; }) }) : { is_open: true, sections: PRESETS.big.on.slice(), budget: 0, giving_link: org().giving_link || '' };
+  var base = ev ? Object.assign({}, ev, { sections: SECTIONS.map(function (s) { return s[0]; }).filter(function (k) { return secOn(ev.sections, k); }) }) : { is_open: true, sections: PRESETS.big.on.slice(), budget: 0, giving_link: org().giving_link || '' };
   editRow('ed_events', ev ? base : null, F.event, { title: ev ? 'Event Details' : 'New Event', base: ev ? null : base, del: false,
     prep: function (v) {
       if (v.ends_on && v.starts_on && v.ends_on < v.starts_on) return 'The last day can’t be before the first day.';
       if (!v.ends_on) v.ends_on = v.starts_on || null;
       if (v.sections.length === SECTIONS.length) v.sections = [];
-      else if (!v.sections.length) return 'Pick at least one tab for this event.';
+      else if (!v.sections.length) return 'Pick at least one thing this event uses.';
+      else v.sections = v.sections.concat(['v2']);
+      v.volunteer_goal = Math.max(0, Math.min(10000, v.volunteer_goal || 0));
       if (!ev) { v.org_id = org().id; v.slug = slugFor(v.title); }
       return v;
     }, after: function (r) { if (!ev) openEvent(r.id); else S.ev = r; } });
+}
+/* New Event walkthrough: one question at a time, then it builds the event and its share pages. */
+var WIZ_NEEDS = [
+  ['guests', 'Will guests attend?', 'RSVPs with party size, seats and check-in, plus a guest QR code.'],
+  ['volunteers', 'Do you need volunteers?', 'A volunteer goal, sign-up spots and a volunteer QR code.'],
+  ['speakers', 'Will there be speakers?', 'Speaking dates, messages and honorariums.'],
+  ['worship', 'Will there be a worship team?', 'Musicians, vocalists, sound and set lists.'],
+  ['people', 'Is there a leadership or ministry team?', 'Leaders, altar counselors, prayer team, security, hosts.'],
+  ['food', 'Will people bring meals?', 'Meal and dish sign-ups on the volunteer page.'],
+  ['vendors', 'Will you hire vendors or work with outside contacts?', 'Costs, payments, who pays and when it’s due.'],
+  ['equipment', 'Will you need equipment?', 'Tents, chairs, sound, and what gets loaded and returned.'],
+  ['money', 'Will you track money?', 'Budget, payments, offerings and expenses.'],
+  ['followup', 'Will you collect connection cards?', 'Guests fill them out on their phone.'],
+  ['calendar', 'Do you need a schedule?', 'Setup, sound checks, rehearsals and services.'],
+  ['tasks', 'Do you need a task list?', 'Who does what, and by when.'],
+  ['agenda', 'Is this a meeting with an agenda?', 'Topics, who leads them and decisions.']
+];
+var WIZ_STEPS = [
+  { t: 'Name', q: 'What’s the event called?', f: [{ k: 'title', label: 'Event Name', auto: true, ph: 'Annual Tent Revival' }] },
+  { t: 'When', q: 'When is it?', f: [{ k: 'starts_on', label: 'First Day', type: 'date', half: true }, { k: 'ends_on', label: 'Last Day', type: 'date', half: true, hint: 'Leave empty for one day.' }, { k: 'start_time', label: 'Starts', type: 'time', half: true }, { k: 'end_time', label: 'Ends', type: 'time', half: true }] },
+  { t: 'Where', q: 'Where is it?', f: [{ k: 'place', label: 'Place', ph: 'Miller Field', auto: true }, { k: 'address', label: 'Address', ph: '1200 Waterman Rd, Waterman, IL', hint: 'Used for directions on the share pages.' }] },
+  { t: 'Needs', q: 'What will this event have?', needs: true },
+  { t: 'Goals', q: 'Set your targets.', goals: true },
+  { t: 'Share Page', q: 'What should people see when they scan the QR code?', f: [{ k: 'about', label: 'About This Event', type: 'textarea', ph: 'Four nights of worship, preaching and prayer under the big tent. Everyone is welcome.' }, { k: 'contact_line', label: 'Questions Contact', ph: 'Questions? Text Steve at (555) 555-0142' }, { k: 'is_open', label: 'Open sign-ups and RSVPs right away', type: 'check' }] },
+  { t: 'Review', q: 'Look it over.', review: true }
+];
+function goalFields() {
+  var n = S.wiz.v.needs, f = [];
+  if (n.volunteers) f.push({ k: 'volunteer_goal', label: 'Volunteers Needed', type: 'int', half: true, ph: '60', hint: 'Required. Tracked on the event and the volunteer page.' });
+  if (n.guests) f.push({ k: 'seats', label: 'Seats Or Expected Guests', type: 'int', half: true, ph: '300', hint: n.volunteers ? 'Per day.' : 'Per day. Used for RSVPs.' });
+  if (n.money) { f.push({ k: 'budget', label: 'Budget', type: 'money', half: true }); f.push({ k: 'giving_link', label: 'Online Giving Link', type: 'url', half: true, ph: 'https://…' }); }
+  return f;
+}
+function wizFields() { var st = WIZ_STEPS[S.wiz.step]; return st.goals ? goalFields() : st.f || []; }
+function newEventWizard() {
+  S.wiz = { step: 0, err: '', v: { is_open: true, giving_link: org().giving_link || '', needs: {} } };
+  openSheet(wizHtml, wizCreate, { wizard: true });
+}
+function wizKeep() { var f = wizFields(); if (f.length && $('#layer .sheet')) S.wiz.v = readForm(f, S.wiz.v); }
+function wizCheck() {
+  var st = WIZ_STEPS[S.wiz.step], v = S.wiz.v;
+  if (st.t === 'Name' && !String(v.title || '').trim()) return 'Give the event a name.';
+  if (st.t === 'When') { if (!v.starts_on) return 'Pick the first day.'; if (v.ends_on && v.ends_on < v.starts_on) return 'The last day can’t be before the first day.'; }
+  if (st.needs) { var miss = WIZ_NEEDS.filter(function (n) { return v.needs[n[0]] == null; }); if (miss.length) return 'Answer yes or no for each one. ' + plural(miss.length, 'question') + ' left.'; if (!WIZ_NEEDS.some(function (n) { return v.needs[n[0]]; })) return 'Pick at least one thing this event will have.'; }
+  if (st.goals && v.needs.volunteers && !(v.volunteer_goal > 0)) return 'How many volunteers do you need?';
+  return '';
+}
+function wizMove(d) {
+  wizKeep();
+  if (d > 0) { var m = wizCheck(); if (m) { S.sheet.err = m; refreshSheetErr(); var e1 = $('#layer .sheet .err'); if (e1) e1.scrollIntoView({ block: 'nearest' }); return; } }
+  var s = S.wiz.step + d;
+  if (WIZ_STEPS[s] && WIZ_STEPS[s].goals && !goalFields().length) s += d;
+  S.wiz.step = Math.max(0, Math.min(WIZ_STEPS.length - 1, s)); S.wiz.err = ''; S.sheet.err = ''; redrawSheet();
+  var sh = $('#layer .sheet'); if (sh) sh.scrollTop = 0;
+}
+function wizTime(v) {
+  if (!v.start_time) return '';
+  var t = fmtTime(v.start_time) + (v.end_time ? ' – ' + fmtTime(v.end_time) : '');
+  return v.ends_on && v.ends_on > v.starts_on ? 'Nightly, ' + t : t;
+}
+function wizHtml() {
+  var w = S.wiz, st = WIZ_STEPS[w.step], v = w.v, n = WIZ_STEPS.length, body = '';
+  if (st.needs) {
+    body = '<div class="wiz-presets"><span>Quick fill:</span>' + Object.keys(PRESETS).map(function (k) { return '<button type="button" class="chip" data-a="wiz-preset" data-v="' + k + '">' + esc(PRESETS[k].label) + '</button>'; }).join('') + '</div>' +
+      '<div class="yn-list">' + WIZ_NEEDS.map(function (q) {
+        var a = v.needs[q[0]];
+        return '<div class="yn' + (a == null ? '' : a ? ' yes' : ' no') + '"><div class="main"><b>' + esc(q[1]) + '</b><span>' + esc(q[2]) + '</span></div><div class="yn-btns" role="group" aria-label="' + esc(q[1]) + '">' +
+          '<button type="button" data-a="wiz-yn" data-id="' + q[0] + '" data-v="1" aria-pressed="' + (a === true) + '">Yes</button><button type="button" data-a="wiz-yn" data-id="' + q[0] + '" data-v="0" aria-pressed="' + (a === false) + '">No</button></div></div>';
+      }).join('') + '</div>';
+  } else if (st.review) {
+    var yes = WIZ_NEEDS.filter(function (q) { return v.needs[q[0]]; }).map(function (q) { return (SECTIONS.find(function (s) { return s[0] === q[0]; }) || [, q[0]])[1]; });
+    var line = function (step, k, val) { return '<button class="rv" data-a="wiz-go" data-v="' + step + '"><span class="k">' + esc(k) + '</span><span class="v">' + (val ? esc(val) : '<i>Not set</i>') + '</span><span class="e">Edit</span></button>'; };
+    body = '<div class="review">' + line(0, 'Name', v.title) + line(1, 'When', [fmtRange(v.starts_on, v.ends_on || v.starts_on), wizTime(v)].filter(Boolean).join(' · ')) + line(2, 'Where', [v.place, v.address].filter(Boolean).join(', ')) +
+      line(3, 'Includes', yes.join(', ')) + (goalFields().length ? line(4, 'Goals', [v.needs.volunteers ? v.volunteer_goal + ' volunteers' : '', v.needs.guests && v.seats ? v.seats + ' seats a day' : '', v.needs.money && v.budget ? money(v.budget) + ' budget' : ''].filter(Boolean).join(' · ')) : '') +
+      line(5, 'Share Page', v.about || v.contact_line ? [v.about, v.contact_line].filter(Boolean).join(' ') : '') + '</div>' +
+      '<div class="card tip"><b>Ready To Share</b><p class="small muted">' + esc([v.needs.volunteers || v.needs.food ? 'A volunteer QR code' : '', v.needs.guests ? 'a guest RSVP QR code' : '', v.needs.followup ? 'a connection card QR code' : ''].filter(Boolean).join(', ').replace(/^a/, 'A') || 'Your event workspace') + ' will be set up with these details.' + (v.needs.volunteers ? ' Add specific spots like Parking or Greeters any time; until then people can sign up for the general volunteer team.' : '') + '</p></div>';
+  } else body = formBody(wizFields(), v);
+  var pct = Math.round(100 * (w.step + 1) / n);
+  return '<h3>New Event</h3><div class="wiz-head"><div class="wiz-step">Step ' + (w.step + 1) + ' of ' + n + ' · ' + esc(st.t) + '</div><div class="wiz-bar"><i style="width:' + pct + '%"></i></div><div class="wiz-q">' + esc(st.q) + '</div></div>' + body +
+    '<div class="acts">' + (w.step ? '<button class="btn plain" data-a="wiz-back">Back</button>' : '<button class="btn plain" data-a="close">Cancel</button>') + '<span class="grow"></span>' +
+    (st.review ? '<button class="btn" data-a="sheet-save">Create Event</button>' : '<button class="btn" data-a="wiz-next">Next</button>') + '</div>';
+}
+function wizCreate() {
+  var v = S.wiz.v, nd = v.needs;
+  var ev = { org_id: org().id, title: String(v.title).trim(), slug: slugFor(v.title), starts_on: v.starts_on, ends_on: v.ends_on || v.starts_on, time_label: wizTime(v), place: v.place || '', address: v.address || '',
+    about: v.about || '', contact_line: v.contact_line || '', giving_link: nd.money ? v.giving_link || '' : (org().giving_link || ''), budget: nd.money ? num(v.budget) : 0, is_open: v.is_open !== false,
+    volunteer_goal: nd.volunteers ? Math.max(0, Math.min(10000, v.volunteer_goal || 0)) : 0, notes: '',
+    sections: WIZ_NEEDS.filter(function (q) { return nd[q[0]]; }).map(function (q) { return q[0]; }).concat(['v2']) };
+  return save('ed_events', ev, 'Event created').then(function (r) {
+    var adds = [], days = [], d = r.starts_on, tl = r.time_label.replace(/^Nightly, /, '');
+    while (d && d <= r.ends_on && days.length < 14) { days.push(d); d = addDays(d, 1); }
+    if (nd.volunteers && r.volunteer_goal) adds.push({ event_id: r.id, kind: 'serve', title: 'Volunteer Team', on_date: null, time_label: '', needed: Math.min(5000, r.volunteer_goal), notes: 'Serve wherever you’re needed. The team will reach out with details.', sort: 0 });
+    if (nd.guests) days.forEach(function (x, i) { adds.push({ event_id: r.id, kind: 'attend', title: days.length > 1 ? 'Night ' + (i + 1) : 'RSVP', on_date: x, time_label: tl, needed: Math.max(1, Math.min(5000, v.seats || 200)), notes: '', sort: 10 + i }); });
+    return adds.reduce(function (p, it) { return p.then(function () { return DB.save('ed_items', it).then(function (row) { put('ed_items', row); }); }); }, Promise.resolve()).then(function () { closeSheet(); S.wiz = null; openEvent(r.id); });
+  }).catch(function () {});
 }
 function eventMenu() {
   var e = S.ev;
@@ -1340,7 +1459,13 @@ var A = {
   'dir-add': function (t, id) { editDir(id, null); },
   'dir-edit': function (t, id) { var tb = t.getAttribute('data-t'); editDir(tb, byId(tb, id)); },
   // events
-  'new-event': function () { editEvent(null); },
+  'new-event': function () { newEventWizard(); },
+  'wiz-next': function () { wizMove(1); },
+  'wiz-back': function () { wizMove(-1); },
+  'wiz-yn': function (t, id) { wizKeep(); S.wiz.v.needs[id] = t.getAttribute('data-v') === '1'; S.wiz.err = ''; S.sheet.err = ''; redrawSheet(); },
+  'wiz-preset': function (t) { wizKeep(); var p = PRESETS[t.getAttribute('data-v')]; WIZ_NEEDS.forEach(function (n) { S.wiz.v.needs[n[0]] = p.on.indexOf(n[0]) >= 0; }); S.wiz.err = ''; S.sheet.err = ''; redrawSheet(); },
+  'wiz-go': function (t) { wizKeep(); S.wiz.step = +t.getAttribute('data-v'); S.wiz.err = ''; S.sheet.err = ''; redrawSheet(); },
+  'set-goal': function () { editRow('ed_events', S.ev, [{ k: 'volunteer_goal', label: 'How Many Volunteers Do You Need?', type: 'int', auto: true, hint: 'Counts everyone on the volunteer team plus everyone who signs up for a spot.' }], { title: 'Volunteer Goal', del: false, prep: function (v) { v.volunteer_goal = Math.max(0, Math.min(10000, v.volunteer_goal || 0)); return v; }, after: function (r) { S.ev = r; } }); },
   'open-event': function (t, id) { closeSheet(); openEvent(id); },
   'close-event': function () { closeEvent(); },
   'ev-tab': function (t, id) { goArea(id || t.getAttribute('data-v')); render(); window.scrollTo(0, 0); if (S.evTab === 'dir' || S.evTab === 'guests') refreshEvent(); },

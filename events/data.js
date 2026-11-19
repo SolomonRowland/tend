@@ -71,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v6', D = null;
+  var KEY = 'ed.demo.v7', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -94,7 +94,7 @@ function DemoDB() {
   function pub(slug) {
     var ev = T('ed_events').find(function (e) { return e.slug === slug; }); if (!ev) return null;
     var org = T('ed_orgs').find(function (o) { return o.id === ev.org_id; }) || {};
-    return { event: { slug: ev.slug, title: ev.title, starts_on: ev.starts_on, ends_on: ev.ends_on, time_label: ev.time_label, place: ev.place, address: ev.address, about: ev.about, contact_line: ev.contact_line, giving_link: ev.giving_link, is_open: ev.is_open, sections: ev.sections || [], ministry: org.name },
+    return { event: { slug: ev.slug, title: ev.title, starts_on: ev.starts_on, ends_on: ev.ends_on, time_label: ev.time_label, place: ev.place, address: ev.address, about: ev.about, contact_line: ev.contact_line, giving_link: ev.giving_link, volunteer_goal: ev.volunteer_goal || 0, volunteer_count: T('ed_signups').filter(function (s) { var i = T('ed_items').find(function (x) { return x.id === s.item_id; }); return i && i.event_id === ev.id && i.kind === 'serve'; }).length + T('ed_event_people').filter(function (p) { return p.event_id === ev.id && p.team === 'volunteer'; }).length, is_open: ev.is_open, sections: ev.sections || [], ministry: org.name },
       items: T('ed_items').filter(function (i) { return i.event_id === ev.id; }).sort(function (a, b) { return String(a.on_date || '').localeCompare(String(b.on_date || '')) || a.sort - b.sort; }).map(function (i) {
         return { id: i.id, kind: i.kind, title: i.title, on_date: i.on_date, time_label: i.time_label, needed: i.needed, notes: i.notes, taken: T('ed_signups').filter(function (s) { return s.item_id === i.id; }).reduce(function (n, s) { return n + (i.kind === 'attend' ? (s.party || 1) : 1); }, 0), names: i.kind === 'attend' ? [] : T('ed_signups').filter(function (s) { return s.item_id === i.id; }).map(function (s) { return s.name.split(' ')[0]; }) };
       }) };
@@ -250,7 +250,7 @@ function demoSeed() {
   function ev(title, start, len, extra) { return add('ed_events', Object.assign({ org_id: O, slug: slugFor(title), title: title, starts_on: start, ends_on: addDays(start, len), time_label: '', place: '', address: '', about: '', contact_line: '', giving_link: '', budget: 0, notes: '', sections: [], is_open: true }, extra)); }
   var revStart = addDays(today, 18);
   var rev = ev('Annual Tent Revival', revStart, 3, { time_label: 'Nightly at 7 PM', place: 'Miller Field', address: '1200 Waterman Rd, Waterman, IL', about: 'Four nights of worship, preaching and prayer under the big tent. Everyone is welcome. Bring a lawn chair if you like; seating is provided.', contact_line: 'Questions? Text Steve at (555) 555-0142.', giving_link: 'https://example.com/give', budget: 9000,
-    sections: ['calendar', 'people', 'vendors', 'equipment', 'food', 'tasks', 'money', 'followup'] });
+    sections: ['calendar', 'people', 'speakers', 'worship', 'volunteers', 'guests', 'vendors', 'equipment', 'food', 'tasks', 'money', 'followup', 'v2'], volunteer_goal: 80 });
   var R = rev.id, nights = [0, 1, 2, 3].map(function (i) { return addDays(revStart, i); });
   // calendar
   add('ed_schedule', { event_id: R, on_date: addDays(revStart, -1), start_time: '08:00', end_time: '12:00', title: 'Tent Install With Big Top Crew', location: 'Miller Field', owner: 'Marcus Reed', notes: '' });
@@ -330,7 +330,7 @@ function demoSeed() {
   [['Wireless Mics', 4], ['Speakers (Pair)', 1], ['Mixer (16 Channel)', 1], ['Coffee Urns', 1]].forEach(function (e) { add('ed_event_equipment', { event_id: night.id, equipment_id: E[e[0]].id, quantity: e[1], loaded: false, returned: false, notes: '' }); });
   add('ed_tasks', { event_id: night.id, phase: 'setup', title: 'Set Up Coffee Bar', due_on: night.starts_on, due_time: '6 PM', owner: 'Grace Kim', done: false, notes: '', sort: 0 });
 
-  var board = ev('Monthly Board Meeting', addDays(today, 2), 0, { time_label: '7 PM', place: 'Fellowship Room', sections: ['calendar', 'people', 'agenda', 'tasks', 'food'] });
+  var board = ev('Monthly Board Meeting', addDays(today, 2), 0, { time_label: '7 PM', place: 'Fellowship Room', sections: ['calendar', 'people', 'agenda', 'tasks', 'food', 'v2'] });
   [['Opening Prayer', 'Pastor Solomon', 5], ['Tent Revival Plan And Budget', 'Steve Moss', 20], ['Treasurer’s Report', 'Linda Grey', 10], ['Follow-Up On New Believers', 'Pam Hughes', 15], ['Spring Outreach Ideas', 'Pastor Solomon', 15], ['Closing Prayer', '', 5]]
     .forEach(function (a, i) { add('ed_agenda', { event_id: board.id, title: a[0], leader: a[1], minutes: a[2], done: false, notes: '', sort: i }); });
   ['Pastor Solomon', 'Pam Hughes', 'Steve Moss', 'Linda Grey'].forEach(function (n) { add('ed_event_people', { event_id: board.id, person_id: P[n].id, team: 'leader', role: 'Board', days: '', details: {}, amount: 0, pay_status: 'Not Paid', payer: '', due_on: null, notes: '' }); });
