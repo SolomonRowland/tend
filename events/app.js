@@ -158,7 +158,7 @@ function refreshEvent() {
 
 /* ================================================================ routing */
 function route() {
-  var m = /^#\/(e|c)\/([a-z0-9-]+)/.exec(location.hash || '');
+  var m = /^#\/(e|c|v|r)\/([a-z0-9-]+)/.exec(location.hash || '');
   if (m) { S.pubMode = m[1]; S.pubSlug = m[2]; S.cardDone = false; render(); return loadPublic(); }
   if (S.pubMode && !window.ED_DEMO) { S.pubMode = ''; S.pub = null; }
   var w = /^#\/w\/([0-9a-f-]{36})/.exec(location.hash || '');
@@ -178,6 +178,7 @@ function closeEvent() {
 }
 window.addEventListener('popstate', function () { if (S.ev && !/^#\/w\//.test(location.hash)) { S.ev = null; render(); } });
 function openPub(kind, slug) {
+  S.pubFromEv = S.ev ? S.ev.id : null;
   if (window.ED_DEMO) { S.pubMode = kind; S.pubSlug = slug; S.cardDone = false; S.pub = null; render(); window.scrollTo(0, 0); loadPublic(); }
   else location.hash = '#/' + kind + '/' + slug;
 }
@@ -666,9 +667,9 @@ var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['dir', 'Directory'], [
 var AREA_SUBS = {
   plan: [['schedule', 'Schedule', 'calendar'], ['tasks', 'Tasks', 'tasks'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'people']],
   dir: [['people', 'People', 'people'], ['volunteers', 'Volunteers', 'vols'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors'], ['equipment', 'Equipment', 'equipment']],
-  guests: [['attending', 'Attending', 'always'], ['checkin', 'Check-In', 'always'], ['followup', 'Follow-Up', 'followup'], ['share', 'Share', 'always']]
+  guests: [['attending', 'Attending', 'always'], ['checkin', 'Check-In', 'always'], ['followup', 'Follow-Up', 'followup']]
 };
-var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], people: ['dir', 'people'], vendors: ['dir', 'vendors'], contacts: ['dir', 'contacts'], equipment: ['dir', 'equipment'], food: ['dir', 'volunteers'], signups: ['dir', 'volunteers'], volunteers: ['dir', 'volunteers'], attending: ['guests', 'attending'], checkin: ['guests', 'checkin'], followup: ['guests', 'followup'], share: ['guests', 'share'], money: ['money'], payments: ['money'] };
+var JUMP = { calendar: ['plan', 'schedule'], tasks: ['plan', 'tasks'], agenda: ['plan', 'agenda'], setlists: ['plan', 'setlists'], people: ['dir', 'people'], vendors: ['dir', 'vendors'], contacts: ['dir', 'contacts'], equipment: ['dir', 'equipment'], food: ['dir', 'volunteers'], signups: ['dir', 'volunteers'], volunteers: ['dir', 'volunteers'], attending: ['guests', 'attending'], checkin: ['guests', 'checkin'], followup: ['guests', 'followup'], share: ['guests', 'attending'], money: ['money'], payments: ['money'] };
 function subOn(x) { return x[2] === 'always' ? true : x[2] === 'vols' ? (on('people') || on('food')) : on(x[2]); }
 function areaSubs(k) { return (AREA_SUBS[k] || []).filter(subOn); }
 function areaOn(k) { return k === 'overview' || (k === 'money' ? on('money') : areaSubs(k).length > 0); }
@@ -708,7 +709,6 @@ function areaView(area, sub, e) {
   if (sub === 'equipment') return wsEquipment(e);
   if (sub === 'checkin') return checkinView(e);
   if (sub === 'followup') return wsFollowup(e);
-  if (sub === 'share') return wsShare(e);
   if (sub === 'attending') return attendingView(e);
   if (sub === 'volunteers') return volunteersView(e);
   return '';
@@ -719,18 +719,18 @@ function volunteersView(e) {
   if (on('food')) kinds.push(['meal', 'Meals']);
   var st = subTabs('signkind', kinds, 'serve');
   var top = kinds.length > 1 ? st.html.replace('class="subtabs"', 'class="subtabs mini"') : '';
-  if (st.cur === 'meal') return top + wsFood(e);
+  if (st.cur === 'meal') return top + shareBar('v') + wsFood(e);
   var av = assigned('volunteer');
-  return top + secHead('Volunteer Team', addBtn('Add From Directory', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
+  return top + shareBar('v') + secHead('Volunteer Team', addBtn('Add From Directory', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
     listBox(av.map(function (x) { return personRow(x); }), 'Volunteers you place yourself, straight from the Directory.') +
     signupBlock('serve', 'Volunteer Spots', 'Add Spot');
 }
 function attendingView(e) {
   var its = evRows('ed_items').filter(function (i) { return i.kind === 'attend'; }), f = fill('attend'), people = 0, here = 0;
   its.forEach(function (i) { signups(i.id).forEach(function (s) { people += 1; if (s.checked_in_at) here += (s.party || 1); }); });
-  return (its.length ? '<div class="stats three">' + stat('Coming', f.have) + stat('RSVPs', people) + stat('Checked In', here) + '</div>' : '') +
+  return shareBar('r') + (its.length ? '<div class="stats three">' + stat('Coming', f.have) + stat('RSVPs', people) + stat('Checked In', here) + '</div>' : '') +
     signupBlock('attend', 'Who’s Coming', 'Add Service') +
-    (its.length ? '' : '<p class="small muted">Add each service or night people can RSVP for, with how many seats you have. Guests RSVP from the event’s public page under Share.</p>');
+    (its.length ? '' : '<p class="small muted">Add each service or night people can RSVP for, with how many seats you have. Guests RSVP with the link above.</p>');
 }
 function checkinView(e) {
   var its0 = evRows('ed_items').filter(function (i) { return i.kind === 'attend' || i.kind === 'serve'; }), days = [];
@@ -932,7 +932,7 @@ function signupBlock(kind, title, addLabel) {
   list.forEach(function (i) { var g = groups.find(function (x) { return x.d === (i.on_date || ''); }); if (!g) groups.push(g = { d: i.on_date || '', items: [] }); g.items.push(i); });
   var att = kind === 'attend';
   return secHead(title, addBtn(addLabel, 'add-item', kind, 'ghost'), att ? '' : f.have + ' Of ' + f.need + ' Filled') +
-    '<div class="btnrow"><button class="btn sm plain" data-a="csv-signups" data-id="' + kind + '">Download List</button><button class="btn sm plain" data-a="ev-tab" data-id="share">Share Sign-Up Link</button></div>' +
+    '<div class="btnrow"><button class="btn sm plain" data-a="csv-signups" data-id="' + kind + '">Download List</button></div>' +
     (groups.length ? groups.map(function (g) {
       return '<div class="grouplbl">' + esc(g.d ? fmtLong(g.d) : 'Any Day') + '</div>' + g.items.map(function (i) {
         var su = signups(i.id), tk = taken(i), open = i.needed - tk;
@@ -1075,7 +1075,7 @@ function wsFollowup(e) {
   var c = function (s) { return all.filter(function (x) { return x.status === s; }).length; };
   var st = subTabs('followup', [['new', 'New', c('new')], ['contacted', 'Contacted', c('contacted')], ['connected', 'Connected', c('connected')], ['all', 'All', all.length]], 'new');
   var list = st.cur === 'all' ? all : all.filter(function (x) { return x.status === st.cur; });
-  return st.html + '<div class="btnrow">' + addBtn('Add A Card', 'add-card') + '<button class="btn sm plain" data-a="csv-cards">Download List</button></div>' +
+  return shareBar('c') + st.html + '<div class="btnrow">' + addBtn('Add A Card', 'add-card') + '<button class="btn sm plain" data-a="csv-cards">Download List</button></div>' +
     listBox(list.map(function (x) {
       return row({ act: 'edit-card', id: x.id, lead: avatar(x.name), title: esc(x.name), sub: (x.responses || []).map(function (r) { return '<span class="tag">' + esc(r) + '</span>'; }).join(' ') + (x.prayer ? '<br>Prayer: ' + esc(x.prayer) : '') + '<br>' + (x.follow_up_by ? 'Follow-Up By ' + esc(x.follow_up_by) : '<span class="danger">No One Assigned</span>'),
         right: pill(x.status[0].toUpperCase() + x.status.slice(1), { new: 'red', contacted: 'amber', connected: 'green' }[x.status]) });
@@ -1085,6 +1085,19 @@ function wsFollowup(e) {
 /* ---------- share */
 function pubUrl(kind) { var base = location.href.split('#')[0].split('?')[0]; return base + (DB.mode === 'demo' && !window.ED_DEMO ? '?demo' : '') + '#/' + kind + '/' + S.ev.slug; }
 function qrSvg(text) { try { var q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch (e) { return ''; } }
+var SHARE = { v: ['Volunteer Sign-Up', 'People pick a spot to serve or a dish to bring.', 'Scan To Serve Or Bring Food'], r: ['Guest RSVP', 'Guests let you know they’re coming and how many.', 'Scan To RSVP'], c: ['Connection Card', 'Guests fill it out on their phone during the altar call or after service.', 'Scan To Fill Out A Connection Card'] };
+function shareBar(k) {
+  var url = pubUrl(k);
+  return '<div class="sharebar"><button class="sb-qr" data-a="show-qr" data-id="' + k + '" aria-label="Show QR Code">' + qrSvg(url) + '</button><div class="main"><b>' + esc(SHARE[k][0]) + ' Link</b><span>' + (S.ev.is_open ? 'Anyone with the link or QR code. No account needed.' : 'Sign-ups are closed for this event.') + '</span></div>' +
+    '<div class="sb-acts"><button class="btn sm plain" data-a="copy" data-v="' + esc(url) + '">Copy</button><button class="btn sm plain" data-a="show-qr" data-id="' + k + '">QR</button></div></div>';
+}
+function showQr(k) {
+  var url = pubUrl(k);
+  openSheet(function () {
+    return '<h3>' + esc(SHARE[k][0]) + '</h3><p class="lead">' + esc(SHARE[k][1]) + ' Text the link, post it, or print the QR code for the tent and tables.</p><div class="qrbig-sheet">' + qrSvg(url) + '</div><div class="urlbox">' + esc(url) + '</div>' +
+      '<div class="acts"><button class="btn plain" data-a="open-pub" data-id="' + k + '">Open Page</button><span class="grow"></span>' + (window.ED_DEMO ? '' : '<button class="btn plain" data-a="print-qr" data-id="' + k + '">Print Poster</button>') + '<button class="btn" data-a="copy" data-v="' + esc(url) + '">Copy Link</button></div>';
+  });
+}
 function wsShare(e) {
   function box(title, sub, url, k) {
     return '<div class="card"><div class="qr"><div class="code">' + qrSvg(url) + '</div><div class="main"><b>' + esc(title) + '</b><p class="small muted">' + esc(sub) + '</p><div class="urlbox">' + esc(url) + '</div>' +
@@ -1177,7 +1190,7 @@ function backLink() { return S.user || window.ED_DEMO ? '<p class="center"><a hr
 function viewPublic() {
   if (S.pubErr) return '<main class="auth"><div class="logo">' + IC.tent + '</div><h1>Not Found</h1><p class="lead">' + esc(S.pubErr) + '</p>' + backLink() + '</main>';
   if (!S.pub) return '<main class="auth"><p class="muted">Loading…</p></main>';
-  var e = S.pub.event, its = S.pub.items.filter(function (i) { return i.kind === 'attend' || pubOn(i.kind === 'meal' ? 'food' : 'people'); }), mineIds = S.mine.map(function (m) { return m.item_id; });
+  var e = S.pub.event, its = S.pub.items.filter(function (i) { var md = S.pubMode; if (md === 'v' && i.kind === 'attend') return false; if (md === 'r' && i.kind !== 'attend') return false; return i.kind === 'attend' || pubOn(i.kind === 'meal' ? 'food' : 'people'); }), mineIds = S.mine.map(function (m) { return m.item_id; });
   function section(kind, title, lead) {
     var list = its.filter(function (i) { return i.kind === kind; }); if (!list.length) return '';
     var html = '', day = null;
@@ -1398,12 +1411,13 @@ var A = {
   },
   // share + public
   copy: function (t) { copyText(t.getAttribute('data-v')); },
-  'open-pub': function (t, id) { openPub(id, S.ev.slug); },
+  'open-pub': function (t, id) { closeSheet(); openPub(id, S.ev.slug); },
+  'show-qr': function (t, id) { showQr(id); },
   'pub-go': function (t, id) { openPub(id, S.pubSlug); },
-  'leave-pub': function () { if (/^#\/(e|c)\//.test(location.hash)) { try { history.pushState(null, '', location.pathname + location.search); } catch (e) {} } S.pubMode = ''; S.pub = null; S.cardDone = false; if (!S.user && !window.ED_DEMO) boot(); else render(); },
+  'leave-pub': function () { if (/^#\/(e|c|v|r)\//.test(location.hash)) { try { history.pushState(null, '', location.pathname + location.search); } catch (e) {} } S.pubMode = ''; S.pub = null; S.cardDone = false; if (!S.user && !window.ED_DEMO) boot(); else if (S.pubFromEv && byId('ed_events', S.pubFromEv)) { var back = S.pubFromEv, tab = S.evTab, sub = S.sub; S.pubFromEv = null; openEvent(back); S.evTab = tab; S.sub = sub; render(); } else render(); },
   'print-qr': function (t, id) {
     var url = pubUrl(id), d = document.createElement('div'); d.className = 'printonly';
-    d.innerHTML = '<h1>' + esc(S.ev.title) + '</h1><p>' + esc(id === 'c' ? 'Scan To Fill Out A Connection Card' : 'Scan To Serve Or Bring Food') + '</p><div class="qrbig">' + qrSvg(url) + '</div><p class="url">' + esc(url) + '</p>';
+    d.innerHTML = '<h1>' + esc(S.ev.title) + '</h1><p>' + esc((SHARE[id] || SHARE.v)[2]) + '</p><div class="qrbig">' + qrSvg(url) + '</div><p class="url">' + esc(url) + '</p>';
     document.body.appendChild(d); window.print(); setTimeout(function () { d.remove(); }, 800);
   },
   'pub-sign': function (t, id) {
