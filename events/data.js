@@ -1,4 +1,4 @@
-/* The Ministry Table: data layer.
+/* Tent & Table: data layer.
    Two versions with the same functions:
    - CloudDB talks to Supabase (see supabase/schema.sql).
    - DemoDB keeps sample data in this browser, for trying the app.

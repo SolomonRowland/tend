@@ -1,4 +1,4 @@
-# The Ministry Table
+# Tent & Table
 
 A phone-friendly web app for running a ministry's events, from the annual tent revival to a monthly board meeting.
 

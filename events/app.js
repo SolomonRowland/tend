@@ -1,4 +1,4 @@
-/* The Ministry Table: screens.
+/* Tent & Table: screens.
    Ministry level: Events, Directory and Account (bottom tabs).
    Each event opens in its own workspace with tabs for the sections it uses.
    Public pages (no account): #/e/<slug> to sign up, #/c/<slug> connection card. */
@@ -54,7 +54,7 @@ var IC = {
   check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   more: '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
-  tent: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L2 20h20L12 3z"/><path d="M12 3v17M8.5 20L12 13l3.5 7"/></svg>',
+  tent: '<svg width="20" height="20" viewBox="84 100 344 312" fill="currentColor" aria-hidden="true"><path d="M256 112C232 160 168 214 96 238H416C344 214 280 160 256 112Z"/><path d="M96 246H416L406 274H106Z"/><rect x="112" y="268" width="18" height="142" rx="9"/><rect x="382" y="268" width="18" height="142" rx="9"/><rect x="178" y="314" width="156" height="22" rx="7"/><rect x="196" y="328" width="16" height="70" rx="8"/><rect x="300" y="328" width="16" height="70" rx="8"/></svg>',
   cal: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
   book: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5v14z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>',
   user: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
@@ -393,7 +393,7 @@ var F_ASSIGN = {
 /* ================================================================ auth + setup */
 function viewAuth() {
   var up = S.authMode === 'up', reset = S.authMode === 'reset';
-  return '<div class="auth"><div class="logo">' + IC.tent + '</div><h1>The Ministry Table</h1>' +
+  return '<div class="auth"><div class="logo">' + IC.tent + '</div><h1>Tent &amp; Table</h1>' +
     '<p class="lead">Plan every event your ministry runs, from the annual tent revival to a monthly board meeting: people, speakers, worship, vendors, equipment, food, money and follow-up.</p>' +
     '<form data-form="auth" class="fgrid">' +
     '<div class="fld"><label for="a_email">Email</label><input class="inp" id="a_email" name="email" type="email" autocomplete="email" required></div>' +
@@ -405,7 +405,7 @@ function viewAuth() {
     '<div class="card" style="margin-top:24px"><b>Just Looking?</b><p class="small muted" style="margin:4px 0 10px">Open a demo ministry with sample events. Nothing you change there is saved to an account.</p><button class="btn ghost sm" data-a="try-demo">Try The Demo</button></div></div>';
 }
 function viewSetup() {
-  return head('The Ministry Table', '', '', '<button class="link" data-a="signout">Sign Out</button>') + '<main>' +
+  return head('Tent & Table', '', '', '<button class="link" data-a="signout">Sign Out</button>') + '<main>' +
     '<h1>Set Up Your Ministry</h1><p class="lead">This login will belong to one ministry. Start a new ministry account, or join one with an invite link.</p>' +
     '<div class="card"><h2>Start A Ministry</h2><form data-form="create-org" class="fgrid">' +
     '<div class="fld"><label for="o_name">Ministry Name</label><input class="inp" id="o_name" name="name" placeholder="GGG Ministries" required></div>' +
@@ -951,7 +951,7 @@ function pubHero(extra) {
   return '<div class="hero"><div class="band"></div><div class="in"><div class="eyebrow">' + esc(e.ministry || 'You’re Invited') + '</div><h1>' + esc(e.title) + '</h1><div class="meta">' +
     esc([fmtRange(e.starts_on, e.ends_on), e.time_label].filter(Boolean).join(' · ')) + (e.place || e.address ? '<br>' + esc([e.place, e.address].filter(Boolean).join(', ')) : '') + '</div>' + (extra || '') + '</div></div>';
 }
-function backLink() { return S.user || window.ED_DEMO ? '<p class="center"><a href="#" data-a="leave-pub" class="small">Back To The Ministry Table</a></p>' : ''; }
+function backLink() { return S.user || window.ED_DEMO ? '<p class="center"><a href="#" data-a="leave-pub" class="small">Back To Tent &amp; Table</a></p>' : ''; }
 function viewPublic() {
   if (S.pubErr) return '<main class="auth"><div class="logo">' + IC.tent + '</div><h1>Not Found</h1><p class="lead">' + esc(S.pubErr) + '</p>' + backLink() + '</main>';
   if (!S.pub) return '<main class="auth"><p class="muted">Loading…</p></main>';

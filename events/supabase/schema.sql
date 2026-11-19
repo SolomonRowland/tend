@@ -1,4 +1,4 @@
--- The Ministry Table database (version 2).
+-- Tent & Table database (version 2).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
