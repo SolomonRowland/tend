@@ -1,4 +1,4 @@
--- Tent & Table database (version 5).
+-- Tent & Table database (version 6).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -311,6 +311,10 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 6: ministry logo (a small image, stored as a data URL)
+alter table public.ed_orgs add column if not exists logo text not null default '';
+alter table public.ed_orgs drop constraint if exists ed_orgs_logo_check;
+alter table public.ed_orgs add constraint ed_orgs_logo_check check (length(logo) <= 400000 and (logo = '' or logo like 'data:image/%'));
 -- version 5: volunteer goal per event
 alter table public.ed_events add column if not exists volunteer_goal int not null default 0;
 alter table public.ed_events drop constraint if exists ed_events_volunteer_goal_check;
@@ -571,7 +575,8 @@ begin
       'giving_link', ev.giving_link, 'is_open', ev.is_open, 'volunteer_goal', ev.volunteer_goal,
       'volunteer_count', (select count(*) from public.ed_signups s join public.ed_items i on i.id = s.item_id where i.event_id = ev.id and i.kind = 'serve')
         + (select count(*) from public.ed_event_people p where p.event_id = ev.id and p.team = 'volunteer'), 'sections', to_jsonb(ev.sections),
-      'ministry', (select name from public.ed_orgs where id = ev.org_id)),
+      'ministry', (select name from public.ed_orgs where id = ev.org_id),
+      'logo', (select logo from public.ed_orgs where id = ev.org_id)),
     'items', coalesce((
       select jsonb_agg(jsonb_build_object('id', i.id, 'kind', i.kind, 'title', i.title, 'on_date', i.on_date,
         'time_label', i.time_label, 'needed', i.needed, 'notes', i.notes,
@@ -700,7 +705,7 @@ create policy ed_event_equipment_all on public.ed_event_equipment for all to aut
 -- ---------- grants
 revoke all on public.ed_orgs, public.ed_members, public.ed_invites from authenticated;
 grant select on public.ed_orgs, public.ed_members to authenticated;
-grant update (name, website, email, phone, address, about, giving_link, timezone) on public.ed_orgs to authenticated;
+grant update (name, website, email, phone, address, about, giving_link, timezone, logo) on public.ed_orgs to authenticated;
 grant update (name, phone, prefs) on public.ed_members to authenticated;
 grant select, delete on public.ed_invites to authenticated;
 grant select, insert, update, delete on public.ed_people, public.ed_vendors, public.ed_contacts, public.ed_equipment,

@@ -616,6 +616,48 @@ input[type=date].inp::-webkit-date-and-time-value{min-height:22px}
 .multi:not(.one){grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:340px){.multi:not(.one){grid-template-columns:1fr}}
 .phero .lead{margin-top:12px;color:var(--ink)}
+/* v11: share page, printable sheets, logo */
+.top .iconbtn.on{background:#fff;color:var(--red)}
+.brandmark.logo{background:#fff;border-radius:12px;overflow:hidden;padding:3px}
+.brandmark.logo img{width:100%;height:100%;object-fit:contain;display:block}
+.brandmark.big.logo{border:1px solid var(--line)}
+.logo-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.logo-row .small{flex:1 1 180px}
+.filebtn{cursor:pointer}
+.phero .eyebrow{display:flex;align-items:center;gap:8px}
+.phero .plogo{width:26px;height:26px;border-radius:6px;background:#fff;object-fit:contain;padding:2px}
+.share-intro{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;margin:0 0 6px}
+.share-intro h2{font-family:var(--serif);font-size:21px;margin:0 0 4px}
+.docic{width:38px;height:38px;border-radius:10px;background:var(--red-tint);color:var(--red);display:grid;place-items:center;flex:0 0 auto}
+.docic svg{width:20px;height:20px}
+.docprev{border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px;background:#fff;max-height:52vh;overflow:auto}
+.printdoc{text-align:left;color:#111;font-size:13px;line-height:1.45}
+.printdoc .phead{display:flex;align-items:center;gap:12px;border-bottom:3px solid #D7131D;padding-bottom:10px;margin-bottom:12px}
+.printdoc .phead img{width:52px;height:52px;object-fit:contain}
+.printdoc .pmin{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#D7131D}
+.printdoc h1{font-family:var(--serif);font-size:22px;margin:2px 0}
+.printdoc .pmeta{font-size:12px;color:#555}
+.printdoc h2{font-size:13px;font-weight:800;margin:16px 0 6px;color:#111;border-bottom:1px solid #ddd;padding-bottom:3px}
+.printdoc table{width:100%;border-collapse:collapse;font-size:12px}
+.printdoc th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#666;padding:4px 6px;border-bottom:1px solid #ccc}
+.printdoc td{padding:6px;border-bottom:1px solid #eee;vertical-align:top}
+.printdoc td .sm{font-size:11px;color:#666}
+.printdoc .done{text-decoration:line-through;color:#888}
+.printdoc .pbox{display:inline-grid;place-items:center;width:14px;height:14px;border:1.5px solid #444;border-radius:3px;font-size:10px;line-height:1}
+.printdoc .pbox.on{background:#D7131D;border-color:#D7131D;color:#fff}
+.printdoc dl{display:grid;grid-template-columns:90px 1fr;gap:4px 10px;margin:0 0 8px}
+.printdoc dt{font-weight:700;color:#555}
+.printdoc dd{margin:0}
+.printdoc .none{color:#777;font-style:italic}
+.printdoc .total{font-weight:800;text-align:right;margin-top:8px}
+.printdoc footer{margin-top:18px;font-size:10.5px;color:#888;border-top:1px solid #eee;padding-top:6px}
+@media print{
+  .printonly{text-align:left;padding:28px}
+  .printonly .printdoc{font-size:12px}
+  .printonly .plogo-big{width:90px;height:90px;object-fit:contain;display:block;margin:0 auto 8px}
+  .printonly .pmin{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#D7131D;text-align:center}
+  .printonly > h1,.printonly > p{text-align:center}
+}
 </style>
 </head>
 <body>

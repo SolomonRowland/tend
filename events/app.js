@@ -454,7 +454,7 @@ function viewShell() {
   var me = myMember(), hr = new Date().getHours();
   var title = S.tab === 'home' ? (hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening') : { events: 'Events', directory: 'Directory' }[S.tab];
   var sub = S.tab === 'home' ? [me.name ? me.name.split(' ')[0] : '', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })].filter(Boolean).join(' · ') : '';
-  return head(title, sub, '<span class="brandmark" aria-hidden="true">' + IC.tent + '</span>',
+  return head(title, sub, logoMark(),
       (S.tab === 'events' ? addBtn('New Event', 'new-event') : '') + '<button class="iconbtn" data-a="open-settings" aria-label="Settings">' + IC.gear + '</button>', org().name) +
     '<main>' + body + demoNote() + '</main>' +
     '<nav class="bottomnav" aria-label="Main">' + [['home', 'Home', IC.home], ['events', 'Events', IC.cal], ['directory', 'Directory', IC.book]].map(function (t) {
@@ -464,6 +464,7 @@ function viewShell() {
 function demoNote() { return DB.mode === 'demo' ? '<p class="small muted demo-note">This is a demo ministry kept in your browser. <a href="#" data-a="reset-demo">Reset The Demo</a>' + (window.supabase && !window.ED_DEMO ? ' · <a href="#" data-a="leave-demo">Leave The Demo</a>' : '') + '</p>' : ''; }
 function myMember() { return ((S.acct && S.acct.members) || []).find(function (m) { return S.user && m.user_id === S.user.id; }) || {}; }
 
+function logoMark(cls) { var o = org() || {}; return o.logo ? '<span class="brandmark logo ' + (cls || '') + '" aria-hidden="true"><img src="' + esc(o.logo) + '" alt=""></span>' : '<span class="brandmark ' + (cls || '') + '" aria-hidden="true">' + IC.tent + '</span>'; }
 function viewEvents() {
   var all = events(), up = [], past = [];
   all.forEach(function (e) { ((e.ends_on || e.starts_on || '9999') >= TODAY ? up : past).push(e); });
@@ -628,7 +629,8 @@ function viewSettings() {
   var a = S.acct, o = a.org, owner = a.role === 'owner', me = myMember(), p = prefs();
   var h = head('Settings', '', '<button class="iconbtn" data-a="close-settings" aria-label="Back">' + IC.back + '</button>', '', o.name) + '<main class="settings">';
   h += secHead('Ministry Profile', owner ? '<button class="link" data-a="edit-org">Edit</button>' : '') +
-    '<div class="card profile"><div class="sheethead"><span class="brandmark big">' + IC.tent + '</span><div><h3>' + esc(o.name) + '</h3><p class="lead">' + esc(o.about || (owner ? 'Add a short description of your ministry.' : '')) + '</p></div></div>' +
+    '<div class="card profile"><div class="sheethead">' + logoMark('big') + '<div><h3>' + esc(o.name) + '</h3><p class="lead">' + esc(o.about || (owner ? 'Add a short description of your ministry.' : '')) + '</p></div></div>' +
+    (owner ? '<div class="logo-row"><label class="btn sm plain filebtn">' + (o.logo ? 'Change Logo' : 'Upload Logo') + '<input type="file" accept="image/*" data-change="logo-file" hidden></label>' + (o.logo ? '<button class="btn sm plain" data-a="logo-remove">Remove</button>' : '') + '<span class="small muted">Shown on your share pages, printed sheets and QR posters.</span></div>' : '') +
     kv([['Phone', o.phone], ['Email', o.email], ['Website', o.website], ['Address', o.address], ['Online Giving', o.giving_link], ['Time Zone', (TIMEZONES.find(function (z) { return z[0] === (o.timezone || 'America/Chicago'); }) || [, o.timezone])[1]]]) +
     actions({ phone: o.phone, email: o.email, website: o.website, address: o.address }) + '</div>' +
     (owner ? '' : '<p class="small muted">Only the account owner can change the ministry profile.</p>');
@@ -661,6 +663,23 @@ var F_ORG = [
   { k: 'website', label: 'Website', type: 'url', ph: 'yourministry.org' }, { k: 'address', label: 'Mailing Address' },
   { k: 'giving_link', label: 'Online Giving Link', type: 'url', hint: 'New events start with this link.', half: true }, { k: 'timezone', label: 'Time Zone', type: 'select', opts: TIMEZONES, half: true }];
 var F_ME = [{ k: 'name', label: 'Your Name', auto: true }, { k: 'phone', label: 'Mobile Phone', type: 'tel', hint: 'Used for text reminders and shown to your team.' }];
+function setLogo(file) {
+  if (!/^image\//.test(file.type)) { toast('Pick an image file.'); return; }
+  var rd = new FileReader();
+  rd.onload = function () {
+    var img = new Image();
+    img.onload = function () {
+      var max = 320, s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      var url = c.toDataURL('image/png'); if (url.length > 300000) url = c.toDataURL('image/jpeg', 0.85);
+      var o = org(); busy(DB.updateOrg(o.id, { logo: url }), 'Logo saved').then(function () { o.logo = url; render(); }).catch(function () {});
+    };
+    img.onerror = function () { toast('That image couldn’t be read.'); };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
 function editProfile(fields, base, title, fn) {
   openSheet(function () { return '<h3>' + esc(title) + '</h3>' + formBody(fields, base) + sheetFoot(false); }, function () {
     var v = readForm(fields, {}); if (!v[fields[0].k]) { sheetErr('Please fill in ' + fields[0].label + '.'); return; }
@@ -681,6 +700,7 @@ function subOn(x) { var k = x[2]; return k === 'always' ? true : k === 'vols' ? 
 function areaSubs(k) { return (AREA_SUBS[k] || []).filter(subOn); }
 function areaOn(k) { return k === 'overview' || (k === 'money' ? on('money') : areaSubs(k).length > 0); }
 function goArea(key) {
+  if (key === 'sharepage') { S.evTab = 'share'; return; }
   if (AREAS.some(function (x) { return x[0] === key; })) { S.evTab = key; return; }
   var j = JUMP[key] || ['overview']; S.evTab = j[0];
   if (j[1]) S.sub['area_' + j[0]] = j[1];
@@ -692,12 +712,13 @@ function hidden(fn) { S.hideSub = true; try { return fn(); } finally { S.hideSub
 function viewWorkspace() {
   var e = S.ev = byId('ed_events', S.ev.id) || S.ev;
   var areas = AREAS.filter(function (x) { return areaOn(x[0]); });
-  if (!areas.some(function (x) { return x[0] === S.evTab; })) S.evTab = 'overview';
-  var menu = '<button class="iconbtn" data-a="event-menu" aria-label="Event Menu">' + IC.more + '</button>';
+  if (S.evTab !== 'share' && !areas.some(function (x) { return x[0] === S.evTab; })) S.evTab = 'overview';
+  var menu = '<button class="iconbtn' + (S.evTab === 'share' ? ' on' : '') + '" data-a="ev-tab" data-id="sharepage" aria-label="Share And Print">' + IC.share + '</button><button class="iconbtn" data-a="event-menu" aria-label="Event Menu">' + IC.more + '</button>';
   var h = head(e.title, [fmtRange(e.starts_on, e.ends_on), e.time_label, e.place].filter(Boolean).join(' · '), '<button class="iconbtn" data-a="close-event" aria-label="Back To Events">' + IC.back + '</button>', menu, org().name);
   h = h.replace(/<\/header>$/, tabs(areas, S.evTab, 'ev-tab', 'areabar') + '</header>');
   var body;
-  if (S.evTab === 'overview') body = wsOverview(e);
+  if (S.evTab === 'share') body = sharePage(e);
+  else if (S.evTab === 'overview') body = wsOverview(e);
   else if (S.evTab === 'money') body = wsMoney(e);
   else {
     var subs = areaSubs(S.evTab), key = 'area_' + S.evTab, cur = S.sub[key];
@@ -1052,6 +1073,112 @@ function shareBar(k) {
   return '<div class="sharebar"><button class="sb-qr" data-a="show-qr" data-id="' + k + '" aria-label="Show QR Code">' + qrSvg(url) + '</button><div class="main"><b>' + esc(SHARE[k][0]) + '</b><span>' + (S.ev.is_open ? 'No account needed.' : 'Sign-ups are closed.') + '</span></div>' +
     '<div class="sb-acts"><button class="btn sm plain" data-a="copy" data-v="' + esc(url) + '">Copy</button><button class="btn sm plain" data-a="show-qr" data-id="' + k + '">QR</button></div></div>';
 }
+/* ---------- share and print */
+var DOCS = [
+  ['summary', 'Event Summary', 'Dates, place, the team and key phone numbers on one page.', 'always'],
+  ['tasks', 'Task List', 'Every task by phase, with who and when, and boxes to check off.', 'tasks'],
+  ['schedule', 'Run Of Show', 'The schedule day by day.', 'calendar'],
+  ['volunteers', 'Volunteer Roster', 'Each spot with who signed up and their phone numbers.', 'volunteers'],
+  ['meals', 'Meal Sign-Ups', 'Who is bringing what, by day.', 'food'],
+  ['guests', 'Guest List', 'RSVPs by day with party size, and a box for check-in.', 'guests'],
+  ['contacts', 'Contact Sheet', 'Team, speakers, worship, vendors and contacts with phone numbers.', 'always'],
+  ['equipment', 'Equipment Checklist', 'Items and counts, with Loaded and Returned boxes.', 'equipment'],
+  ['payments', 'Payments Owed', 'What is still owed, to whom, who pays and when.', 'money']
+];
+function docOn(d) { return d[3] === 'always' || (d[3] === 'money' ? on('money') || on('vendors') : on(d[3])); }
+function sharePage(e) {
+  var links = [];
+  if (on('volunteers') || on('food')) links.push('v');
+  if (on('guests')) links.push('r');
+  if (on('followup')) links.push('c');
+  return '<div class="share-intro"><h2>Share And Print</h2><p class="small muted">Send a link, show a QR code, or print a sheet. Printing lets you save as a PDF to text or email.</p></div>' +
+    (links.length ? secHead('Links And QR Codes') + links.map(shareBar).join('') : '') +
+    secHead('Printable Sheets') + '<div class="list">' + DOCS.filter(docOn).map(function (d) {
+      return row({ act: 'doc', id: d[0], lead: '<span class="docic">' + IC.list + '</span>', title: esc(d[1]), sub: esc(d[2]) });
+    }).join('') + '</div>' +
+    (e.is_open ? '' : '<div class="err" style="margin-top:12px">Sign-ups and RSVPs are closed for this event. Open them again in the event details.</div>');
+}
+function teamLabel(k) { return (TEAMS.find(function (x) { return x[0] === k; }) || [, k])[1]; }
+function docBuild(k) {
+  var e = S.ev, o = org() || {}, H = [], T2 = [], title = (DOCS.find(function (d) { return d[0] === k; }) || [, 'Sheet'])[1];
+  var dayLbl = function (d) { return d ? fmtLong(d) : 'Any Day'; };
+  var box = '<span class="pbox"></span>';
+  function table(cols, rows) { return '<table><thead><tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>'; }
+  function h2(t) { H.push('<h2>' + esc(t) + '</h2>'); T2.push('', t.toUpperCase()); }
+  function none(t) { H.push('<p class="none">' + esc(t) + '</p>'); T2.push(t); }
+  if (k === 'summary') {
+    H.push('<dl>' + [['When', [fmtRange(e.starts_on, e.ends_on), e.time_label].filter(Boolean).join(' · ')], ['Where', [e.place, e.address].filter(Boolean).join(', ')], ['Contact', e.contact_line]].filter(function (x) { return x[1]; }).map(function (x) { T2.push(x[0] + ': ' + x[1]); return '<dt>' + x[0] + '</dt><dd>' + esc(x[1]) + '</dd>'; }).join('') + '</dl>');
+    if (e.about) { H.push('<p>' + esc(e.about) + '</p>'); T2.push('', e.about); }
+    var lead = evRows('ed_event_people').filter(function (a) { return a.team !== 'volunteer'; }).map(function (a) { return { a: a, p: byId('ed_people', a.person_id) || { name: '' } }; }).sort(function (x, y) { return TEAMS.findIndex(function (t) { return t[0] === x.a.team; }) - TEAMS.findIndex(function (t) { return t[0] === y.a.team; }) || x.p.name.localeCompare(y.p.name); });
+    if (lead.length) { h2('Team'); H.push(table(['Name', 'Team', 'Role', 'Phone'], lead.map(function (x) { T2.push(x.p.name + ' · ' + teamLabel(x.a.team) + (x.p.phone ? ' · ' + x.p.phone : '')); return [esc(x.p.name), esc(teamLabel(x.a.team)), esc(x.a.role || x.p.title || ''), esc(x.p.phone || '')]; }))); }
+    var stats = [];
+    if (on('volunteers') && num(e.volunteer_goal)) stats.push(['Volunteers', volCount() + ' of ' + num(e.volunteer_goal)]);
+    if (on('guests') && fill('attend').need) stats.push(['RSVPs', fill('attend').have + ' coming']);
+    if (on('tasks')) { var ts = evRows('ed_tasks'); stats.push(['Tasks', ts.filter(function (t) { return t.done; }).length + ' of ' + ts.length + ' done']); }
+    if (stats.length) { h2('Status'); H.push('<dl>' + stats.map(function (s) { T2.push(s[0] + ': ' + s[1]); return '<dt>' + s[0] + '</dt><dd>' + esc(s[1]) + '</dd>'; }).join('') + '</dl>'); }
+  }
+  if (k === 'tasks') {
+    var all = evRows('ed_tasks');
+    PHASES.forEach(function (p) {
+      var list = all.filter(function (t) { return (t.phase || 'planning') === p[0]; }).sort(function (x, y) { return String(x.due_on || '9').localeCompare(String(y.due_on || '9')) || x.sort - y.sort; });
+      if (!list.length) return; h2(p[1]);
+      H.push(table(['', 'Task', 'Who', 'Due'], list.map(function (t) { T2.push((t.done ? '[x] ' : '[ ] ') + t.title + (t.owner ? ' · ' + t.owner : '') + (t.due_on ? ' · ' + fmtDay(t.due_on) : '')); return [t.done ? '<span class="pbox on">✓</span>' : box, '<span class="' + (t.done ? 'done' : '') + '">' + esc(t.title) + '</span>' + (t.notes ? '<div class="sm">' + esc(t.notes) + '</div>' : ''), esc(t.owner || ''), esc([t.due_on ? fmtDay(t.due_on) : '', t.due_time].filter(Boolean).join(' '))]; })));
+    });
+    if (!all.length) none('No tasks yet.');
+  }
+  if (k === 'schedule') {
+    var sch = evRows('ed_schedule').sort(function (x, y) { return String(x.on_date || '').localeCompare(String(y.on_date || '')) || String(x.start_time || '').localeCompare(String(y.start_time || '')); }), day = null, rows = [];
+    sch.forEach(function (s) { if (s.on_date !== day) { if (rows.length) H.push(table(['Time', 'What', 'Where', 'Who'], rows)); rows = []; day = s.on_date; h2(dayLbl(day)); } T2.push([fmtTime(s.start_time), s.title, s.location, s.owner].filter(Boolean).join(' · ')); rows.push([esc([fmtTime(s.start_time), s.end_time ? '– ' + fmtTime(s.end_time) : ''].filter(Boolean).join(' ')), esc(s.title) + (s.notes ? '<div class="sm">' + esc(s.notes) + '</div>' : ''), esc(s.location || ''), esc(s.owner || '')]); });
+    if (rows.length) H.push(table(['Time', 'What', 'Where', 'Who'], rows));
+    if (!sch.length) none('Nothing on the schedule yet.');
+  }
+  if (k === 'volunteers' || k === 'meals' || k === 'guests') {
+    var kind = { volunteers: 'serve', meals: 'meal', guests: 'attend' }[k], its = evRows('ed_items').filter(function (i) { return i.kind === kind; }).sort(function (x, y) { return String(x.on_date || '').localeCompare(String(y.on_date || '')) || x.sort - y.sort; });
+    if (k === 'volunteers' && assigned('volunteer').length) { h2('Volunteer Team'); H.push(table(['Name', 'Role', 'Phone'], assigned('volunteer').map(function (x) { T2.push(x.p.name + (x.p.phone ? ' · ' + x.p.phone : '')); return [esc(x.p.name), esc(x.a.role || x.p.title || ''), esc(x.p.phone || '')]; }))); }
+    its.forEach(function (i) {
+      var su = signups(i.id).slice().sort(function (x, y) { return x.name.localeCompare(y.name); });
+      h2(i.title + ' · ' + dayLbl(i.on_date) + (i.time_label ? ' · ' + i.time_label : '') + ' · ' + (kind === 'attend' ? taken(i) + ' coming' : su.length + ' of ' + i.needed));
+      if (!su.length) { none('No one yet.'); return; }
+      H.push(table(kind === 'attend' ? ['', 'Name', 'Party', 'Phone'] : kind === 'meal' ? ['Name', 'Bringing', 'Phone'] : ['', 'Name', 'Phone', 'Note'], su.map(function (s) {
+        T2.push(s.name + (kind === 'attend' ? ' (' + (s.party || 1) + ')' : '') + (kind === 'meal' && s.note ? ' · ' + s.note : '') + (s.phone ? ' · ' + s.phone : ''));
+        return kind === 'attend' ? [s.checked_in_at ? '<span class="pbox on">✓</span>' : box, esc(s.name), String(s.party || 1), esc(s.phone || '')] : kind === 'meal' ? [esc(s.name), esc(s.note || ''), esc(s.phone || '')] : [s.checked_in_at ? '<span class="pbox on">✓</span>' : box, esc(s.name), esc(s.phone || ''), esc(s.note || '')];
+      })));
+    });
+    if (!its.length && !(k === 'volunteers' && assigned('volunteer').length)) none('Nothing to list yet.');
+  }
+  if (k === 'contacts') {
+    var groups = [];
+    TEAMS.filter(function (t) { return t[0] !== 'volunteer'; }).forEach(function (t) { var l = assigned(t[0]); if (l.length) groups.push([t[1], l.map(function (x) { return [x.p.name, x.a.role || x.p.title || '', x.p.phone || '', x.p.email || '']; })]); });
+    var vs = evRows('ed_event_vendors').map(function (a) { var v = byId('ed_vendors', a.vendor_id) || {}; return [v.name || '', [a.service, v.contact_name].filter(Boolean).join(' · '), v.phone || '', v.email || '']; });
+    if (vs.length) groups.push(['Vendors', vs]);
+    var cs = evRows('ed_event_contacts').map(function (a) { var c = byId('ed_contacts', a.contact_id) || {}; return [c.name || '', [c.role, c.organization].filter(Boolean).join(' · '), c.phone || '', c.email || '']; });
+    if (cs.length) groups.push(['Contacts', cs]);
+    groups.forEach(function (g) { h2(g[0]); H.push(table(['Name', 'Role', 'Phone', 'Email'], g[1].map(function (r) { T2.push(r.filter(Boolean).join(' · ')); return r.map(esc); }))); });
+    if (!groups.length) none('No one is on this event yet.');
+  }
+  if (k === 'equipment') {
+    var eq = evRows('ed_event_equipment').map(function (a) { return { a: a, g: byId('ed_equipment', a.equipment_id) || { name: '' } }; }).sort(function (x, y) { return String(x.g.category || '').localeCompare(String(y.g.category || '')) || x.g.name.localeCompare(y.g.name); });
+    if (eq.length) H.push(table(['Loaded', 'Returned', 'Item', 'Qty', 'Stored At'], eq.map(function (x) { T2.push((x.a.loaded ? '[x] ' : '[ ] ') + x.g.name + ' × ' + num(x.a.quantity)); return [x.a.loaded ? '<span class="pbox on">✓</span>' : box, x.a.returned ? '<span class="pbox on">✓</span>' : box, esc(x.g.name) + (x.g.condition && x.g.condition !== 'Good' ? ' <b>(' + esc(x.g.condition) + ')</b>' : ''), String(num(x.a.quantity)), esc(x.g.location || '')]; })));
+    else none('No equipment on this event yet.');
+  }
+  if (k === 'payments') {
+    var ps = payables(e).filter(function (p) { return p.owed > 0; }).sort(function (x, y) { return String(x.due || '9').localeCompare(String(y.due || '9')); });
+    if (ps.length) { H.push(table(['To', 'For', 'Owed', 'Who Pays', 'Due'], ps.map(function (p) { T2.push(p.name + ' · ' + money(p.owed) + (p.payer ? ' · ' + p.payer : '') + (p.due ? ' · due ' + fmtDay(p.due) : '')); return [esc(p.name || ''), esc(p.what || ''), money(p.owed), esc(p.payer || ''), p.due ? esc(fmtDay(p.due)) : '']; }))); H.push('<p class="total">Total owed: ' + money(ps.reduce(function (s, p) { return s + p.owed; }, 0)) + '</p>'); }
+    else none('Nothing is owed right now.');
+  }
+  var headHtml = '<header class="phead">' + (o.logo ? '<img src="' + esc(o.logo) + '" alt="">' : '') + '<div><div class="pmin">' + esc(o.name || '') + '</div><h1>' + esc(e.title) + '</h1><div class="pmeta">' + esc(title + ' · ' + [fmtRange(e.starts_on, e.ends_on), e.place].filter(Boolean).join(' · ')) + '</div></div></header>';
+  var text = [e.title + ' · ' + title, [fmtRange(e.starts_on, e.ends_on), e.time_label, e.place].filter(Boolean).join(' · ')].concat(T2).join('\n');
+  return { title: title, html: '<div class="printdoc">' + headHtml + H.join('') + '<footer>Printed ' + esc(fmtLong(TODAY)) + ' · Tent &amp; Table</footer></div>', text: text };
+}
+function openDoc(k) {
+  var d = docBuild(k);
+  openSheet(function () {
+    return '<h3>' + esc(d.title) + '</h3><div class="docprev">' + d.html + '</div>' +
+      '<div class="acts"><button class="btn plain" data-a="close">Close</button><span class="grow"></span><button class="btn plain" data-a="doc-copy" data-id="' + k + '">Copy Text</button>' + (window.ED_DEMO ? '' : '<button class="btn" data-a="doc-print" data-id="' + k + '">Print Or PDF</button>') + '</div>' +
+      (window.ED_DEMO ? '<p class="small muted center" style="margin:8px 0 0">Printing and saving as PDF work in the app, not in this demo.</p>' : '');
+  });
+}
+function printHtml(html) { var d = document.createElement('div'); d.className = 'printonly'; d.innerHTML = html; document.body.appendChild(d); window.print(); setTimeout(function () { d.remove(); }, 800); }
 function showQr(k) {
   var url = pubUrl(k);
   openSheet(function () {
@@ -1132,7 +1259,7 @@ function loadPublic() {
 function pubOn(k) { return secOn(S.pub.event.sections, k); }
 function pubHero(extra) {
   var e = S.pub.event;
-  return '<div class="phero"><div class="in"><div class="eyebrow">' + esc(e.ministry || 'You’re Invited') + '</div><h1>' + esc(e.title) + '</h1><div class="meta">' +
+  return '<div class="phero"><div class="in"><div class="eyebrow">' + (e.logo ? '<img class="plogo" src="' + esc(e.logo) + '" alt="">' : '') + esc(e.ministry || 'You’re Invited') + '</div><h1>' + esc(e.title) + '</h1><div class="meta">' +
     esc([fmtRange(e.starts_on, e.ends_on), e.time_label].filter(Boolean).join(' · ')) + (e.place || e.address ? '<br>' + esc([e.place, e.address].filter(Boolean).join(', ')) : '') + '</div>' + (extra || '') + '</div></div>';
 }
 function pubGoal(e) {
@@ -1371,6 +1498,7 @@ document.addEventListener('change', function (ev) {
   if (k === 'budget-year') { S.budgetYear = +t.value; render(); }
   if (k === 'notify-channel') { var me = myMember(), p = prefs(); p.channel = t.value; me.prefs = p; render(); DB.updateMe(org().id, { prefs: p }).catch(function (e) { toast(errMsg(e)); }); }
   if (k === 'dir-team') { S.sub.dirTeam = t.value; render(); }
+  if (k === 'logo-file') { var file = t.files && t.files[0]; t.value = ''; if (file) setLogo(file); }
   if (k === 'ci-day') { S.sub.ciDay = t.value; render(); }
   if (k === 'eq-flag') {
     var r = byId('ed_event_equipment', t.getAttribute('data-id')), f = t.getAttribute('data-k'), v = Object.assign({}, r); v[f] = t.checked;
@@ -1477,12 +1605,15 @@ var A = {
   copy: function (t) { copyText(t.getAttribute('data-v')); },
   'open-pub': function (t, id) { closeSheet(); openPub(id, S.ev.slug); },
   'show-qr': function (t, id) { showQr(id); },
+  doc: function (t, id) { openDoc(id); },
+  'doc-copy': function (t, id) { copyText(docBuild(id).text); },
+  'doc-print': function (t, id) { printHtml(docBuild(id).html); },
   'slot-open': function (t, id) { S.openSlots = S.openSlots || {}; S.openSlots[id] = !S.openSlots[id]; render(); },
   'pub-go': function (t, id) { openPub(id, S.pubSlug); },
   'leave-pub': function () { if (/^#\/(e|c|v|r)\//.test(location.hash)) { try { history.pushState(null, '', location.pathname + location.search); } catch (e) {} } S.pubMode = ''; S.pub = null; S.cardDone = false; if (!S.user && !window.ED_DEMO) boot(); else if (S.pubFromEv && byId('ed_events', S.pubFromEv)) { var back = S.pubFromEv, tab = S.evTab, sub = S.sub; S.pubFromEv = null; openEvent(back); S.evTab = tab; S.sub = sub; render(); } else render(); },
   'print-qr': function (t, id) {
     var url = pubUrl(id), d = document.createElement('div'); d.className = 'printonly';
-    d.innerHTML = '<h1>' + esc(S.ev.title) + '</h1><p>' + esc((SHARE[id] || SHARE.v)[2]) + '</p><div class="qrbig">' + qrSvg(url) + '</div><p class="url">' + esc(url) + '</p>';
+    d.innerHTML = (org().logo ? '<img class="plogo-big" src="' + esc(org().logo) + '" alt="">' : '') + '<p class="pmin">' + esc(org().name) + '</p><h1>' + esc(S.ev.title) + '</h1><p>' + esc((SHARE[id] || SHARE.v)[2]) + '</p><div class="qrbig">' + qrSvg(url) + '</div><p class="url">' + esc(url) + '</p>';
     document.body.appendChild(d); window.print(); setTimeout(function () { d.remove(); }, 800);
   },
   'pub-sign': function (t, id) {
@@ -1506,6 +1637,7 @@ var A = {
   'open-settings': function () { S.prevTab = S.tab; S.tab = 'settings'; render(); window.scrollTo(0, 0); },
   'close-settings': function () { S.tab = S.prevTab || 'home'; render(); window.scrollTo(0, 0); },
   'open-event-tab': function (t, id) { openEvent(id); goArea(t.getAttribute('data-v') || 'overview'); render(); },
+  'logo-remove': function () { var o = org(); ask('Remove the ministry logo?', 'Remove', function () { return busy(DB.updateOrg(o.id, { logo: '' }), 'Logo removed').then(function () { o.logo = ''; closeSheet(); render(); }); }); },
   'edit-org': function () { var o = org(); editProfile(F_ORG, o, 'Ministry Profile', function (v) { var f = {}; F_ORG.forEach(function (x) { f[x.k] = v[x.k] || ''; }); return DB.updateOrg(o.id, f).then(function () { Object.assign(o, f); }); }); },
   'edit-me': function () { var me = myMember(); editProfile(F_ME, me, 'My Profile', function (v) { return DB.updateMe(org().id, { name: v.name, phone: v.phone || '' }).then(function () { me.name = v.name; me.phone = v.phone || ''; }); }); },
   'change-email': function () { var f = [{ k: 'email', label: 'New Login Email', type: 'email', auto: true, hint: 'We’ll send a confirmation link to the new address. Your login changes once you click it.' }]; editProfile(f, {}, 'Change Login Email', function (v) { return DB.changeEmail(v.email).then(function () { if (DB.mode === 'demo') { S.user.email = v.email; myMember().email = v.email; } else toast('Check ' + v.email + ' for a confirmation link'); }); }); },
