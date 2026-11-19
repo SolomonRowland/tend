@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Tent &amp; Table">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -375,7 +375,7 @@ main{padding-top:18px}
 /* stat cards */
 .stats{border:0;border-radius:0;overflow:visible;gap:10px;margin:0 0 6px}
 .stats.three,.stats{grid-template-columns:repeat(3,minmax(0,1fr))}
-@media(max-width:400px){.stats:not(.three){grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 .stat{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:12px}
 .stat .v{font-family:var(--serif);font-size:24px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
 .stat .k{font-size:11.5px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);margin-top:2px}
@@ -672,6 +672,58 @@ button.stat{font:inherit;text-align:left;cursor:pointer;width:100%;border:0}
 .avatar.ic svg{width:18px;height:18px}
 .toolbar .filters{display:flex;gap:8px;flex:1 1 100%;min-width:0}
 .toolbar .filters select{flex:1 1 0;min-width:0}
+.clip{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+/* ============ v15 design: calm, neutral canvas; red stays the accent */
+:root{--fill:#F5F3F0;--well:#ECE9E5;--edge:#E4E0DA;--serif:"Source Serif 4",ui-serif,"New York","Iowan Old Style",Georgia,serif;
+  --blue:#1F5FAE;--blue-tint:#EAF1FB;--slate:#4A5361;--slate-tint:#EEF0F3;--r:14px;
+  --shadow:0 1px 2px rgba(17,24,39,.04),0 2px 8px rgba(17,24,39,.05);--lift:0 6px 20px -8px rgba(17,24,39,.22)}
+.top{background:radial-gradient(110% 130% at 100% 0%,rgba(255,255,255,.18),rgba(255,255,255,0) 55%),linear-gradient(165deg,#B30F18 0%,#D91E27 70%,#E0323A 100%);box-shadow:0 10px 24px -14px rgba(150,15,22,.55)}
+.seg-tabs,.subtabs{background:var(--well)}
+.seg-tabs button,.subtabs button{color:#5B616B;transition:background .18s,color .18s,box-shadow .18s}
+.seg-tabs button[aria-selected="true"],.subtabs button[aria-selected="true"]{color:var(--ink);box-shadow:0 1px 2px rgba(17,24,39,.08),0 2px 6px rgba(17,24,39,.06)}
+.subtabs button[aria-selected="true"]::after,.seg-tabs button[aria-selected="true"]::after{content:"";display:block;width:14px;height:2px;border-radius:2px;background:var(--red);margin:2px auto 0}
+.seg-tabs button,.subtabs button{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.inp,.search,.cbx{border-color:var(--edge)}
+.pill{background:var(--well);color:#565D67}
+.pill.tone-red{background:var(--red-tint);color:var(--red)}
+.pill.tone-green{background:var(--green-tint);color:var(--green)}
+.pill.tone-blue{background:var(--blue-tint);color:var(--blue)}
+.pill.tone-amber{background:var(--amber-tint);color:var(--amber)}
+.pill.tone-slate{background:var(--slate-tint);color:var(--slate)}
+.avatar.tone-red{background:var(--red-tint);color:var(--red)}
+.avatar.tone-green{background:var(--green-tint);color:var(--green)}
+.avatar.tone-blue{background:var(--blue-tint);color:var(--blue)}
+.avatar.tone-amber{background:var(--amber-tint);color:var(--amber)}
+.avatar.tone-slate{background:var(--slate-tint);color:var(--slate)}
+.ttag{background:var(--well)}
+.kv{background:var(--fill)}
+/* surfaces lift a little when touched */
+.list>.row,.list>button.row,.card,.stat,.countdown,.sharebar,.empty{transition:transform .14s ease,box-shadow .18s ease}
+.list>button.row:active,button.card:active,button.stat:active,button.countdown:active{transform:scale(.985)}
+@media(hover:hover){.list>button.row:hover,button.card:hover,button.stat:hover,button.countdown:hover{box-shadow:var(--lift)}}
+/* headings: serif with a small red rule */
+.sec h2{font-family:var(--serif);letter-spacing:-.01em}
+.share-intro h2,.sheet h3{font-family:var(--serif)}
+/* bottom bar: frosted, with a soft pill behind the current tab */
+.bottomnav{background:rgba(255,255,255,.86);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid rgba(17,24,39,.06)}
+.bottomnav button svg{box-sizing:content-box;padding:4px 16px;border-radius:999px;transition:background .2s}
+.bottomnav button[aria-current] svg{background:var(--red-tint)}
+/* sheets glide up */
+.sheet{animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:.3}}
+.scrim{background:rgba(17,20,24,.42);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+/* empty states feel intentional, not broken */
+.empty{color:#6B717B;background:rgba(255,255,255,.7);box-shadow:inset 0 0 0 1.5px var(--edge);border-radius:var(--r)}
+/* stats: numbers in serif, a little more air */
+.stat .v{font-family:var(--serif)}
+.stats{gap:10px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* tiles: always three across */
+.stats,.stats.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stat{min-width:0}
+.stat .v{font-size:clamp(18px,5.6vw,24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subtabs.mini{max-width:none}
+.taskbar .subtabs.mini,.docopts .subtabs.mini{flex:1 1 200px}
 </style>
 </head>
 <body>

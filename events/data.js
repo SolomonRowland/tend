@@ -346,7 +346,7 @@ function demoSeed() {
   add('ed_tasks', { event_id: board.id, phase: 'planning', area: 'Admin', title: 'Print Agenda And Treasurer’s Report', due_on: addDays(today, 1), due_time: '', owner: 'Linda Grey', done: false, notes: '', sort: 0 });
   add('ed_items', { event_id: board.id, kind: 'meal', title: 'Snacks And Coffee', on_date: board.starts_on, time_label: '6:45 PM', needed: 1, notes: '', sort: 0 });
 
-  var prayer = ev('Prayer Night', addDays(today, 1), 0, { time_label: 'Wednesdays at 6:30 PM', place: 'Prayer Room', sections: ['people', 'agenda', 'followup'] });
+  var prayer = ev('Prayer Night', addDays(today, 1), 0, { time_label: '6:30 PM', place: 'Prayer Room', sections: ['people', 'agenda', 'followup'] });
   ['Pam Hughes', 'Robert Lane', 'Gary Hughes'].forEach(function (n) { add('ed_event_people', { event_id: prayer.id, person_id: P[n].id, team: 'team', role: 'Prayer Team', days: '', details: {}, amount: 0, pay_status: 'Not Paid', payer: '', due_on: null, notes: '' }); });
   [['Praise And Thanksgiving', '', 15], ['Pray For The Revival And Its Speakers', 'Pam Hughes', 20], ['Our Town, Schools And Leaders', 'Robert Lane', 20]].forEach(function (a, i) { add('ed_agenda', { event_id: prayer.id, title: a[0], leader: a[1], minutes: a[2], done: false, notes: '', sort: i }); });
 
