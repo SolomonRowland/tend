@@ -61,6 +61,11 @@ function save() {
   catch (e) { storageOk = false; warn('Couldn\u2019t save on this phone. Save a backup now.'); }
   if (C.on && C.hid) schedulePush();
 }
+/* a task's checklist: [{ t: 'Add chlorine', d: true }], ticked off each time and cleared when the task is done */
+function normSteps(list) {
+  return (Array.isArray(list) ? list : []).filter(function (s) { return s && typeof s.t === 'string' && s.t.trim(); })
+    .map(function (s) { return { t: s.t.trim().slice(0, 200), d: !!s.d }; }).slice(0, 40);
+}
 function normalize(d) {
   var out = blank();
   out.user = d.user || '';
@@ -94,7 +99,7 @@ function normalize(d) {
     return {
       id: String(t.id || ('t' + n++)), name: String(t.name || 'Untitled'), cat: CATS.indexOf(t.cat) >= 0 ? t.cat : t.cat === 'Finance & Insurance' ? 'Bills & Finance' : 'Misc', who: t.who || '',
       freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: parse(t.first) ? t.first : null, last: parse(t.last) ? t.last : (hist[0] ? hist[0].date : null),
-      early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '',
+      early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '', how: typeof t.how === 'string' ? t.how.slice(0, 4000) : '', steps: normSteps(t.steps),
       holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: parse(t.snooze) ? t.snooze : null, history: hist, photos: normPhotos(t.photos), owner: typeof t.owner === 'string' ? t.owner.slice(0, 40) : ''
     };
   });

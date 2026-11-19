@@ -273,3 +273,8 @@ html[data-mode="dark"] .input::placeholder{color:#6F7A8C}
 .link,.chip,.copy,.rchip button{position:relative}
 .link::after,.chip::after,.copy::after{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
 .rchip button::after{content:"";position:absolute;inset:-8px}
+/* task steps */
+.lrow.step{justify-content:flex-start;min-height:48px}
+.lrow.step .stepbox{flex:0 0 22px;width:22px;height:22px;border-radius:7px;border:2px solid var(--dusty);display:flex;align-items:center;justify-content:center;color:#fff}
+.lrow.step.on .stepbox{background:var(--fill);border-color:var(--fill)}
+.lrow.step.on .t{color:var(--muted);text-decoration:line-through}

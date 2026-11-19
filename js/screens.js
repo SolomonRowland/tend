@@ -310,6 +310,7 @@ function scrTask() {
       '<button data-act="item" data-id="' + esc(bi.id) + '" style="display:flex;align-items:center;gap:12px;text-align:left;min-height:44px"><span class="badge">' + ic(ITEM_TYPES[bi.type].icon, 20) + '</span><span class="col"><span style="font-weight:600">' + esc(bi.name) + '</span><span style="font-size:12.5px;color:var(--muted)">' + (kr ? 'Tap for all details' : 'No details yet. Tap to add them.') + '</span></span><span style="color:var(--muted)">' + ic('next', 18) + '</span></button>' +
       (kr ? '<div>' + kr + '</div>' : '<div style="height:10px"></div>') + '</div>';
   }
+  h += stepsCard(t);
   h += photosCard('task', t);
   h += '<div class="section"><h2 style="font-size:19px">History</h2></div><div class="listcard">';
   h += t.history.length ? t.history.map(function (x, idx) {
@@ -378,6 +379,8 @@ function scrEditTask() {
     '<label class="field"><span>Contact</span><select class="input" name="contact"><option value="">None</option>' + db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (c) { return opt(c.id, f.contact || '', c.name); }).join('') + '</select></label>' +
     '<label class="field"><span>Belonging</span><select class="input" name="item" data-rerender="1">' + itemOptions(f.item) + '</select>' + itemCaption(f.item) + '</label>' +
     '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea></label>' +
+    '<label class="field"><span>Steps</span><textarea class="input" name="stepsText" rows="4" placeholder="One step per line, e.g.\nAdd winterizing chlorine\nLower the water level\nPut on the cover">' + esc(f.stepsText || '') + '</textarea><small>A checklist you tick off each time. It clears when the task is marked done.</small></label>' +
+    '<label class="field"><span>Instructions</span><textarea class="input" name="how" rows="5" maxlength="4000" placeholder="How to do it: parts, settings, where things are, links">' + esc(f.how || '') + '</textarea></label>' +
     '<div class="switchrow"><span class="col"><span style="font-weight:600">Active</span><span style="font-size:12.5px;color:var(--muted)">Turn off to pause it without deleting.</span></span><button type="button" class="switch" data-act="toggle-active" aria-pressed="' + (f.active ? 'true' : 'false') + '" aria-label="Active"><i></i></button></div>' +
     '<button type="submit" class="btn primary">Save</button>' +
     (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-task' ? ' armed' : '') + '" data-act="del-task">' + (ui.armed === 'del-task' ? 'Tap Again to Delete for Good' : 'Delete Task') + '</button>') +
@@ -413,6 +416,18 @@ function scrEditContact() {
     '<button type="submit" class="btn primary">Save</button>' +
     (isNew ? '' : '<button type="button" class="btn danger' + (ui.armed === 'del-contact' ? ' armed' : '') + '" data-act="del-contact">' + (ui.armed === 'del-contact' ? 'Tap Again to Delete for Good' : 'Delete Contact') + '</button>') +
     '</form>';
+  return h;
+}
+function stepsCard(t) {
+  var h = '';
+  if (t.steps.length) {
+    var n = t.steps.filter(function (s) { return s.d; }).length;
+    h += '<div class="section"><h2 style="font-size:19px">Steps</h2><span style="font-size:13px;color:var(--muted);font-weight:600">' + n + ' of ' + t.steps.length + ' done</span></div><div class="listcard" role="group" aria-label="Steps">' +
+      t.steps.map(function (s, i) {
+        return '<button type="button" class="lrow step' + (s.d ? ' on' : '') + '" role="checkbox" aria-checked="' + s.d + '" data-act="step" data-i="' + i + '"><span class="stepbox">' + (s.d ? ic('check', 13, 3) : '') + '</span><span class="t" style="flex:1 1 auto">' + esc(s.t) + '</span></button>';
+      }).join('') + '</div>';
+  }
+  if (t.how) h += '<div class="section"><h2 style="font-size:19px">Instructions</h2></div><div class="card" style="margin:0 16px;padding:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word">' + esc(t.how) + '</div>';
   return h;
 }
 function readForm(id) {

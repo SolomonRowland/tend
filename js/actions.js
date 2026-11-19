@@ -31,7 +31,7 @@ function quickDone(qid, qrow) {
   if (!qt || !qrow || qrow.classList.contains('doing')) return;
   var qb = snapshot(qid);
   qt.history.unshift({ date: iso(T), by: db.user, at: new Date().toISOString() }); qt.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-  qt.last = qt.history[0].date; qt.snooze = null; save(); hideHint();
+  qt.last = qt.history[0].date; qt.snooze = null; qt.steps.forEach(function (s) { s.d = false; }); save(); hideHint();
   var qn = nextDue(qt), qmsg = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : qt.freq === 'One-time' ? 'All finished.' : '');
   qrow.classList.add('doing');
   var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
@@ -66,7 +66,7 @@ function markDone(dateIso, note) {
   var before = snapshot(t.id);
   t.history.unshift({ date: dateIso, by: db.user, note: note || '', at: new Date().toISOString() });
   t.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-  t.last = t.history[0].date; t.snooze = null;
+  t.last = t.history[0].date; t.snooze = null; t.steps.forEach(function (s) { s.d = false; });
   save();
   var n = nextDue(t);
   render(); showToast('Done' + (dateIso !== iso(today()) ? ' on ' + fmt(parse(dateIso)) : '') + '. ' + (n ? 'Next due ' + fmt(n, true) + '.' : t.freq === 'One-time' ? 'All finished.' : ''), before);
@@ -244,6 +244,13 @@ document.addEventListener('click', function (e) {
     case 'quick-done': quickDone(el.getAttribute('data-id'), el.closest('.row')); break;
     case 'undo-toast': if (showToast.undo) { restoreSnap(showToast.undo); hideToast(); keepRender(); showToast('Undone.'); } break;
     case 'hint-ok': hideHint(); keepRender(); break;
+    case 'step':
+      var stt = db.tasks.find(function (x) { return x.id === ui.taskId; }), sti = +el.getAttribute('data-i');
+      if (stt && stt.steps[sti]) {
+        stt.steps[sti].d = !stt.steps[sti].d; save(); keepRender();
+        if (stt.steps[sti].d && stt.steps.every(function (s) { return s.d; }) && info(stt).status !== 'done') toast('All steps done. Tap Mark Complete when you\u2019re finished.');
+      }
+      break;
     case 'snooze':
       var st = db.tasks.find(function (x) { return x.id === ui.taskId; });
       if (st) { var sb4 = snapshot(st.id), on = st.snooze && parse(st.snooze) > T; st.snooze = on ? null : iso(addDays(T, 7)); save(); keepRender(); showToast(on ? 'Snooze removed.' : 'Snoozed until ' + fmt(addDays(T, 7)) + '. It still turns red if the deadline passes.', sb4); }
@@ -262,8 +269,8 @@ document.addEventListener('click', function (e) {
       break;
     case 'edit-task':
       var et = db.tasks.find(function (x) { return x.id === ui.taskId; });
-      go('edit-task', { form: Object.assign({}, et, { early: String(et.early) }) }, true); break;
-    case 'new-task': go('edit-task', { form: { id: null, name: '', cat: ui.cat || 'Home', who: '', freq: 'Yearly', fixed: false, first: '', last: '', early: String(remindPrefs().days), notes: '', contact: '', item: '', active: true, owner: '' } }, true); break;
+      go('edit-task', { form: Object.assign({}, et, { early: String(et.early), stepsText: et.steps.map(function (s) { return s.t; }).join('\n') }) }, true); break;
+    case 'new-task': go('edit-task', { form: { id: null, name: '', cat: ui.cat || 'Home', who: '', freq: 'Yearly', fixed: false, first: '', last: '', early: String(remindPrefs().days), notes: '', how: '', stepsText: '', contact: '', item: '', active: true, owner: '' } }, true); break;
     case 'toggle-active': readForm('taskForm'); ui.form.active = !ui.form.active; render(); break;
     case 'cancel': ui.form = null; back(); break;
     case 'save-task': saveTask(); break;
@@ -350,6 +357,9 @@ function saveTask() {
   var rec = { name: f.name, cat: f.cat, who: (f.who || '').trim(), freq: f.freq, fixed: !!f.fixed, holiday: hol, first: f.first || null, early: early, notes: (f.notes || '').trim(), contact: f.contact || null, item: itemById(f.item) ? f.item : null, active: !!f.active };
   var amt = parseFloat(String(f.amount == null ? '' : f.amount).replace(/[^\d.]/g, ''));
   rec.owner = f.owner && people().indexOf(f.owner) >= 0 ? f.owner : '';
+  rec.how = String(f.how || '').trim().slice(0, 4000);
+  var oldSteps = {}; ((f.id && (db.tasks.find(function (x) { return x.id === f.id; }) || {}).steps) || []).forEach(function (s) { oldSteps[s.t] = s.d; });
+  rec.steps = normSteps(String(f.stepsText || '').split('\n').map(function (line) { var tx = line.replace(/^\s*([-*•]|\d+[.)])\s*/, '').trim(); return { t: tx, d: !!oldSteps[tx] }; }));
   rec.amount = f.cat === 'Bills & Finance' && amt > 0 ? Math.round(amt * 100) / 100 : null; rec.autopay = f.cat === 'Bills & Finance' && !!f.autopay;
   var t;
   if (f.id) { t = db.tasks.find(function (x) { return x.id === f.id; }); }

@@ -113,6 +113,21 @@ async function swipe(p, sel, dx, dy) {
   check('Just Mine hides Kelly\'s jobs', mineN === allN - 1 && !(await A.$('#results [data-id="' + jid + '"]')), [allN, mineN]);
   await A.screenshot({ path: D + '/feat-4-just-mine.png' });
   await A.click('[data-act=mine]');
+  // ---- steps and instructions ----
+  const pid = await A.evaluate(() => db.tasks.find(t => t.active && !t.auto && info(t).due && info(t).status !== 'done').id);
+  await A.evaluate(id => go('task', { taskId: id }, true), pid); await A.click('[data-act=edit-task]');
+  await A.fill('textarea[name=stepsText]', '- Add chlorine\n2. Lower the water\n\nPut on the cover');
+  await A.fill('textarea[name=how]', 'Use the blue jug in the shed.');
+  await A.click('.headrow [data-act=save-task]');
+  check('steps saved', await A.evaluate(id => JSON.stringify(db.tasks.find(x => x.id === id).steps) === JSON.stringify([{ t: 'Add chlorine', d: false }, { t: 'Lower the water', d: false }, { t: 'Put on the cover', d: false }]), pid), await A.evaluate(id => db.tasks.find(x => x.id === id).steps, pid));
+  check('instructions shown', /blue jug/.test(await A.textContent('#view')));
+  await A.click('[data-act=step][data-i="0"]');
+  check('a step ticks off', await A.evaluate(id => db.tasks.find(x => x.id === id).steps[0].d, pid));
+  check('Kelly sees the ticked step', await waitFor(B, id => { const t = db.tasks.find(x => x.id === id); return t.steps.length === 3 && t.steps[0].d && t.how === 'Use the blue jug in the shed.'; }, pid));
+  await A.evaluate(() => { document.querySelector('.section h2') && [...document.querySelectorAll('.section h2')].find(h => h.textContent === 'Steps').scrollIntoView(); view.scrollTop -= 80; });
+  await A.screenshot({ path: D + '/feat-6-steps.png' });
+  await A.evaluate(id => go('task', { taskId: id }, true), pid); await A.click('[data-act=complete-open]'); await A.click('[data-act=complete-save]');
+  check('finishing the task clears the steps for next time', await A.evaluate(id => db.tasks.find(x => x.id === id).steps.every(s => !s.d), pid));
   // ---- recently done ----
   await B.evaluate(() => go('home'));
   const kt = await B.evaluate(() => document.querySelector('.swipe').getAttribute('data-id'));
