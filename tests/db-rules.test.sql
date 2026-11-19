@@ -55,6 +55,14 @@ begin
   delete from storage.objects; 
   perform t_as('11111111-1111-1111-1111-111111111111', 'sol@x.com');
   select count(*) into n from storage.objects; perform t_expect(n = 1, 'stranger cannot delete photos');
+  insert into push_subs (endpoint, user_id, household_id, p256dh, auth) values ('https://push/sol', auth.uid(), hid, 'k', 'a');
+  perform t_expect(t_fails(format('insert into push_subs (endpoint, user_id, household_id, p256dh, auth) values (''https://push/x'', auth.uid(), %L, ''k'', ''a'')', hid2)), 'cannot sign a phone up for another household');
+  perform t_expect(t_fails('insert into push_subs (endpoint, user_id, household_id, p256dh, auth) values (''https://push/y'', ''22222222-2222-2222-2222-222222222222'', ''' || hid || ''', ''k'', ''a'')'), 'cannot add a phone for someone else');
+  perform t_expect(t_fails('select private_key from push_config'), 'phones cannot read the sending key');
+  perform t_expect(push_public_key() is null, 'public key empty until the function makes it');
+  perform t_as('22222222-2222-2222-2222-222222222222', 'kelly@x.com');
+  select count(*) into n from push_subs; perform t_expect(n = 0, 'you only see your own phones');
+  perform t_as('11111111-1111-1111-1111-111111111111', 'sol@x.com');
   perform t_expect(t_fails(format('select remove_member(%L, ''11111111-1111-1111-1111-111111111111'')', hid)), 'owner cannot leave while others remain');
   perform remove_member(hid, '22222222-2222-2222-2222-222222222222');
   perform t_as('22222222-2222-2222-2222-222222222222', 'kelly@x.com');

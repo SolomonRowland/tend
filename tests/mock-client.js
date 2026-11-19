@@ -45,6 +45,9 @@ window.TEND_CLOUD_FACTORY = function () {
         };
       }
     },
+    functions: {
+      invoke: function (name, o) { return post('/fn', { name: name, body: (o && o.body) || {} }).then(function (r) { return { data: r.data, error: r.error }; }); }
+    },
     rpc: function (fn, args) { return post('/q', { q: { op: 'rpc', fn: fn, args: args } }).then(function (r) { return { data: r.data, error: r.error }; }); },
     channel: function () {
       var cb = null, ch = {

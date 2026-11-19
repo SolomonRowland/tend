@@ -201,3 +201,42 @@ drop policy if exists tend_photos_add on storage.objects;
 create policy tend_photos_add on storage.objects for insert to authenticated with check (bucket_id = 'photos' and public.can_use_photo(name));
 drop policy if exists tend_photos_remove on storage.objects;
 create policy tend_photos_remove on storage.objects for delete to authenticated using (bucket_id = 'photos' and public.can_use_photo(name));
+
+-- ---------- notifications (a daily heads-up on each phone that turns them on) ----------
+-- One row per phone. Only you can see or change your own phones.
+create table if not exists public.push_subs (
+  endpoint text primary key,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  household_id uuid not null references public.households (id) on delete cascade,
+  p256dh text not null,
+  auth text not null,
+  hour int not null default 8 check (hour between 0 and 23),
+  tz text not null default 'America/Chicago',
+  last_sent date,
+  created_at timestamptz not null default now()
+);
+alter table public.push_subs enable row level security;
+drop policy if exists push_own_read on public.push_subs;
+create policy push_own_read on public.push_subs for select to authenticated using (user_id = auth.uid());
+drop policy if exists push_own_add on public.push_subs;
+create policy push_own_add on public.push_subs for insert to authenticated with check (user_id = auth.uid() and public.is_member(household_id));
+drop policy if exists push_own_change on public.push_subs;
+create policy push_own_change on public.push_subs for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and public.is_member(household_id));
+drop policy if exists push_own_remove on public.push_subs;
+create policy push_own_remove on public.push_subs for delete to authenticated using (user_id = auth.uid());
+revoke all on public.push_subs from anon;
+grant select, insert, delete on public.push_subs to authenticated;
+grant update (user_id, hour, tz, household_id, p256dh, auth) on public.push_subs to authenticated;
+
+-- The sending keys. Only the tend-notify function (service role) can read the private half.
+create table if not exists public.push_config (
+  id int primary key default 1 check (id = 1),
+  public_key text not null,
+  private_key text not null
+);
+alter table public.push_config enable row level security;
+revoke all on public.push_config from anon, authenticated;
+create or replace function public.push_public_key() returns text
+language sql stable security definer set search_path = public as $$ select public_key from public.push_config where id = 1 $$;
+revoke all on function public.push_public_key() from public, anon;
+grant execute on function public.push_public_key() to authenticated;

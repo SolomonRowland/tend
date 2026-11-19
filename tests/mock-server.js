@@ -6,6 +6,7 @@ const { Pool } = require('pg');
 const pool = new Pool({ host: process.env.PGHOST || '127.0.0.1', user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || 'pg', database: process.env.PGDATABASE || 'tendtest' });
 const pw = {}; const tokens = {}; const subs = new Set(); const files = {}; const signed = {};
 function send(res, code, obj) { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }); res.end(JSON.stringify(obj)); }
+const KEYS = { records: ['household_id', 'kind', 'id'], push_subs: ['endpoint'] };
 function ident(s) { if (!/^[a-z_][a-z0-9_]*$/.test(s)) throw new Error('bad ident ' + s); return s; }
 async function asUser(uid, fn) {
   const c = await pool.connect();
@@ -37,13 +38,13 @@ async function run(q, uid) {
     if (q.range) sql += ' offset ' + (+q.range[0]) + ' limit ' + (q.range[1] - q.range[0] + 1); else if (q.limit) sql += ' limit ' + (+q.limit);
     return asUser(uid, async c => (await c.query(sql, vals)).rows.map(r => { for (const k in r) if (r[k] instanceof Date) r[k] = r[k].toISOString(); return r; }));
   }
-  if (q.op === 'update') { const sets = Object.keys(q.values).map(k => ident(k) + ' = ' + P(q.values[k])); sql = 'update public.' + t + ' set ' + sets.join(', ') + W.replace(/\$(\d+)/g, (m, n) => '$' + (+n + sets.length)); vals.splice(0, 0, ...vals.splice(vals.length - sets.length)); }
+  if (q.op === 'update') { const sets = Object.keys(q.values).map(k => ident(k) + ' = ' + P(q.values[k])); sql = 'update public.' + t + ' set ' + sets.join(', ') + W; }
   if (q.op === 'delete') sql = 'delete from public.' + t + W;
   if (q.op === 'upsert') {
-    const rows = q.values; if (!rows.length) return [];
+    const rows = Array.isArray(q.values) ? q.values : [q.values]; if (!rows.length) return [];
     const cols = Object.keys(rows[0]);
     sql = 'insert into public.' + t + ' (' + cols.map(ident).join(', ') + ') values ' + rows.map(r => '(' + cols.map(k => P(k === 'data' ? JSON.stringify(r[k]) : r[k])).join(', ') + ')').join(', ') +
-      ' on conflict (household_id, kind, id) do update set ' + cols.filter(k => !['household_id', 'kind', 'id'].includes(k)).map(k => k + ' = excluded.' + k).join(', ');
+      ' on conflict (' + KEYS[t].join(', ') + ') do update set ' + cols.filter(k => !KEYS[t].includes(k)).map(k => k + ' = excluded.' + k).join(', ');
   }
   const out = await asUser(uid, async c => { const r = await c.query(sql, vals); return r.rowCount; });
   if (t === 'records') for (const s of subs) { try { s.write('data: ' + JSON.stringify({ table: t }) + '\n\n'); } catch (e) {} }
@@ -56,7 +57,7 @@ http.createServer(async (req, res) => {
   let body = ''; req.on('data', d => body += d); await new Promise(r => req.on('end', r));
   const b = body ? JSON.parse(body) : {}; const uid = tokens[b.token] || null;
   try {
-    if (req.url === '/reset') { await pool.query("truncate public.records, public.invites, public.members, public.households cascade; delete from auth.users; delete from storage.objects"); for (const k in pw) delete pw[k]; return send(res, 200, { ok: 1 }); }
+    if (req.url === '/reset') { await pool.query("truncate public.records, public.invites, public.members, public.households cascade; delete from auth.users; delete from storage.objects; delete from public.push_config"); for (const k in pw) delete pw[k]; return send(res, 200, { ok: 1 }); }
     if (req.url === '/signup') {
       const ex = (await pool.query('select id from auth.users where email=$1', [b.email])).rows[0];
       if (ex) return send(res, 200, { error: { message: 'User already registered' } });
@@ -79,6 +80,12 @@ http.createServer(async (req, res) => {
     if (req.url === '/storage/remove') {
       await asUser(uid, c => c.query('delete from storage.objects where bucket_id = $1 and name = any($2)', [b.bucket, b.paths]));
       return send(res, 200, { data: [], error: null });
+    }
+    if (req.url === '/fn') {
+      // stand-in for the tend-notify function: 'init' makes keys, 'test' reports how many phones it would reach
+      if (b.body.action === 'init') { await pool.query("insert into public.push_config (id, public_key, private_key) values (1, 'BD_oxRMQ1QjH0d5JyhO6-tH3-dV5bWJ8uhhaEt3mCIsU-7xbTQf3NGHg4g8uMYyhkYX7apGcpEPAqA78V4-pXFs', 'mock') on conflict (id) do nothing"); const k = (await pool.query('select public_key from public.push_config')).rows[0].public_key; return send(res, 200, { data: { publicKey: k }, error: null }); }
+      if (b.body.action === 'test') { if (!uid) return send(res, 200, { data: null, error: { message: 'Sign in first' } }); const n = (await pool.query('select count(*)::int as n from public.push_subs where user_id = $1', [uid])).rows[0].n; return send(res, 200, { data: { sent: n }, error: null }); }
+      return send(res, 200, { data: {}, error: null });
     }
     if (req.url === '/q') return send(res, 200, { data: await run(b.q, uid), error: null });
     send(res, 404, {});

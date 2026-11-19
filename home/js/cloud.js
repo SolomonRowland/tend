@@ -112,7 +112,20 @@ function recMap(d) {
   d.contacts.forEach(function (x) { m['contact:' + x.id] = x; });
   d.items.forEach(function (x) { m['item:' + x.id] = x; });
   m['meta:settings'] = { members: d.members };
+  m['meta:schedule'] = scheduleSnapshot(d);
   return m;
+}
+/* What the daily notification reads: each active task's next due date and when it opens.
+   Dates don't depend on today, so every phone computes the same thing. */
+function scheduleSnapshot(d) {
+  var out = [];
+  d.tasks.forEach(function (t) {
+    if (!t.active) return;
+    var due = nextDue(t); if (!due) return;
+    out.push([t.id, t.name, iso(due), iso(addDays(due, -t.early)), t.snooze || null]);
+  });
+  out.sort(function (a, b) { return a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : a[0] < b[0] ? -1 : 1; });
+  return { tasks: out };
 }
 function saveSync() { if (C.hid) cset('sync.' + C.hid, JSON.stringify({ snap: C.snap, since: C.since, lastSync: C.lastSync })); }
 function pendingCount() {

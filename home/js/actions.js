@@ -126,6 +126,7 @@ document.addEventListener('click', function (e) {
   if (a === 'noop') return;
   if (C.on && cloudAct(a, el)) return;
   if (photoAct(a, el)) return;
+  if (C.on && notifyAct(a, el)) return;
   if (a === 'confirm-cancel') { ui.confirm = null; ui.armed = null; showModal(); return; }
   if (a === 'confirm-ok') {
     var cf = ui.confirm; ui.confirm = null; showModal(); if (!cf) return;

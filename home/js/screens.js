@@ -511,7 +511,8 @@ function scrSettings() {
   h += '<div class="section"><h2 style="font-size:19px">Reminders</h2><button class="link" data-act="edit-prefs">Edit</button></div><div class="listcard">' +
     [['Heads-Up', lab(REMIND_DAYS, rp.days)], ['Calendar App', lab(CAL_APPS, rp.cal)], ['Alert Time', rp.cal === 'google' ? 'Set in Google Calendar' : lab(ALERT_HOURS, rp.hour)]].map(function (x) {
       return '<div class="lrow"><span class="s">' + x[0] + '</span><span class="t" style="text-align:right">' + esc(x[1]) + '</span></div>';
-    }).join('') + '</div><p class="note" style="text-align:left;padding:8px 20px 0">Tend can’t send texts or notifications on its own. On any task, tap Add to Calendar and your calendar does the alerting.</p>';
+    }).join('') + '</div>' + (C.on ? '' : '<p class="note" style="text-align:left;padding:8px 20px 0">Tend can’t send texts or notifications on its own. On any task, tap Add to Calendar and your calendar does the alerting.</p>');
+  h += notifySettings();
   var ct = curTheme();
   h += '<div class="section"><h2 style="font-size:19px">Color Theme</h2></div><div class="themes" role="group" aria-label="Color Theme">' + THEMES.map(function (x) {
     return '<button class="themebtn" data-act="theme" data-t="' + x[0] + '" aria-pressed="' + (ct === x[0]) + '"><span class="sw"><i style="background:' + x[2] + '"></i><i style="background:' + x[3] + '"></i></span>' + x[1] + '</button>';
