@@ -1,4 +1,4 @@
--- Tent & Table database (version 7).
+-- Tent & Table database (version 8).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -311,6 +311,11 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 8: notes for next year on each event
+alter table public.ed_events add column if not exists debrief text not null default '';
+alter table public.ed_events drop constraint if exists ed_events_debrief_check;
+alter table public.ed_events add constraint ed_events_debrief_check check (length(debrief) <= 5000);
+
 -- version 7: tasks get a segment (planning, prep, setup, during, teardown, after) and an area (Food, Stage, AV...)
 alter table public.ed_tasks add column if not exists area text not null default '';
 alter table public.ed_tasks drop constraint if exists ed_tasks_phase_check;

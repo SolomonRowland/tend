@@ -912,7 +912,7 @@ function attention(e) {
 function wsOverview(e) {
   var cd = countdown(e), att = attention(e), m = eventMoney(e);
   var up = [];
-  if (on('calendar')) evRows('ed_schedule').filter(function (s) { return s.on_date >= TODAY; }).forEach(function (s) { up.push({ d: s.on_date, t: s.start_time || '', title: s.title, sub: [fmtTime(s.start_time), s.location].filter(Boolean).join(' · '), tab: 'calendar' }); });
+  if (on('calendar')) evRows('ed_schedule').filter(function (s) { return s.on_date > TODAY || (s.on_date === TODAY && !todayCard(e)); }).forEach(function (s) { up.push({ d: s.on_date, t: s.start_time || '', title: s.title, sub: [fmtTime(s.start_time), s.location].filter(Boolean).join(' · '), tab: 'calendar' }); });
   if (on('tasks')) evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on >= TODAY; }).forEach(function (t) { up.push({ d: t.due_on, t: 'zz', title: t.title, sub: 'Task' + (t.owner ? ' · ' + t.owner : ''), tab: 'tasks' }); });
   up.sort(function (a, b) { return (a.d + a.t).localeCompare(b.d + b.t); });
   var days = e.starts_on ? Math.round((dt(e.starts_on) - dt(TODAY)) / 864e5) : null, ts = evRows('ed_tasks'), td = ts.filter(function (t) { return t.done; }).length, pct = ts.length ? Math.round(100 * td / ts.length) : 0;
@@ -932,13 +932,29 @@ function wsOverview(e) {
   if (g.length > 6) g = g.slice(0, 6);
   if (g.length % 3) g = g.slice(0, g.length - g.length % 3);
   return '<div class="countdown"><div class="cd-num">' + (days != null && days > 1 ? '<b>' + days + '</b><span>Days<br>To Go</span>' : '<b class="word">' + esc(cd || 'Not Scheduled') + '</b>') + '</div>' +
-      '<div class="cd-side">' + (ts.length ? '<div class="cd-k">Tasks</div><div class="cd-v">' + td + ' of ' + ts.length + ' done</div><div class="cd-bar"><i style="width:' + pct + '%"></i></div>' : '<div class="cd-k">' + esc(fmtRange(e.starts_on, e.ends_on)) + '</div><button class="cd-v link" data-a="ev-tab" data-id="tasks">Add the first task</button>') +
+      '<div class="cd-side">' + (ts.length ? '<div class="cd-k">Tasks</div><div class="cd-v">' + td + ' of ' + ts.length + ' done</div><div class="cd-bar"><i style="width:' + pct + '%"></i></div>' : '<div class="cd-k">' + esc(fmtRange(e.starts_on, e.ends_on)) + '</div>' + ((e.ends_on || e.starts_on || '9') >= TODAY ? '<button class="cd-v link" data-a="ev-tab" data-id="tasks">Add the first task</button>' : '')) +
       (e.address ? '<a class="cd-link" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">' + IC.pin + ' Directions</a>' : '') + '</div></div>' +
+    todayCard(e) +
     (g.length ? secHead('At A Glance') + '<div class="stats glance">' + g.slice(0, 6).join('') + '</div>' : '') +
     secHead('Needs Attention', '', att.length ? String(att.length) : '') +
     (att.length ? '<div class="list">' + att.map(function (a) { return row({ act: 'ev-tab', id: a[3], cls: 'flag ' + a[0], title: esc(a[1]), sub: esc(a[2]) }); }).join('') + '</div>'
       : '<div class="empty good">' + IC.check + ' Nothing needs attention right now.</div>') +
-    (up.length ? secHead('Coming Up') + listBox(up.slice(0, 5).map(function (u) { return row({ act: 'ev-tab', id: u.tab, lead: '<span class="datebox sm"><small>' + dt(u.d).toLocaleDateString('en-US', { month: 'short' }) + '</small><b>' + dt(u.d).getDate() + '</b></span>', title: esc(u.title), sub: esc(u.sub) }); }), '') : '');
+    debriefCard(e) + (up.length ? secHead('Coming Up') + listBox(up.slice(0, 5).map(function (u) { return row({ act: 'ev-tab', id: u.tab, lead: '<span class="datebox sm"><small>' + dt(u.d).toLocaleDateString('en-US', { month: 'short' }) + '</small><b>' + dt(u.d).getDate() + '</b></span>', title: esc(u.title), sub: esc(u.sub) }); }), '') : '');
+}
+function todayCard(e) {
+  if (!e.starts_on || TODAY < e.starts_on || TODAY > (e.ends_on || e.starts_on)) return '';
+  var sch = evRows('ed_schedule').filter(function (s) { return s.on_date === TODAY; }).sort(function (x, y) { return String(x.start_time || '').localeCompare(String(y.start_time || '')); });
+  var ci = on('guests') || on('volunteers');
+  return '<div class="card today"><div class="today-k">' + IC.cal + ' Today · ' + esc(fmtLong(TODAY)) + '</div>' +
+    (sch.length ? '<ol class="today-list">' + sch.map(function (s) { return '<li><b>' + esc(fmtTime(s.start_time) || 'Any Time') + '</b><span>' + esc(s.title) + (s.location ? ' · ' + esc(s.location) : '') + '</span></li>'; }).join('') + '</ol>'
+      : '<p class="small muted" style="margin:6px 0 0">' + (on('calendar') ? 'Nothing on today’s schedule.' : 'It’s event day.') + '</p>') +
+    '<div class="btnrow">' + (ci ? '<button class="btn sm" data-a="ev-tab" data-id="checkin">Check People In</button>' : '') + (on('calendar') ? '<button class="btn sm plain" data-a="doc" data-id="schedule">Run Of Show</button>' : '') + '<button class="btn sm plain" data-a="doc" data-id="contacts">Phone List</button></div></div>';
+}
+function debriefCard(e) {
+  var over = e.starts_on && (e.ends_on || e.starts_on) < TODAY;
+  if (!over && !e.debrief) return '';
+  return secHead(over ? 'Notes For Next Year' : 'Notes From Last Time', '<button class="link" data-a="edit-debrief">' + (e.debrief ? 'Edit' : 'Add Notes') + '</button>') +
+    '<div class="card notes">' + (e.debrief ? esc(e.debrief) : '<span class="muted">What worked, what didn’t, what to change. These stay with the event when you choose Start Next Year.</span>') + '</div>';
 }
 function signups(itemId) { return T('ed_signups').filter(function (s) { return s.item_id === itemId; }); }
 function taken(i) { return signups(i.id).reduce(function (n, s) { return n + (i.kind === 'attend' ? (s.party || 1) : 1); }, 0); }
@@ -1334,6 +1350,12 @@ function loadPublic() {
   }).catch(function (e) { S.pubErr = errMsg(e); render(); });
 }
 function pubOn(k) { return secOn(S.pub.event.sections, k); }
+function calUrl(e) {
+  if (!e.starts_on) return '';
+  var d = function (s) { return String(s).replace(/-/g, ''); };
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(e.title) + '&dates=' + d(e.starts_on) + '/' + d(addDays(e.ends_on || e.starts_on, 1)) +
+    '&details=' + encodeURIComponent([e.time_label, e.about].filter(Boolean).join('\n\n')) + '&location=' + encodeURIComponent([e.place, e.address].filter(Boolean).join(', '));
+}
 function pubHero(extra) {
   var e = S.pub.event;
   return '<div class="phero"><div class="in"><div class="eyebrow">' + (e.logo ? '<img class="plogo" src="' + esc(e.logo) + '" alt="">' : '') + esc(e.ministry || 'You’re Invited') + '</div><h1>' + esc(e.title) + '</h1><div class="meta">' +
@@ -1365,7 +1387,7 @@ function viewPublic() {
     return '<div class="mine-row"><span>' + esc(i.title || 'A Spot') + (i.on_date ? ' <span class="muted small">' + esc(fmtDay(i.on_date)) + '</span>' : '') + '</span><button class="link" data-a="pub-unsign" data-id="' + esc(m.token) + '">Cancel</button></div>';
   }).join('') + '</div>' : '';
   return '<main class="pub">' + pubHero((e.about ? '<p class="about">' + esc(e.about) + '</p>' : '') + (e.contact_line ? '<p class="small muted">' + esc(e.contact_line) + '</p>' : '') +
-      '<div class="btnrow">' + (e.giving_link && pubOn('money') ? '<a class="btn" href="' + esc(webUrl(e.giving_link)) + '" target="_blank" rel="noopener">Give Online</a>' : '') + (pubOn('followup') ? '<button class="btn ghost" data-a="pub-go" data-id="c">Connection Card</button>' : '') + (e.address ? '<a class="btn ghost" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">Directions</a>' : '') + '</div>') +
+      '<div class="btnrow">' + (e.giving_link && pubOn('money') ? '<a class="btn" href="' + esc(webUrl(e.giving_link)) + '" target="_blank" rel="noopener">Give Online</a>' : '') + (pubOn('followup') ? '<button class="btn ghost" data-a="pub-go" data-id="c">Connection Card</button>' : '') + (e.address ? '<a class="btn ghost" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">Directions</a>' : '') + (calUrl(e) ? '<a class="btn ghost" href="' + esc(calUrl(e)) + '" target="_blank" rel="noopener">Add To Calendar</a>' : '') + '</div>') +
     mine + (e.is_open ? '' : '<div class="err">Sign-ups for this event are closed.</div>') +
     (S.pubMode !== 'r' && e.volunteer_goal && pubOn('volunteers') ? pubGoal(e) : '') + section('attend', 'Attend', 'Let us know you’re coming so we can save you a seat.') + section('serve', 'Serve', 'Pick a spot. The team will reach out with details.') + section('meal', 'Bring Food', 'Sign up to bring a meal or dish for the team.') +
     (!its.length ? '<div class="empty card">Nothing to sign up for yet. Check back soon.</div>' : '') + backLink() + '</main>';
@@ -1672,6 +1694,7 @@ var A = {
   'add-agenda': function () { editRow('ed_agenda', null, F.agenda, { title: 'Add Topic', base: { event_id: S.ev.id, done: false, sort: evRows('ed_agenda').length } }); },
   'edit-agenda': function (t, id) { editRow('ed_agenda', byId('ed_agenda', id), F.agenda, { title: 'Edit Topic' }); },
   'toggle-agenda': function (t, id) { toggle('ed_agenda', id, 'done'); },
+  'edit-debrief': function () { var f = [{ k: 'debrief', label: 'What Worked, What Didn’t, What To Change', type: 'textarea', auto: true, ph: 'Start setup an hour earlier. Order more water. The greeter team was great.' }]; editRow('ed_events', S.ev, f, { title: 'Notes For Next Year', del: false, after: function (r) { S.ev = r; } }); },
   'edit-notes': function () { var f = [{ k: 'notes', label: 'Notes, Decisions And Next Steps', type: 'textarea', auto: true }]; editRow('ed_events', S.ev, f, { title: 'Meeting Notes', del: false, required: 'notes', after: function (r) { S.ev = r; } }); },
   'add-setlist': function () { editRow('ed_setlists', null, F.setlist, { title: 'Add Set List', base: { event_id: S.ev.id, on_date: S.ev.starts_on } }); },
   'edit-setlist': function (t, id) { editRow('ed_setlists', byId('ed_setlists', id), F.setlist, { title: 'Edit Set List' }); },

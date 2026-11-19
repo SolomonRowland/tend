@@ -724,6 +724,15 @@ button.stat{font:inherit;text-align:left;cursor:pointer;width:100%;border:0}
 .stat .v{font-size:clamp(18px,5.6vw,24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .subtabs.mini{max-width:none}
 .taskbar .subtabs.mini,.docopts .subtabs.mini{flex:1 1 200px}
+/* event day */
+.card.today{border-left:4px solid var(--red);margin:12px 0 4px}
+.today-k{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+.today-k svg{width:15px;height:15px}
+.today-list{list-style:none;margin:10px 0 4px;padding:0;display:flex;flex-direction:column;gap:8px}
+.today-list li{display:flex;gap:12px;align-items:baseline;min-width:0}
+.today-list b{flex:0 0 70px;font-variant-numeric:tabular-nums;font-size:14px}
+.today-list span{min-width:0;color:var(--ink);font-size:14px}
+.card.today .btnrow{margin-top:12px}
 </style>
 </head>
 <body>
