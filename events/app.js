@@ -67,6 +67,15 @@ var IC = {
   home: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/></svg>',
   gear: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>',
   box: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>',
+  down: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  users: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8"/></svg>',
+  list: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  store: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9M3 9h18M3 9v11h18V9M9 20v-6h6v6"/></svg>',
+  food: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v9a2 2 0 002 2v9M5 2v6M9 2v6M17 2c-2 2-3 5-3 8h3v12"/></svg>',
+  check2: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12.5l3 3 5-6"/></svg>',
+  dollar: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+  heart: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 000-7.8z"/></svg>',
+  share: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
   search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>'
 };
 
@@ -213,9 +222,10 @@ function ask(msg, yes, fn, sub) {
 }
 
 /* ---------- small building blocks */
-function head(title, sub, left, right, eyebrow) {
-  return '<header class="top"><div class="hrow">' + (left || '') + '<div class="htxt">' + (eyebrow ? '<div class="eyebrow">' + esc(eyebrow) + '</div>' : '') + '<h1>' + esc(title) + '</h1>' + (sub ? '<div class="hsub">' + esc(sub) + '</div>' : '') + '</div>' +
-    '<div class="hact">' + (DB.mode === 'demo' ? '<span class="demo-flag">Demo</span>' : '') + (right || '') + '</div></div></header>';
+function head(title, sub, left, right, eyebrow, titleAct) {
+  var t = titleAct ? '<button class="htbtn" data-a="' + titleAct + '"><h1>' + esc(title) + '</h1>' + IC.down + '</button>' : '<h1>' + esc(title) + '</h1>';
+  return '<header class="top"><div class="hrow">' + (left || '') + '<div class="htxt">' + (eyebrow ? '<div class="eyebrow">' + esc(eyebrow) + '</div>' : '') + t + '</div>' +
+    '<div class="hact">' + (DB.mode === 'demo' ? '<span class="demo-flag">Demo</span>' : '') + (right || '') + '</div></div>' + (sub ? '<div class="hsub">' + esc(sub) + '</div>' : '') + '</header>';
 }
 function tabs(list, cur, act, cls) {
   return '<nav class="' + (cls || 'tabs') + '" role="tablist">' + list.map(function (t) {
@@ -427,8 +437,8 @@ function viewShell() {
   if (S.tab === 'settings') return viewSettings();
   var body = S.tab === 'directory' ? viewDirectory() : S.tab === 'events' ? viewEvents() : viewHome();
   var me = myMember(), hr = new Date().getHours();
-  var title = S.tab === 'home' ? (hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening') + (me.name ? ', ' + me.name.split(' ')[0] : '') : { events: 'Events', directory: 'Directory' }[S.tab];
-  var sub = S.tab === 'home' ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : '';
+  var title = S.tab === 'home' ? (hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening') : { events: 'Events', directory: 'Directory' }[S.tab];
+  var sub = S.tab === 'home' ? [me.name ? me.name.split(' ')[0] : '', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })].filter(Boolean).join(' · ') : '';
   return head(title, sub, '<span class="brandmark" aria-hidden="true">' + IC.tent + '</span>',
       (S.tab === 'events' ? addBtn('New Event', 'new-event') : '') + '<button class="iconbtn" data-a="open-settings" aria-label="Settings">' + IC.gear + '</button>', org().name) +
     '<main>' + body + demoNote() + '</main>' +
@@ -463,7 +473,7 @@ function usedIn(t, id) {
   return T(map[0]).filter(function (a) { return a[map[1]] === id; }).map(function (a) { return { a: a, e: byId('ed_events', a.event_id) }; }).filter(function (x) { return x.e; });
 }
 function viewDirectory() {
-  var t = S.dirTab, h = tabs(DIRTABS.map(function (d) { return [d[0], d[1], d[0] === 'budget' ? '' : T(d[2]).length]; }), t, 'dir-tab');
+  var t = S.dirTab, h = tabs(DIRTABS.map(function (d) { return [d[0], d[1]]; }), t, 'dir-tab', 'seg-tabs');
   if (t === 'budget') return h + viewBudget();
   var q = S.dirQ.toLowerCase();
   var tool = '<div class="toolbar"><label class="search">' + IC.search + '<input id="dir_q" type="search" placeholder="Search ' + esc(DIRTABS.find(function (d) { return d[0] === t; })[1]) + '" value="' + esc(S.dirQ) + '" data-input="dir-q" aria-label="Search"></label>';
@@ -574,14 +584,13 @@ function viewHome() {
   var h = '';
   if (next) {
     var days = next.starts_on ? dayDiff(next.starts_on, TODAY) : null, ts = evRows('ed_tasks', next), td = ts.filter(function (t) { return t.done; }).length;
-    h += '<button class="hero herobtn" data-a="open-event" data-id="' + next.id + '"><div class="k">Next Up · ' + esc(fmtRange(next.starts_on, next.ends_on)) + '</div><div class="htitle">' + esc(next.title) + '</div>' +
-      (days != null && days > 1 ? '<div class="count"><b>' + days + '</b><span>days to go</span></div>' : '<div class="count"><b class="word">' + esc(countdown(next)) + '</b></div>') +
-      (ts.length ? '<div class="tl"><div class="tbar"><i style="width:' + Math.round(100 * td / ts.length) + '%"></i></div><div class="lbl"><span>' + td + ' of ' + ts.length + ' tasks done</span><span>Open Event →</span></div></div>' : '') + '</button>';
+    h += '<button class="countdown cdbtn" data-a="open-event" data-id="' + next.id + '"><div class="cd-num">' + (days != null && days > 1 ? '<b>' + days + '</b><span>Days<br>To Go</span>' : '<b class="word">' + esc(countdown(next)) + '</b>') + '</div>' +
+      '<div class="cd-side"><div class="cd-k">Next Up</div><div class="cd-title">' + esc(next.title) + '</div><div class="cd-sub">' + esc(fmtRange(next.starts_on, next.ends_on)) + '</div>' + (ts.length ? '<div class="cd-bar"><i style="width:' + Math.round(100 * td / ts.length) + '%"></i></div>' : '') + '</div></button>';
   } else h += '<div class="card empty">No upcoming events. ' + addBtn('Plan An Event', 'new-event') + '</div>';
   h += '<div class="stats">' + stat('Upcoming Events', up.length) + stat('Tasks Overdue', late, late > 0) + stat('Still Owed', money(owed), false) + stat('New Cards', cards, cards > 0) + stat('People', T('ed_people').filter(function (p) { return p.status === 'current'; }).length) + stat('Vendors', T('ed_vendors').length) + '</div>';
   h += secHead('Needs Attention', '', att.length ? String(att.length) : '') + (att.length ? '<div class="list">' + att.slice(0, 8).map(function (a) {
-    return '<button class="row" data-a="open-event-tab" data-id="' + a.e.id + '" data-v="' + a.x[3] + '"><span class="dot ' + a.x[0] + '">' + IC.warn + '</span><div class="main"><div class="t">' + esc(a.x[1]) + '</div><div class="s">' + esc(a.e.title) + (a.x[2] ? ' · ' + esc(a.x[2]) : '') + '</div></div><span class="chev">' + IC.chev + '</span></button>';
-  }).join('') + '</div>' + (att.length > 8 ? '<p class="small muted">' + (att.length - 8) + ' more inside each event.</p>' : '') : '<div class="card empty good">' + IC.check + ' Everything is on track.</div>');
+    return '<button class="row flag ' + a.x[0] + '" data-a="open-event-tab" data-id="' + a.e.id + '" data-v="' + a.x[3] + '"><div class="main"><div class="t">' + esc(a.x[1]) + '</div><div class="s">' + esc(a.e.title) + (a.x[2] ? ' · ' + esc(a.x[2]) : '') + '</div></div><span class="chev">' + IC.chev + '</span></button>';
+  }).join('') + '</div>' + (att.length > 8 ? '<p class="small muted">' + (att.length - 8) + ' more inside each event.</p>' : '') : '<div class="empty good">' + IC.check + ' Everything is on track.</div>');
   h += secHead('This Week') + listBox(week.slice(0, 8).map(function (w) {
     return '<button class="row" data-a="open-event-tab" data-id="' + w.e.id + '" data-v="' + w.tab + '"><span class="datebox sm"><small>' + dt(w.d).toLocaleDateString('en-US', { weekday: 'short' }) + '</small><b>' + dt(w.d).getDate() + '</b></span><div class="main"><div class="t">' + esc(w.title) + '</div><div class="s">' + esc(w.sub) + '</div></div><span class="chev">' + IC.chev + '</span></button>';
   }), 'Nothing scheduled in the next 7 days.');
@@ -645,15 +654,37 @@ function editProfile(fields, base, title, fn) {
 function inviteUrl(code) { return location.origin + location.pathname + '?join=' + code; }
 
 /* ================================================================ event workspace */
+var SEC_IC = { calendar: 'cal', people: 'users', agenda: 'list', vendors: 'store', equipment: 'box', food: 'food', tasks: 'check2', money: 'dollar', followup: 'heart', share: 'share' };
 function viewWorkspace() {
   var e = S.ev = byId('ed_events', S.ev.id) || S.ev;
   var tabsOn = TABS.filter(function (t) { return on(t[0]); });
   if (!tabsOn.some(function (t) { return t[0] === S.evTab; })) S.evTab = 'overview';
   var V = { overview: wsOverview, calendar: wsCalendar, people: wsPeople, agenda: wsAgenda, vendors: wsVendors, equipment: wsEquipment, food: wsFood, tasks: wsTasks, money: wsMoney, followup: wsFollowup, share: wsShare }[S.evTab];
-  return '<div class="ws">' + head(e.title, [fmtRange(e.starts_on, e.ends_on), e.time_label, e.place].filter(Boolean).join(' · '),
-      '<button class="iconbtn" data-a="close-event" aria-label="Close Event">' + IC.close + '</button>',
-      '<button class="iconbtn" data-a="event-menu" aria-label="Event Menu">' + IC.more + '</button>', org().name) +
-    tabs(tabsOn, S.evTab, 'ev-tab', 'tabs sticky') + '<main>' + V(e) + '</main></div>';
+  var menu = '<button class="iconbtn" data-a="event-menu" aria-label="Event Menu">' + IC.more + '</button>';
+  var h = S.evTab === 'overview'
+    ? head(e.title, [fmtRange(e.starts_on, e.ends_on), e.time_label, e.place].filter(Boolean).join(' · '), '<button class="iconbtn" data-a="close-event" aria-label="Back To Events">' + IC.back + '</button>', menu, org().name)
+    : head((TABS.find(function (t) { return t[0] === S.evTab; }) || [])[1], '', '<button class="iconbtn" data-a="ev-tab" data-id="overview" aria-label="Back To Event Overview">' + IC.back + '</button>', menu, e.title, 'section-menu');
+  return '<div class="ws">' + h + '<main>' + V(e) + '</main></div>';
+}
+function sectionStatus(k, e) {
+  var n;
+  if (k === 'calendar') { var d = eventDays(e).length; return plural(d, 'day') + ' · ' + plural(evRows('ed_schedule').length, 'item'); }
+  if (k === 'people') { var sv = fill('serve'); return plural(evRows('ed_event_people').filter(function (a) { return a.team !== 'volunteer'; }).length, 'person', 'people') + (sv.need ? ' · ' + sv.have + '/' + sv.need + ' spots' : ''); }
+  if (k === 'agenda') return plural(evRows('ed_agenda').length, 'topic');
+  if (k === 'vendors') { var owed = payables(e).filter(function (p) { return p.t === 'v'; }).reduce(function (s, p) { return s + p.owed; }, 0); return plural(evRows('ed_event_vendors').length, 'vendor') + (owed ? ' · ' + money(owed) + ' owed' : ''); }
+  if (k === 'equipment') { var eq = evRows('ed_event_equipment'); return plural(eq.length, 'item') + (eq.length ? ' · ' + eq.filter(function (x) { return x.loaded; }).length + ' loaded' : ''); }
+  if (k === 'food') { var ml = fill('meal'); return ml.need ? ml.have + '/' + ml.need + ' meals' : 'No meals yet'; }
+  if (k === 'tasks') { var ts = evRows('ed_tasks'); n = ts.filter(function (t) { return !t.done && t.due_on && t.due_on < TODAY; }).length; return ts.filter(function (t) { return t.done; }).length + '/' + ts.length + ' done' + (n ? ' · <b class="red">' + n + ' late</b>' : ''); }
+  if (k === 'money') { var m = eventMoney(e); return money(m.committed) + ' costs · ' + money(m.given) + ' given'; }
+  if (k === 'followup') { n = evRows('ed_cards').filter(function (c) { return c.status === 'new'; }).length; return n ? '<b class="red">' + n + ' new</b>' : plural(evRows('ed_cards').length, 'card'); }
+  if (k === 'share') return 'Links and QR codes';
+  return '';
+}
+function sectionMenu() {
+  var list = TABS.filter(function (t) { return on(t[0]); });
+  openSheet('<h3>Go To Section</h3><div class="secgrid">' + list.map(function (t) {
+    return '<button class="sectile' + (t[0] === S.evTab ? ' on' : '') + '" data-a="goto-sec" data-id="' + t[0] + '"><span class="si">' + IC[SEC_IC[t[0]] || 'cal'] + '</span><b>' + esc(t[1]) + '</b></button>';
+  }).join('') + '</div><div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Close</button></div>');
 }
 function subTabs(key, list, def) { var cur = S.sub[key] || def; if (!list.some(function (x) { return x[0] === cur; })) cur = list[0][0]; S.sub[key] = cur; return { cur: cur, html: tabs(list, cur, 'sub-tab" data-k="' + key, 'subtabs') }; }
 
@@ -686,29 +717,23 @@ function attention(e) {
   return out;
 }
 function wsOverview(e) {
-  var cd = countdown(e), att = attention(e), m = eventMoney(e);
+  var cd = countdown(e), att = attention(e);
   var up = [];
-  if (on('calendar')) evRows('ed_schedule').filter(function (s) { return s.on_date >= TODAY; }).forEach(function (s) { up.push({ d: s.on_date, t: s.start_time || '', title: s.title, sub: [fmtTime(s.start_time), s.location].filter(Boolean).join(' · ') }); });
-  if (on('tasks')) evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on >= TODAY; }).forEach(function (t) { up.push({ d: t.due_on, t: 'zz', title: t.title, sub: 'Task' + (t.owner ? ' · ' + t.owner : '') }); });
+  if (on('calendar')) evRows('ed_schedule').filter(function (s) { return s.on_date >= TODAY; }).forEach(function (s) { up.push({ d: s.on_date, t: s.start_time || '', title: s.title, sub: [fmtTime(s.start_time), s.location].filter(Boolean).join(' · '), tab: 'calendar' }); });
+  if (on('tasks')) evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on >= TODAY; }).forEach(function (t) { up.push({ d: t.due_on, t: 'zz', title: t.title, sub: 'Task' + (t.owner ? ' · ' + t.owner : ''), tab: 'tasks' }); });
   up.sort(function (a, b) { return (a.d + a.t).localeCompare(b.d + b.t); });
-  var tiles = [];
-  if (on('people') && fill('serve').need) { var sv = fill('serve'); tiles.push(stat('Volunteer Spots', sv.have + ' / ' + sv.need)); }
-  if (on('food') && fill('meal').need) { var ml = fill('meal'); tiles.push(stat('Meals Covered', ml.have + ' / ' + ml.need)); }
-  if (on('tasks')) { var ts = evRows('ed_tasks'); tiles.push(stat('Tasks Done', ts.filter(function (t) { return t.done; }).length + ' / ' + ts.length)); }
-  if (on('equipment') && evRows('ed_event_equipment').length) { var eq = evRows('ed_event_equipment'); tiles.push(stat('Equipment Loaded', eq.filter(function (a) { return a.loaded; }).length + ' / ' + eq.length)); }
-  if (on('money')) { tiles.push(stat('Committed', money(m.committed) + (m.budget ? '<small> of ' + money(m.budget) + '</small>' : ''), m.budget && m.committed > m.budget)); tiles.push(stat('Given', money(m.given))); }
-  if (on('agenda')) { var ag = evRows('ed_agenda'); tiles.push(stat('Agenda Topics', ag.length)); }
-  var days = e.starts_on ? dayDiff(e.starts_on, TODAY) : null, ts = evRows('ed_tasks'), td = ts.filter(function (t) { return t.done; }).length;
-  return '<div class="hero"><div class="k">' + esc(fmtRange(e.starts_on, e.ends_on)) + (e.time_label ? ' · ' + esc(e.time_label) : '') + '</div>' +
-      (days != null && days > 1 ? '<div class="count"><b>' + days + '</b><span>days to go</span></div>' : '<div class="count"><b class="word">' + esc(cd || 'Not Scheduled') + '</b></div>') +
-      (e.place || e.address ? '<div class="sub">' + esc([e.place, e.address].filter(Boolean).join(', ')) + '</div>' : '') +
-      (ts.length ? '<div class="tl"><div class="tbar"><i style="width:' + Math.round(100 * td / ts.length) + '%"></i></div><div class="lbl"><span>' + td + ' of ' + ts.length + ' tasks done</span><span>' + Math.round(100 * td / ts.length) + '%</span></div></div>' : '') +
-      (e.address ? '<a class="heroact" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">' + IC.pin + ' Directions</a>' : '') + '</div>' +
-    (tiles.length ? '<div class="stats">' + tiles.slice(0, 6).join('') + '</div>' : '') +
+  var days = e.starts_on ? dayDiff(e.starts_on, TODAY) : null, ts = evRows('ed_tasks'), td = ts.filter(function (t) { return t.done; }).length, pct = ts.length ? Math.round(100 * td / ts.length) : 0;
+  var secs = TABS.filter(function (t) { return t[0] !== 'overview' && on(t[0]); });
+  return '<div class="countdown"><div class="cd-num">' + (days != null && days > 1 ? '<b>' + days + '</b><span>Days<br>To Go</span>' : '<b class="word">' + esc(cd || 'Not Scheduled') + '</b>') + '</div>' +
+      '<div class="cd-side">' + (ts.length ? '<div class="cd-k">Tasks</div><div class="cd-v">' + td + ' of ' + ts.length + '</div><div class="cd-bar"><i style="width:' + pct + '%"></i></div>' : '') +
+      (e.address ? '<a class="cd-link" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">' + IC.pin + ' Directions</a>' : '') + '</div></div>' +
+    secHead('Sections') + '<div class="secgrid">' + secs.map(function (t) {
+      return '<button class="sectile" data-a="ev-tab" data-id="' + t[0] + '"><span class="si">' + IC[SEC_IC[t[0]] || 'cal'] + '</span><b>' + esc(t[1]) + '</b><small>' + sectionStatus(t[0], e) + '</small></button>';
+    }).join('') + '</div>' +
     secHead('Needs Attention', '', att.length ? String(att.length) : '') +
-    (att.length ? '<div class="list">' + att.map(function (a) { return row({ act: 'ev-tab', id: a[3], lead: '<span class="dot ' + a[0] + '">' + IC.warn + '</span>', title: esc(a[1]), sub: esc(a[2]) }); }).join('') + '</div>'
-      : '<div class="card empty good">' + IC.check + ' Nothing needs attention right now.</div>') +
-    (up.length ? secHead('Coming Up') + listBox(up.slice(0, 6).map(function (u) { return row({ lead: '<span class="datebox sm"><small>' + dt(u.d).toLocaleDateString('en-US', { month: 'short' }) + '</small><b>' + dt(u.d).getDate() + '</b></span>', title: esc(u.title), sub: esc(u.sub) }); }), '') : '');
+    (att.length ? '<div class="list">' + att.map(function (a) { return row({ act: 'ev-tab', id: a[3], cls: 'flag ' + a[0], title: esc(a[1]), sub: esc(a[2]) }); }).join('') + '</div>'
+      : '<div class="empty good">' + IC.check + ' Nothing needs attention right now.</div>') +
+    (up.length ? secHead('Coming Up') + listBox(up.slice(0, 6).map(function (u) { return row({ act: 'ev-tab', id: u.tab, lead: '<span class="datebox sm"><small>' + dt(u.d).toLocaleDateString('en-US', { month: 'short' }) + '</small><b>' + dt(u.d).getDate() + '</b></span>', title: esc(u.title), sub: esc(u.sub) }); }), '') : '');
 }
 function signups(itemId) { return T('ed_signups').filter(function (s) { return s.item_id === itemId; }); }
 function fill(kind) { var need = 0, have = 0; evRows('ed_items').filter(function (i) { return i.kind === kind; }).forEach(function (i) { need += i.needed; have += Math.min(i.needed, signups(i.id).length); }); return { need: need, have: have }; }
@@ -1194,6 +1219,8 @@ var A = {
   'close-event': function () { closeEvent(); },
   'ev-tab': function (t, id) { S.evTab = id || t.getAttribute('data-v'); render(); window.scrollTo(0, 0); if (S.evTab === 'people' || S.evTab === 'followup' || S.evTab === 'food') refreshEvent(); },
   'sub-tab': function (t) { S.sub[t.getAttribute('data-k')] = t.getAttribute('data-v'); render(); },
+  'section-menu': sectionMenu,
+  'goto-sec': function (t, id) { closeSheet(); S.evTab = id; render(); window.scrollTo(0, 0); },
   'cal-day': function (t) { S.calDay = t.getAttribute('data-v'); render(); },
   'event-menu': eventMenu,
   'edit-event': function () { closeSheet(); editEvent(S.ev); },
