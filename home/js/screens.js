@@ -514,9 +514,13 @@ function scrSettings() {
     }).join('') + '</div>' + (C.on ? '' : '<p class="note" style="text-align:left;padding:8px 20px 0">Tend can’t send texts or notifications on its own. On any task, tap Add to Calendar and your calendar does the alerting.</p>');
   h += notifySettings();
   var ct = curTheme();
-  h += '<div class="section"><h2 style="font-size:19px">Color Theme</h2></div><div class="themes" role="group" aria-label="Color Theme">' + THEMES.map(function (x) {
+  var cm = curMode();
+  h += '<div class="section"><h2 style="font-size:19px">Appearance</h2></div><div class="seg seg3" role="group" aria-label="Light or dark" style="margin:0 16px 10px">' + MODES.map(function (x) {
+    return '<button data-act="mode" data-v="' + x[0] + '" aria-pressed="' + (cm === x[0]) + '">' + x[1] + '</button>';
+  }).join('') + '</div>';
+  h += '<div class="themes" role="group" aria-label="Color Theme">' + THEMES.map(function (x) {
     return '<button class="themebtn" data-act="theme" data-t="' + x[0] + '" aria-pressed="' + (ct === x[0]) + '"><span class="sw"><i style="background:' + x[2] + '"></i><i style="background:' + x[3] + '"></i></span>' + x[1] + '</button>';
-  }).join('') + '</div><p class="note" style="text-align:left;padding:8px 20px 0">Tend Blue is the standard look. This only changes colors on this phone.</p>';
+  }).join('') + '</div><p class="note" style="text-align:left;padding:8px 20px 0">Automatic follows your phone\u2019s light or dark setting. Tend Blue is the standard look. These only change this phone.</p>';
   h += '<div class="section"><h2 style="font-size:19px">Suggested Tasks</h2></div><div class="stack"><button class="btn secondary" data-act="starter">' + ic('plus', 18) + 'What Do You Tend To? Add Suggestions</button><p class="note" style="text-align:left;padding:0 4px">Tasks already on your list are skipped.</p></div>';
   h += '<div class="section"><h2 style="font-size:19px">Your Data</h2></div><div class="stack">' +
     '<button class="btn danger' + (ui.armed === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (ui.armed === 'wipe' ? 'Tap Again to Erase Everything' : 'Erase All Data and Start Over') + '</button></div>';
@@ -545,10 +549,21 @@ function curTheme() { var t = 'midnight'; try { t = localStorage.getItem(THEME_K
 function applyTheme(t) {
   var th = THEMES.find(function (x) { return x[0] === t; }) || THEMES[0];
   if (th[0] === 'mocha') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th[0]);
-  var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute('content', th[2]);
+  if (typeof applyMode === 'function' && document.documentElement.hasAttribute('data-mode')) applyMode(); else { var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute('content', th[2]); }
 }
 function setTheme(t) { try { localStorage.setItem(THEME_KEY, t); } catch (e) {} applyTheme(t); }
-applyTheme(curTheme());
+/* light or dark: Automatic follows the phone */
+var MODES = [['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']];
+function curMode() { var m = 'auto'; try { m = localStorage.getItem('tend.mode') || 'auto'; } catch (e) {} return MODES.some(function (x) { return x[0] === m; }) ? m : 'auto'; }
+function isDark() { var m = curMode(); return m === 'dark' || (m === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+function applyMode() {
+  document.documentElement.setAttribute('data-mode', curMode());
+  var m = document.querySelector('meta[name="theme-color"]'), th = THEMES.find(function (x) { return x[0] === curTheme(); }) || THEMES[0];
+  if (m) m.setAttribute('content', isDark() ? (th[0] === 'midnight' ? '#0B4FB8' : th[0] === 'mono' ? '#000000' : '#2A1D1D') : th[2]);
+}
+function setMode(v) { try { localStorage.setItem('tend.mode', v); } catch (e) {} applyMode(); }
+applyTheme(curTheme()); applyMode();
+if (window.matchMedia) { var mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', applyMode); }
 
 /* ---------- belongings ---------- */
 var ITEM_TYPES = {

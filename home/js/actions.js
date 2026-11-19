@@ -171,6 +171,7 @@ document.addEventListener('click', function (e) {
       go('edit-task', { form: { id: null, name: '', cat: { Vehicle: 'Vehicle', Home: 'Home', Appliance: 'Home', Pet: 'Pets', Document: 'Personal' }[nbi.type] || 'Misc', who: nbi.type === 'Vehicle' || nbi.type === 'Pet' ? nbi.name : '', freq: 'Yearly', fixed: false, first: '', last: '', early: '14', notes: '', contact: '', item: nbi.id, active: true } }, true); break;
     case 'starter': startStarter(false); break;
     case 'theme': setTheme(el.getAttribute('data-t')); keepRender(); break;
+    case 'mode': setMode(el.getAttribute('data-v')); keepRender(); break;
     case 'pref-pick': if (!ui.form || ui.form.days == null) ui.form = remindPrefs(); var pk = el.getAttribute('data-k'), pv = el.getAttribute('data-v'); ui.form[pk] = pk === 'cal' ? pv : +pv; keepRender(); break;
     case 'save-prefs': savePrefs(); break;
     case 'edit-prefs': go('prefs', { form: remindPrefs() }, true); break;

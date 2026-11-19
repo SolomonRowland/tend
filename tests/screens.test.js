@@ -17,8 +17,8 @@ const APP = 'http://localhost:8766/home/';
     await p.click('[data-act=auth-mode]'); await p.fill('#authEmail', 'sweep' + w + '@x.com'); await p.fill('#authPass', 'password123'); await p.click('#authForm button[type=submit]');
     await p.waitForSelector('#houseName'); await p.click('[data-act=house-create]');
     await p.waitForSelector('.welcome [data-act=example]'); await p.click('.welcome [data-act=example]'); await p.waitForSelector('.stats');
-    for (const th of ['mono', 'mocha', 'midnight']) {
-      await p.evaluate(t => setTheme(t), th);
+    for (const th of ['mono', 'mocha', 'midnight', 'mono/dark', 'mocha/dark', 'midnight/dark']) {
+      await p.evaluate(t => { setTheme(t.split('/')[0]); setMode(t.split('/')[1] || 'light'); }, th);
       const screens = await p.evaluate(() => {
         const t = db.tasks[0], bt = db.tasks.find(x => x.amount), c = db.contacts[0];
         return [['home', {}], ['list', { filter: 'all', cat: '', q: '' }], ['calendar', { calY: 2026, calM: 10, calDay: '2026-11-17' }], ['contacts', { cq: '' }], ['contact', { conId: c.id }], ['items', { bq: '' }],
@@ -29,6 +29,7 @@ const APP = 'http://localhost:8766/home/';
         await p.evaluate(([s, o]) => { go(s, o, false); }, [s, o]); n++;
         const r = await p.evaluate(() => ({ ow: document.documentElement.scrollWidth - innerWidth, wide: [...document.querySelectorAll('#view *')].filter(el => { const r = el.getBoundingClientRect(); return r.width && r.right > innerWidth + 1 && getComputedStyle(el).position !== 'fixed'; }).slice(0, 3).map(el => el.tagName + '.' + el.className + ':' + (el.textContent || '').slice(0, 30)), undef: /undefined|NaN|\[object/.test(view.innerText), screen: ui.screen }));
         if (r.ow > 0 || r.wide.length || r.undef || r.screen !== s) issues.push([w, th, s, JSON.stringify(r)]);
+        if (w === 390 && (th === 'midnight/dark' || th === 'midnight') && ['home', 'list', 'task', 'settings', 'calendar', 'edit-task'].includes(s)) await p.screenshot({ path: __dirname + '/screenshots/' + th.replace('/', '-') + '-' + s + '.png' }).catch(() => {});
       }
     }
     for (const it of await p.evaluate(() => db.items.map(b => b.id))) { await p.evaluate(id => { go('edit-item', { form: itemForm(itemById(id)) }, false); }, it); n++; if (await p.evaluate(() => /undefined|NaN/.test(view.innerText))) issues.push([w, 'edit-item', it]); }
