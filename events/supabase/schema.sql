@@ -1,4 +1,4 @@
--- Tent & Table database (version 6).
+-- Tent & Table database (version 7).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -241,7 +241,7 @@ create index if not exists ed_schedule_event_idx on public.ed_schedule (event_id
 create table if not exists public.ed_tasks (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.ed_events (id) on delete cascade,
-  phase text not null default 'planning' check (phase in ('planning', 'setup', 'during', 'teardown')),
+  phase text not null default 'planning',
   title text not null check (length(title) between 1 and 160),
   due_on date,
   due_time text not null default '',
@@ -311,6 +311,13 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 7: tasks get a segment (planning, prep, setup, during, teardown, after) and an area (Food, Stage, AV...)
+alter table public.ed_tasks add column if not exists area text not null default '';
+alter table public.ed_tasks drop constraint if exists ed_tasks_phase_check;
+alter table public.ed_tasks add constraint ed_tasks_phase_check check (phase in ('planning', 'prep', 'setup', 'during', 'teardown', 'followup'));
+alter table public.ed_tasks drop constraint if exists ed_tasks_area_check;
+alter table public.ed_tasks add constraint ed_tasks_area_check check (length(area) <= 40);
+
 -- version 6: ministry logo (a small image, stored as a data URL)
 alter table public.ed_orgs add column if not exists logo text not null default '';
 alter table public.ed_orgs drop constraint if exists ed_orgs_logo_check;
@@ -547,8 +554,8 @@ begin
     select nid, on_date + delta, start_time, end_time, title, location, owner, notes from public.ed_schedule where event_id = p_event;
   insert into public.ed_items (event_id, kind, title, on_date, time_label, needed, notes, sort)
     select nid, kind, title, on_date + delta, time_label, needed, notes, sort from public.ed_items where event_id = p_event;
-  insert into public.ed_tasks (event_id, phase, title, due_on, due_time, owner, notes, sort)
-    select nid, phase, title, due_on + delta, due_time, owner, notes, sort from public.ed_tasks where event_id = p_event;
+  insert into public.ed_tasks (event_id, phase, area, title, due_on, due_time, owner, notes, sort)
+    select nid, phase, area, title, due_on + delta, due_time, owner, notes, sort from public.ed_tasks where event_id = p_event;
   insert into public.ed_agenda (event_id, title, leader, minutes, notes, sort)
     select nid, title, leader, minutes, '', sort from public.ed_agenda where event_id = p_event;
   insert into public.ed_event_people (event_id, person_id, team, role, days, details, amount, payer, notes)

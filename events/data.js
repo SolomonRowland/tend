@@ -71,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v7', D = null;
+  var KEY = 'ed.demo.v8', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -312,11 +312,18 @@ function demoSeed() {
   [['Folding Tables (6 ft)', 12, true], ['Folding Chairs', 100, true], ['Wireless Mics', 6, true], ['Mixer (16 Channel)', 1, false], ['Speakers (Pair)', 2, false], ['Extension Cords (100 ft)', 10, false], ['Generator 7500W', 1, false], ['Offering Buckets', 8, false], ['Safety Vests', 12, false], ['Traffic Cones', 24, false], ['Altar Rail Sections', 6, false], ['Baptism Tank', 1, false], ['Flashlights', 10, false], ['Coffee Urns', 2, false]]
     .forEach(function (e) { add('ed_event_equipment', { event_id: R, equipment_id: E[e[0]].id, quantity: e[1], loaded: e[2], returned: false, notes: '' }); });
   // tasks
+  var TASK_AREA_SEED = { 'Apply For Tent Permit': 'Admin', 'Confirm Guest Speakers': 'Admin', 'Order Banners And Connection Cards': 'Decor', 'Book Portable Restrooms': 'Hospitality', 'Volunteer Sign-Up Push On Sunday': 'Admin',
+    'Mark Tent Stakes And Utility Lines': 'Setup Crew', 'Lay Ground Cover And Set Chairs': 'Setup Crew', 'Stage, Platform Skirt And Altar Rail': 'Stage', 'Signs, Banners And Parking Cones': 'Parking',
+    'Shop For Opening Night Fellowship Meal': 'Food', 'Fill Water Coolers And Ice Chests': 'Hospitality', 'Print Name Tags And Greeter Lanyards': 'Hospitality',
+    'Set Out Offering Buckets And Cards': 'Hospitality', 'Serve Coffee And Water At The Welcome Tent': 'Food', 'Lock Up Sound Gear And Trailer': 'AV And Sound',
+    'Stack And Count Chairs': 'Setup Crew', 'Return Equipment And Check Inventory': 'AV And Sound', 'Walk The Field For Trash': 'Setup Crew', 'Send Thank-You Texts To Volunteers': 'Admin', 'Call Every Connection Card': 'Prayer' };
   [['planning', 'Apply For Tent Permit', -25, 'Steve Moss', true], ['planning', 'Confirm Guest Speakers', -12, 'Pastor Solomon', false], ['planning', 'Order Banners And Connection Cards', -20, 'Steve Moss', true], ['planning', 'Book Portable Restrooms', -16, 'Steve Moss', false], ['planning', 'Volunteer Sign-Up Push On Sunday', -10, 'Pam Hughes', false],
    ['setup', 'Mark Tent Stakes And Utility Lines', -2, 'Marcus Reed', false], ['setup', 'Lay Ground Cover And Set Chairs', -1, 'Setup Crew', false], ['setup', 'Stage, Platform Skirt And Altar Rail', -1, 'Tony Alvarez', false], ['setup', 'Signs, Banners And Parking Cones', -1, 'Ray Dunn', false],
-   ['during', 'Set Out Offering Buckets And Cards', 0, 'Aaron Webb', false], ['during', 'Lock Up Sound Gear And Trailer', 0, 'Isaac Bell', false],
-   ['teardown', 'Stack And Count Chairs', 4, 'Teardown Crew', false], ['teardown', 'Return Equipment And Check Inventory', 4, 'Dale Price', false], ['teardown', 'Walk The Field For Trash', 4, 'Everyone', false]
-  ].forEach(function (x, i) { add('ed_tasks', { event_id: R, phase: x[0], title: x[1], due_on: addDays(revStart, x[2]), due_time: '', owner: x[3], done: x[4], notes: '', sort: i }); });
+   ['prep', 'Shop For Opening Night Fellowship Meal', -1, 'Grace Kim', false], ['prep', 'Fill Water Coolers And Ice Chests', 0, 'Hospitality Team', false], ['prep', 'Print Name Tags And Greeter Lanyards', -2, 'Pam Hughes', false],
+   ['during', 'Set Out Offering Buckets And Cards', 0, 'Aaron Webb', false], ['during', 'Serve Coffee And Water At The Welcome Tent', 0, 'Grace Kim', false], ['during', 'Lock Up Sound Gear And Trailer', 0, 'Isaac Bell', false],
+   ['teardown', 'Stack And Count Chairs', 4, 'Teardown Crew', false], ['teardown', 'Return Equipment And Check Inventory', 4, 'Dale Price', false], ['teardown', 'Walk The Field For Trash', 4, 'Everyone', false],
+   ['followup', 'Send Thank-You Texts To Volunteers', 6, 'Pam Hughes', false], ['followup', 'Call Every Connection Card', 7, 'Pastor Solomon', false]
+  ].forEach(function (x, i) { add('ed_tasks', { event_id: R, phase: x[0], area: TASK_AREA_SEED[x[1]] || '', title: x[1], due_on: addDays(revStart, x[2]), due_time: '', owner: x[3], done: x[4], notes: '', sort: i }); });
   add('ed_expenses', { event_id: R, description: 'Water And Ice', category: 'Hospitality', amount: 180, pay_status: 'Paid In Full', payer: 'Steve Moss', due_on: null, notes: '' });
   add('ed_expenses', { event_id: R, description: 'Tent Permit Fee', category: 'Permits', amount: 75, pay_status: 'Not Paid', payer: 'Linda Grey', due_on: addDays(today, 3), notes: '' });
 
@@ -328,13 +335,13 @@ function demoSeed() {
   add('ed_schedule', { event_id: night.id, on_date: night.starts_on, start_time: '19:00', end_time: '20:30', title: 'Worship Night', location: 'Sanctuary', owner: '', notes: '' });
   add('ed_setlists', { event_id: night.id, on_date: night.starts_on, title: 'Worship Night', rehearsal: '6 PM', songs: 'O Come To The Altar\nGoodness Of God\nWhat A Beautiful Name\nHoly Forever' });
   [['Wireless Mics', 4], ['Speakers (Pair)', 1], ['Mixer (16 Channel)', 1], ['Coffee Urns', 1]].forEach(function (e) { add('ed_event_equipment', { event_id: night.id, equipment_id: E[e[0]].id, quantity: e[1], loaded: false, returned: false, notes: '' }); });
-  add('ed_tasks', { event_id: night.id, phase: 'setup', title: 'Set Up Coffee Bar', due_on: night.starts_on, due_time: '6 PM', owner: 'Grace Kim', done: false, notes: '', sort: 0 });
+  add('ed_tasks', { event_id: night.id, phase: 'setup', area: 'Hospitality', title: 'Set Up Coffee Bar', due_on: night.starts_on, due_time: '6 PM', owner: 'Grace Kim', done: false, notes: '', sort: 0 });
 
   var board = ev('Monthly Board Meeting', addDays(today, 2), 0, { time_label: '7 PM', place: 'Fellowship Room', sections: ['calendar', 'people', 'agenda', 'tasks', 'food', 'v2'] });
   [['Opening Prayer', 'Pastor Solomon', 5], ['Tent Revival Plan And Budget', 'Steve Moss', 20], ['Treasurer’s Report', 'Linda Grey', 10], ['Follow-Up On New Believers', 'Pam Hughes', 15], ['Spring Outreach Ideas', 'Pastor Solomon', 15], ['Closing Prayer', '', 5]]
     .forEach(function (a, i) { add('ed_agenda', { event_id: board.id, title: a[0], leader: a[1], minutes: a[2], done: false, notes: '', sort: i }); });
   ['Pastor Solomon', 'Pam Hughes', 'Steve Moss', 'Linda Grey'].forEach(function (n) { add('ed_event_people', { event_id: board.id, person_id: P[n].id, team: 'leader', role: 'Board', days: '', details: {}, amount: 0, pay_status: 'Not Paid', payer: '', due_on: null, notes: '' }); });
-  add('ed_tasks', { event_id: board.id, phase: 'planning', title: 'Print Agenda And Treasurer’s Report', due_on: addDays(today, 1), due_time: '', owner: 'Linda Grey', done: false, notes: '', sort: 0 });
+  add('ed_tasks', { event_id: board.id, phase: 'planning', area: 'Admin', title: 'Print Agenda And Treasurer’s Report', due_on: addDays(today, 1), due_time: '', owner: 'Linda Grey', done: false, notes: '', sort: 0 });
   add('ed_items', { event_id: board.id, kind: 'meal', title: 'Snacks And Coffee', on_date: board.starts_on, time_label: '6:45 PM', needed: 1, notes: '', sort: 0 });
 
   var prayer = ev('Prayer Night', addDays(today, 1), 0, { time_label: 'Wednesdays at 6:30 PM', place: 'Prayer Room', sections: ['people', 'agenda', 'followup'] });

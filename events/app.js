@@ -87,14 +87,37 @@ var GEAR_CATS = ['Sound', 'Power', 'Tables And Chairs', 'Tents', 'Stage', 'Parki
 var PAY = ['Not Paid', 'Deposit Paid', 'Paid In Full'];
 var TEAMS = [['leader', 'Leadership'], ['team', 'Ministry Team'], ['speaker', 'Speakers'], ['worship', 'Worship Team'], ['volunteer', 'Volunteers']];
 var RESPONSES = ['I gave my life to Jesus', 'I recommitted my life to Jesus', 'I’d like someone to pray with me', 'I’m looking for a church home', 'I’d like to be baptized', 'I’d like to serve'];
-var PHASES = [['planning', 'Planning'], ['setup', 'Setup'], ['during', 'During The Event'], ['teardown', 'Teardown']];
+var PHASES = [['planning', 'Planning'], ['prep', 'Prep'], ['setup', 'Setup'], ['during', 'During The Event'], ['teardown', 'Teardown'], ['followup', 'After The Event']];
+var TASK_AREAS = ['Hospitality', 'Food', 'Stage', 'AV And Sound', 'Worship', 'Kids', 'Parking', 'Security', 'Prayer', 'Decor', 'Setup Crew', 'Admin'];
+function phaseOf(t) { return PHASES.some(function (p) { return p[0] === t.phase; }) ? t.phase : 'planning'; }
+function phaseLbl(k) { return (PHASES.find(function (p) { return p[0] === k; }) || [, 'Planning'])[1]; }
+function taskAreas(list) {
+  var seen = {}, out = [];
+  TASK_AREAS.concat(list.map(function (t) { return t.area || ''; })).forEach(function (x) { if (x && !seen[x.toLowerCase()] && list.some(function (t) { return (t.area || '').toLowerCase() === x.toLowerCase(); })) { seen[x.toLowerCase()] = 1; out.push(x); } });
+  return out;
+}
+// Groups tasks by segment or by area, optionally only one area ('-' means tasks with no area).
+function taskGroups(by, area) {
+  var all = evRows('ed_tasks').filter(function (t) { return !area || (area === '-' ? !t.area : (t.area || '').toLowerCase() === area.toLowerCase()); });
+  var srt = function (x, y) { return PHASES.findIndex(function (p) { return p[0] === phaseOf(x); }) - PHASES.findIndex(function (p) { return p[0] === phaseOf(y); }) || String(x.due_on || '9').localeCompare(String(y.due_on || '9')) || x.sort - y.sort; };
+  var keys = by === 'area' ? taskAreas(all).map(function (x) { return [x, x]; }).concat([['', 'No Area Yet']]) : PHASES;
+  return { all: all, groups: keys.map(function (k) {
+    return [k[1], all.filter(function (t) { return by === 'area' ? (t.area || '').toLowerCase() === k[0].toLowerCase() : phaseOf(t) === k[0]; }).sort(srt)];
+  }).filter(function (g) { return g[1].length; }) };
+}
+function areaSelect(id, chg, cur) {
+  var all = evRows('ed_tasks'), list = taskAreas(all), none = all.filter(function (t) { return !t.area; }).length;
+  return '<label class="sr" for="' + id + '">Area</label><select class="inp sm" id="' + id + '" data-change="' + chg + '"><option value="">All Areas · ' + all.length + '</option>' +
+    list.map(function (x) { return '<option value="' + esc(x) + '"' + (cur === x ? ' selected' : '') + '>' + esc(x) + ' · ' + all.filter(function (t) { return (t.area || '').toLowerCase() === x.toLowerCase(); }).length + '</option>'; }).join('') +
+    (none && list.length ? '<option value="-"' + (cur === '-' ? ' selected' : '') + '>No Area · ' + none + '</option>' : '') + '</select>';
+}
 var TABS = [['overview', 'Overview'], ['calendar', 'Calendar'], ['people', 'People'], ['agenda', 'Agenda'], ['vendors', 'Vendors & Contacts'], ['equipment', 'Equipment'], ['food', 'Food'], ['tasks', 'Tasks'], ['money', 'Money'], ['followup', 'Follow-Up'], ['share', 'Share']];
-var SECTIONS = [['calendar', 'Schedule'], ['tasks', 'Tasks'], ['agenda', 'Agenda'], ['people', 'Leadership And Team'], ['speakers', 'Speakers'], ['worship', 'Worship Team'], ['volunteers', 'Volunteers'], ['food', 'Meals'], ['guests', 'Guests And RSVPs'], ['vendors', 'Vendors And Contacts'], ['equipment', 'Equipment'], ['money', 'Money'], ['followup', 'Connection Cards']];
+var SECTIONS = [['calendar', 'Schedule'], ['agenda', 'Agenda'], ['people', 'Leadership And Team'], ['speakers', 'Speakers'], ['worship', 'Worship Team'], ['volunteers', 'Volunteers'], ['food', 'Meals'], ['guests', 'Guests And RSVPs'], ['vendors', 'Vendors And Contacts'], ['equipment', 'Equipment'], ['money', 'Money'], ['followup', 'Connection Cards']];
 // Events saved before speakers, worship, volunteers and guests had their own switches follow the old People switch.
 var LEGACY_SEC = { speakers: 'people', worship: 'people', volunteers: 'people', guests: '' };
 function secOn(s, sec) {
   s = s || [];
-  if (sec === 'overview' || sec === 'share' || !s.length || s.indexOf(sec) >= 0) return true;
+  if (sec === 'overview' || sec === 'share' || sec === 'tasks' || !s.length || s.indexOf(sec) >= 0) return true;
   if (s.indexOf('v2') < 0 && sec in LEGACY_SEC) return !LEGACY_SEC[sec] || s.indexOf(LEGACY_SEC[sec]) >= 0;
   return false;
 }
@@ -363,14 +386,15 @@ var F = {
     { k: 'volunteer_goal', label: 'Volunteer Goal', type: 'int', half: true, hint: 'How many volunteers you need in all.' },
     { k: 'is_open', label: 'Public Sign-Ups Are Open', type: 'check', def: true },
     { html: function () { return '<div class="fld"><label>Start From A Preset</label><div class="seg wrap">' + Object.keys(PRESETS).map(function (k) { return '<button type="button" data-a="preset" data-v="' + k + '">' + esc(PRESETS[k].label) + '</button>'; }).join('') + '</div></div>'; } },
-    { k: 'sections', label: 'What This Event Uses', type: 'multi', opts: SECTIONS, hint: 'Overview is always there.' }],
+    { k: 'sections', label: 'What This Event Uses', type: 'multi', opts: SECTIONS, hint: 'Overview, Tasks and Share are always there.' }],
   schedule: [
     { k: 'title', label: 'What', auto: true, ph: 'Sound Check' }, { k: 'on_date', label: 'Date', type: 'date', half: true },
     { k: 'location', label: 'Location', half: true }, { k: 'start_time', label: 'Starts', type: 'time', half: true }, { k: 'end_time', label: 'Ends', type: 'time', half: true },
     { k: 'owner', label: 'Who’s In Charge', type: 'list', opts: function () { return peopleNames(); } }, { k: 'notes', label: 'Notes', type: 'textarea' }],
   task: [
-    { k: 'title', label: 'Task', auto: true, ph: 'Book portable restrooms' }, { k: 'phase', label: 'Phase', type: 'select', opts: PHASES, half: true },
-    { k: 'owner', label: 'Who', type: 'list', opts: function () { return peopleNames(); }, half: true },
+    { k: 'title', label: 'Task', auto: true, ph: 'Book portable restrooms' }, 
+    { k: 'phase', label: 'Segment', type: 'select', opts: PHASES, half: true }, { k: 'area', label: 'Area', type: 'list', opts: function () { return taskAreas(evRows('ed_tasks')).concat(TASK_AREAS).filter(function (x, i, l) { return l.indexOf(x) === i; }).map(function (x) { return [x, x]; }); }, half: true, ph: 'Food, Stage, AV…' },
+    { k: 'owner', label: 'Who', type: 'list', opts: function () { return peopleNames(); } },
     { k: 'due_on', label: 'Due Date', type: 'date', half: true }, { k: 'due_time', label: 'Time', half: true, ph: '10 AM' },
     { k: 'done', label: 'Done', type: 'check' }, { k: 'notes', label: 'Notes', type: 'textarea' }],
   agenda: [
@@ -691,7 +715,7 @@ function inviteUrl(code) { return location.origin + location.pathname + '?join='
 /* ================================================================ event workspace */
 var AREAS = [['overview', 'Overview'], ['plan', 'Plan'], ['dir', 'Directory'], ['money', 'Money'], ['guests', 'Guests']];
 var AREA_SUBS = {
-  plan: [['schedule', 'Schedule', 'calendar'], ['tasks', 'Tasks', 'tasks'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'worship']],
+  plan: [['tasks', 'Tasks', 'tasks'], ['schedule', 'Schedule', 'calendar'], ['agenda', 'Agenda', 'agenda'], ['setlists', 'Set Lists', 'worship']],
   dir: [['people', 'People', 'team'], ['volunteers', 'Volunteers', 'vols'], ['vendors', 'Vendors', 'vendors'], ['contacts', 'Contacts', 'vendors'], ['equipment', 'Equipment', 'equipment']],
   guests: [['attending', 'Attending', 'guests'], ['checkin', 'Check-In', 'ci'], ['followup', 'Follow-Up', 'followup']]
 };
@@ -990,20 +1014,22 @@ function wsFood(e) {
 }
 
 /* ---------- tasks */
-function taskRow(t) {
-  var late = !t.done && t.due_on && t.due_on < TODAY;
-  return '<div class="row">' + ck(t.done, 'toggle-task', t.id) + '<button class="main" data-a="edit-task" data-id="' + t.id + '"><div class="t' + (t.done ? ' done' : '') + '">' + esc(t.title) + '</div><div class="s">' +
+function taskRow(t, by) {
+  var late = !t.done && t.due_on && t.due_on < TODAY, tag = by === 'area' ? phaseLbl(phaseOf(t)) : t.area;
+  return '<div class="row">' + ck(t.done, 'toggle-task', t.id) + '<button class="main" data-a="edit-task" data-id="' + t.id + '"><div class="t' + (t.done ? ' done' : '') + '">' + esc(t.title) + '</div><div class="s">' + (tag ? '<span class="ttag">' + esc(tag) + '</span>' : '') +
     (t.due_on ? '<span class="' + (late ? 'danger' : '') + '">' + (late ? 'Overdue · ' : '') + esc(fmtDay(t.due_on) + (t.due_time ? ', ' + t.due_time : '')) + '</span>' : '') + esc(t.owner ? (t.due_on ? ' · ' : '') + t.owner : '') + '</div></button></div>';
 }
 function wsTasks(e) {
-  var all = evRows('ed_tasks'), done = all.filter(function (t) { return t.done; }).length;
-  return '<div class="stats">' + stat('Done', done + ' / ' + all.length) + stat('Overdue', all.filter(function (t) { return !t.done && t.due_on && t.due_on < TODAY; }).length, true) + '</div>' + meter(done, all.length) +
-    '<div class="btnrow" style="margin-top:14px">' + addBtn('Add Task', 'add-task') + '</div>' +
-    PHASES.map(function (p) {
-      var list = all.filter(function (t) { return (t.phase || 'planning') === p[0]; }).sort(function (a, b) { return String(a.due_on || '9').localeCompare(String(b.due_on || '9')) || a.sort - b.sort; });
-      if (!list.length) return '';
-      return secHead(p[1], '', list.filter(function (t) { return t.done; }).length + ' Of ' + list.length + ' Done') + listBox(list.map(taskRow), '');
-    }).join('') + (all.length ? '' : '<div class="empty card" style="margin-top:12px">No tasks yet.</div>');
+  var every = evRows('ed_tasks'), done = every.filter(function (t) { return t.done; }).length;
+  var st = subTabs('taskby', [['phase', 'By Segment'], ['area', 'By Area']], 'phase'), by = st.cur;
+  if (S.taskArea && !taskAreas(every).concat(['-']).some(function (x) { return x.toLowerCase() === S.taskArea.toLowerCase(); })) S.taskArea = '';
+  var g = taskGroups(by, S.taskArea);
+  return '<div class="stats">' + stat('Done', done + ' / ' + every.length) + stat('Overdue', every.filter(function (t) { return !t.done && t.due_on && t.due_on < TODAY; }).length, true) + '</div>' + meter(done, every.length) +
+    '<div class="btnrow" style="margin-top:14px">' + addBtn('Add Task', 'add-task') + (every.length ? '<button class="btn sm plain" data-a="doc" data-id="tasks">' + IC.list + ' Print Or Share</button>' : '') + '</div>' +
+    (every.length ? '<div class="taskbar">' + st.html.replace('class="subtabs"', 'class="subtabs mini"') + areaSelect('tk_area', 'task-area', S.taskArea) + '</div>' : '') +
+    g.groups.map(function (x) {
+      return secHead(x[0], '', x[1].filter(function (t) { return t.done; }).length + ' Of ' + x[1].length + ' Done') + listBox(x[1].map(function (t) { return taskRow(t, by); }), '');
+    }).join('') + (every.length ? '' : '<div class="empty card" style="margin-top:12px"><b>No tasks yet.</b><br>Add what has to happen before, during and after: prep, setup, food, teardown. Give each one a segment and an area so you can print one list per team.</div>');
 }
 
 /* ---------- money */
@@ -1076,7 +1102,7 @@ function shareBar(k) {
 /* ---------- share and print */
 var DOCS = [
   ['summary', 'Event Summary', 'Dates, place, the team and key phone numbers on one page.', 'always'],
-  ['tasks', 'Task List', 'Every task by phase, with who and when, and boxes to check off.', 'tasks'],
+  ['tasks', 'Task List', 'Setup to teardown, by segment or by area. Print all of it or one team’s list, like Food or Stage.', 'tasks'],
   ['schedule', 'Run Of Show', 'The schedule day by day.', 'calendar'],
   ['volunteers', 'Volunteer Roster', 'Each spot with who signed up and their phone numbers.', 'volunteers'],
   ['meals', 'Meal Sign-Ups', 'Who is bringing what, by day.', 'food'],
@@ -1118,13 +1144,14 @@ function docBuild(k) {
     if (stats.length) { h2('Status'); H.push('<dl>' + stats.map(function (s) { T2.push(s[0] + ': ' + s[1]); return '<dt>' + s[0] + '</dt><dd>' + esc(s[1]) + '</dd>'; }).join('') + '</dl>'); }
   }
   if (k === 'tasks') {
-    var all = evRows('ed_tasks');
-    PHASES.forEach(function (p) {
-      var list = all.filter(function (t) { return (t.phase || 'planning') === p[0]; }).sort(function (x, y) { return String(x.due_on || '9').localeCompare(String(y.due_on || '9')) || x.sort - y.sort; });
-      if (!list.length) return; h2(p[1]);
-      H.push(table(['', 'Task', 'Who', 'Due'], list.map(function (t) { T2.push((t.done ? '[x] ' : '[ ] ') + t.title + (t.owner ? ' · ' + t.owner : '') + (t.due_on ? ' · ' + fmtDay(t.due_on) : '')); return [t.done ? '<span class="pbox on">✓</span>' : box, '<span class="' + (t.done ? 'done' : '') + '">' + esc(t.title) + '</span>' + (t.notes ? '<div class="sm">' + esc(t.notes) + '</div>' : ''), esc(t.owner || ''), esc([t.due_on ? fmtDay(t.due_on) : '', t.due_time].filter(Boolean).join(' '))]; })));
+    var tby = S.sub.taskby === 'area' ? 'area' : 'phase', tg = taskGroups(tby, S.taskArea), all = tg.all;
+    if (S.taskArea) title += ' · ' + (S.taskArea === '-' ? 'No Area' : S.taskArea);
+    tg.groups.forEach(function (gr) {
+      var list = gr[1]; h2(gr[0]);
+      var mid = tby === 'area' || !S.taskArea, cols = ['', 'Task'].concat(mid ? [tby === 'area' ? 'When' : 'Area'] : [], ['Who', 'Due']);
+      H.push(table(cols, list.map(function (t) { T2.push((t.done ? '[x] ' : '[ ] ') + t.title + (tby !== 'area' && t.area ? ' · ' + t.area : '') + (t.owner ? ' · ' + t.owner : '') + (t.due_on ? ' · ' + fmtDay(t.due_on) : '')); return [t.done ? '<span class="pbox on">✓</span>' : box, '<span class="' + (t.done ? 'done' : '') + '">' + esc(t.title) + '</span>' + (t.notes ? '<div class="sm">' + esc(t.notes) + '</div>' : ''), ].concat(mid ? [esc(tby === 'area' ? phaseLbl(phaseOf(t)) : t.area || '')] : [], [esc(t.owner || ''), esc([t.due_on ? fmtDay(t.due_on) : '', t.due_time].filter(Boolean).join(' '))]); })));
     });
-    if (!all.length) none('No tasks yet.');
+    if (!all.length) none(S.taskArea ? 'No tasks in this area.' : 'No tasks yet.');
   }
   if (k === 'schedule') {
     var sch = evRows('ed_schedule').sort(function (x, y) { return String(x.on_date || '').localeCompare(String(y.on_date || '')) || String(x.start_time || '').localeCompare(String(y.start_time || '')); }), day = null, rows = [];
@@ -1173,7 +1200,9 @@ function docBuild(k) {
 function openDoc(k) {
   var d = docBuild(k);
   openSheet(function () {
-    return '<h3>' + esc(d.title) + '</h3><div class="docprev">' + d.html + '</div>' +
+    var opts = k === 'tasks' && evRows('ed_tasks').length ? '<div class="docopts">' + tabs([['phase', 'By Segment'], ['area', 'By Area']], S.sub.taskby === 'area' ? 'area' : 'phase', 'doc-by', 'subtabs mini') + areaSelect('dk_area', 'doc-area', S.taskArea) + '</div>' : '';
+    d = docBuild(k);
+    return '<h3>' + esc(d.title) + '</h3>' + opts + '<div class="docprev">' + d.html + '</div>' +
       '<div class="acts"><button class="btn plain" data-a="close">Close</button><span class="grow"></span><button class="btn plain" data-a="doc-copy" data-id="' + k + '">Copy Text</button>' + (window.ED_DEMO ? '' : '<button class="btn" data-a="doc-print" data-id="' + k + '">Print Or PDF</button>') + '</div>' +
       (window.ED_DEMO ? '<p class="small muted center" style="margin:8px 0 0">Printing and saving as PDF work in the app, not in this demo.</p>' : '');
   });
@@ -1338,7 +1367,6 @@ var WIZ_NEEDS = [
   ['money', 'Will you track money?', 'Budget, payments, offerings and expenses.'],
   ['followup', 'Will you collect connection cards?', 'Guests fill them out on their phone.'],
   ['calendar', 'Do you need a schedule?', 'Setup, sound checks, rehearsals and services.'],
-  ['tasks', 'Do you need a task list?', 'Who does what, and by when.'],
   ['agenda', 'Is this a meeting with an agenda?', 'Topics, who leads them and decisions.']
 ];
 var WIZ_STEPS = [
@@ -1498,6 +1526,8 @@ document.addEventListener('change', function (ev) {
   if (k === 'budget-year') { S.budgetYear = +t.value; render(); }
   if (k === 'notify-channel') { var me = myMember(), p = prefs(); p.channel = t.value; me.prefs = p; render(); DB.updateMe(org().id, { prefs: p }).catch(function (e) { toast(errMsg(e)); }); }
   if (k === 'dir-team') { S.sub.dirTeam = t.value; render(); }
+  if (k === 'task-area') { S.taskArea = t.value; render(); }
+  if (k === 'doc-area') { S.taskArea = t.value; render(); redrawSheet(); }
   if (k === 'logo-file') { var file = t.files && t.files[0]; t.value = ''; if (file) setLogo(file); }
   if (k === 'ci-day') { S.sub.ciDay = t.value; render(); }
   if (k === 'eq-flag') {
@@ -1565,7 +1595,8 @@ var A = {
   // plan
   'add-sched': function () { editRow('ed_schedule', null, F.schedule, { title: 'Add To Schedule', base: { event_id: S.ev.id, on_date: S.calDay } , prep: function (v) { if (!v.on_date) return 'Pick a date.'; return v; }, after: function (r) { S.calDay = r.on_date; } }); },
   'edit-sched': function (t, id) { editRow('ed_schedule', byId('ed_schedule', id), F.schedule, { title: 'Edit Schedule Item', prep: function (v) { if (!v.on_date) return 'Pick a date.'; return v; } }); },
-  'add-task': function () { editRow('ed_tasks', null, F.task, { title: 'Add Task', base: { event_id: S.ev.id, phase: 'planning', done: false, sort: evRows('ed_tasks').length } }); },
+  'add-task': function () { var ar = S.taskArea && S.taskArea !== '-' ? S.taskArea : ''; editRow('ed_tasks', null, F.task, { title: 'Add Task', base: { event_id: S.ev.id, phase: 'planning', area: ar, done: false, sort: evRows('ed_tasks').length } }); },
+  'doc-by': function (t) { S.sub.taskby = t.getAttribute('data-v'); redrawSheet(); },
   'edit-task': function (t, id) { editRow('ed_tasks', byId('ed_tasks', id), F.task, { title: 'Edit Task' }); },
   'toggle-task': function (t, id) { toggle('ed_tasks', id, 'done'); },
   'add-agenda': function () { editRow('ed_agenda', null, F.agenda, { title: 'Add Topic', base: { event_id: S.ev.id, done: false, sort: evRows('ed_agenda').length } }); },
