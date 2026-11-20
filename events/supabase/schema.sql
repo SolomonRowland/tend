@@ -1,4 +1,4 @@
--- Tent & Table database (version 12).
+-- Tent & Table database (version 13).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -312,6 +312,32 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 13: automatic texts and emails (supabase/functions/ed-notify). The function writes the log
+-- with the service key; members can read their ministry's log so the app shows what already went out.
+alter table public.ed_orgs add column if not exists auto_remind boolean not null default false;
+alter table public.ed_orgs add column if not exists notify_seen_at timestamptz;
+alter table public.ed_orgs add column if not exists notify_channels text not null default '';
+create table if not exists public.ed_notify_log (
+  id bigserial primary key,
+  org_id uuid not null references public.ed_orgs (id) on delete cascade,
+  key text not null check (length(key) <= 400),
+  kind text not null default '',
+  channel text not null default '',
+  to_name text not null default '',
+  to_addr text not null default '',
+  subject text not null default '',
+  status text not null default 'sending',
+  error text not null default '',
+  created_at timestamptz not null default now(),
+  unique (org_id, key)
+);
+create index if not exists ed_notify_log_org_time on public.ed_notify_log (org_id, created_at desc);
+alter table public.ed_notify_log enable row level security;
+drop policy if exists ed_notify_log_read on public.ed_notify_log;
+create policy ed_notify_log_read on public.ed_notify_log for select to authenticated using (public.ed_is_member(org_id));
+revoke all on public.ed_notify_log from anon, authenticated;
+grant select on public.ed_notify_log to authenticated;
+
 -- version 12: volunteer shifts have start and end times; connection cards name who follows up and by when
 alter table public.ed_items add column if not exists start_time time;
 alter table public.ed_items add column if not exists end_time time;
@@ -786,7 +812,7 @@ create policy ed_event_equipment_all on public.ed_event_equipment for all to aut
 -- ---------- grants
 revoke all on public.ed_orgs, public.ed_members, public.ed_invites from authenticated;
 grant select on public.ed_orgs, public.ed_members to authenticated;
-grant update (name, website, email, phone, address, about, giving_link, timezone, logo) on public.ed_orgs to authenticated;
+grant update (name, website, email, phone, address, about, giving_link, timezone, logo, auto_remind) on public.ed_orgs to authenticated;
 grant update (name, phone, prefs) on public.ed_members to authenticated;
 grant select, delete on public.ed_invites to authenticated;
 grant select, insert, update, delete on public.ed_people, public.ed_vendors, public.ed_contacts, public.ed_equipment,

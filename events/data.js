@@ -53,6 +53,8 @@ function CloudDB() {
       });
     },
     updateOrg: function (id, f) { return q(sb.from('ed_orgs').update(f).eq('id', id)); },
+    notifyLog: function (oid) { return q(sb.from('ed_notify_log').select('key, status, created_at').eq('org_id', oid).like('key', 'rem:%').gte('created_at', new Date(Date.now() - 3 * 864e5).toISOString())); },
+    notify: function (action) { return sb.functions.invoke('ed-notify', { body: { action: action } }).then(function (r) { if (r.error) throw new Error('Automatic sending isn’t set up yet.'); return r.data; }); },
     updateMe: function (oid, f) { return q(sb.from('ed_members').update(f).eq('org_id', oid).eq('user_id', me.id)); },
     changeEmail: function (e) { return q(sb.auth.updateUser({ email: e }, { emailRedirectTo: location.origin + location.pathname })); },
     changePassword: function (p) { return q(sb.auth.updateUser({ password: p })); },
@@ -183,6 +185,8 @@ function DemoDB() {
       return ok({ org: T('ed_orgs').find(function (o) { return o.id === m.org_id; }), role: m.role, members: T('ed_members').filter(function (x) { return x.org_id === m.org_id; }), invites: T('ed_invites').filter(function (x) { return x.org_id === m.org_id; }) });
     },
     updateOrg: function (id, f) { T('ed_orgs').forEach(function (o) { if (o.id === id) Object.assign(o, f); }); persist(); return ok(); },
+    notifyLog: function () { return ok([]); },
+    notify: function () { return ok({ sent: 0, errors: ['The demo can’t send real texts or emails.'] }); },
     updateMe: function (oid, f) { T('ed_members').forEach(function (m) { if (m.user_id === D.me.id) Object.assign(m, f); }); persist(); return ok(); },
     changeEmail: function (e) { D.me.email = e; T('ed_members').forEach(function (m) { if (m.user_id === D.me.id) m.email = e; }); persist(); return ok(); },
     changePassword: function () { return ok(); },

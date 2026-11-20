@@ -237,7 +237,7 @@ function offlineBar() {
 window.addEventListener('offline', function () { if (S.acct && !S.offline) { S.offline = 1; render(); } });
 window.addEventListener('online', function () { if (S.offline && S.user) { S.offline = 0; loadAcct(); } });
 function loadAll() {
-  var oid = org().id;
+  var oid = org().id; loadAutoSent();
   return Promise.all([DB.list('ed_events', 'org_id', oid)].concat(DIR_TABLES.map(function (t) { return DB.list(t, 'org_id', oid); }))).then(function (r) {
     S.db = {}; S.db.ed_events = r[0]; DIR_TABLES.forEach(function (t, i) { S.db[t] = r[i + 1]; });
     var ids = r[0].map(function (e) { return e.id; });
@@ -904,7 +904,7 @@ function viewMine() {
   var h = tabs([['assigned', 'Assigned To Me'], ['created', 'Created By Me']], created ? 'created' : 'assigned', 'mine-tab', 'seg-tabs');
   if (!refs.length && !created) h += '<div class="card tip"><b>Which Contact Is You?</b><p class="small muted">Pick yourself from your contacts so tasks, agenda segments and teams assigned to you show up here.</p><button class="btn sm" data-a="pick-me">Choose Me</button></div>';
   h += '<div class="stats three">' + stat('Overdue', open.filter(function (x) { return whenGroup(x.t) === 'late'; }).length, true) + stat('This Week', open.filter(function (x) { var g = whenGroup(x.t); return g === 'today' || g === 'week'; }).length) + stat('Open Tasks', open.length) + '</div>';
-  if (!created) { var rem = reminders(); h += '<button class="card remcard" data-a="reminders"><span class="docic">' + IC.text + '</span><span class="main"><b>Reminders To Send' + (rem.length ? ' · ' + rem.filter(function (r) { return !remSent(r.key); }).length : '') + '</b><span>' + (rem.length ? 'Volunteers serving tomorrow and tasks due soon. Text or email each one in a tap.' : 'Nothing to send today. Volunteers serving tomorrow and tasks coming due will show up here.') + '</span></span><span class="chev">' + IC.chev + '</span></button>'; }
+  if (!created) { var rem = reminders(); h += '<button class="card remcard" data-a="reminders"><span class="docic">' + IC.text + '</span><span class="main"><b>Reminders To Send' + (rem.length ? ' · ' + rem.filter(function (r) { return !remSent(r.key); }).length : '') + '</b><span>' + (rem.length ? (autoReminding() ? 'Sent automatically each morning at 7. Tap to see who gets one, or send one yourself.' : 'Volunteers serving tomorrow and tasks due soon. Text or email each one in a tap.') : 'Nothing to send today. Volunteers serving tomorrow and tasks coming due will show up here.') + '</span></span><span class="chev">' + IC.chev + '</span></button>'; }
   // the big picture: each event with what's mine in it
   var byEv = {};
   st.tasks.concat(st.lead, st.serve, st.cards).forEach(function (x) { (byEv[x.e.id] = byEv[x.e.id] || { e: x.e, t: 0, l: 0, s: 0, c: 0 }); });
@@ -944,7 +944,15 @@ function viewMine() {
   return h;
 }
 /* ---------- reminders: who should hear from you, ready to text or email in a tap */
-function remSent(key) { return !!lget('ed.rem.' + key); }
+function remSent(key) { return !!lget('ed.rem.' + key) || !!(S.autoSent && S.autoSent[key]); }
+// Automatic sending is "live" when the ed-notify function has checked in within the last two hours.
+function notifyLive() { var o = org() || {}; return !!(o.notify_seen_at && Date.now() - Date.parse(o.notify_seen_at) < 2 * 3600e3); }
+function notifyChannels() { return String((org() || {}).notify_channels || '').split(',').filter(Boolean); }
+function autoReminding() { return !!((org() || {}).auto_remind && notifyLive()); }
+function loadAutoSent() {
+  if (!DB.notifyLog || !org()) return;
+  DB.notifyLog(org().id).then(function (rows) { var m = {}; (rows || []).forEach(function (r) { if (r.status === 'sent') m[r.key.replace(/^rem:/, '')] = 1; }); S.autoSent = m; if (S.tab === 'mine' || S.sheet) { render(); } }, function () {});
+}
 function firstName(n) { return String(n || '').replace(/^(pastor|rev\.?|evangelist|dr\.?)\s+/i, '').split(' ')[0]; }
 function reminders() {
   var o = org() || {}, sig = o.name ? ' – ' + o.name : '', out = [];
@@ -990,10 +998,10 @@ function remindersSheet() {
             '<button class="btn sm plain" data-a="copy" data-v="' + esc(r.msg) + '">Copy</button></div></div></div>';
         }).join('') + '</div>';
     };
-    return '<h3>Reminders To Send</h3><p class="lead">' + (list.length ? left + ' of ' + list.length + ' still to send. Each opens a text or email with the message written for you.' : 'Nothing to send right now.') + '</p>' +
+    return '<h3>Reminders To Send</h3><p class="lead">' + (!list.length ? 'Nothing to send right now.' : autoReminding() ? (list.length - left) + ' of ' + list.length + ' sent. The rest go out automatically at 7 AM, or send one yourself now.' : left + ' of ' + list.length + ' still to send. Each opens a text or email with the message written for you.') + '</p>' +
       block('shift', 'Serving Tomorrow') + block('task', 'Tasks Due Soon') +
       (list.length ? '' : '<p class="small muted">Volunteers who signed up for tomorrow, and contacts with tasks due today or tomorrow, show up here with a ready-to-send message.</p>') +
-      '<p class="small muted" style="margin-top:14px">Messages go from your own phone or email. Automatic sending needs a texting and email service connected to your ministry account.</p>' +
+      '<p class="small muted" style="margin-top:14px">' + (autoReminding() ? 'Automatic reminders are on: tomorrow’s volunteers and anyone with a task due get a text or email at 7 AM. The buttons send one from your own phone or email.' : 'Messages go from your own phone or email.' + ((org() || {}).auto_remind ? ' Automatic reminders are switched on but aren’t running yet. See Settings > Notifications.' : ' To send these automatically every morning, turn on Automatic Reminders in Settings > Notifications.')) + '</p>' +
       '<div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Done</button></div>';
   });
 }
@@ -1030,9 +1038,15 @@ function viewSettings() {
     '<div class="card"><div class="sheethead">' + avatar(me.name || S.user.email) + '<div><h3>' + esc(me.name || 'Add Your Name') + '</h3><p class="lead">' + (owner ? 'Account Owner' : 'Member') + '</p></div></div>' +
     kv([['Phone', me.phone], ['Login Email', S.user.email || me.email]]) +
     '<div class="btnrow"><button class="btn sm ghost" data-a="change-email">Change Login Email</button><button class="btn sm ghost" data-a="change-pw">Change Password</button></div></div>';
-  h += secHead('Notifications') + '<div class="card"><p class="small muted notenote">Automatic texts and emails start once a sending service is connected to your account. Your choices below are saved for then. Until it is, open <button class="link inline" data-a="nav" data-v="mine">My Stuff</button> for reminders you can send in a tap.</p><div class="fld"><label for="n_ch">Send Them By</label><select class="inp" id="n_ch" data-change="notify-channel">' + [['email', 'Email'], ['text', 'Text Message'], ['both', 'Email And Text']].map(function (c) { return '<option value="' + c[0] + '"' + (p.channel === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>' +
+  var live = notifyLive(), chs = notifyChannels(), chLbl = chs.map(function (c) { return c === 'text' ? 'texts' : 'emails'; }).join(' and ');
+  h += secHead('Notifications') + '<div class="card">' + (live
+    ? '<div class="nstat on">' + IC.check + '<span><b>Automatic ' + esc(chLbl || 'notices') + ' are on.</b> They go out as things happen and each morning at 7.</span></div>' + '<div class="btnrow"><button class="btn sm ghost" data-a="notify-test">Send Me A Test</button></div>'
+    : '<div class="nstat"><span><b>Automatic texts and emails aren’t on yet.</b> ' + (owner ? 'They need a sending service connected to your account (about 20 minutes, one time). The steps are in the setup guide.' : 'Your account owner can turn them on.') + ' Your choices below are saved for then. Until then, <button class="link inline" data-a="nav" data-v="mine">My Stuff</button> has reminders you can send in a tap.</span></div>') +
+    (owner ? '<div class="swlist"><div class="swrow"><div class="main"><b>Automatic Reminders</b><span>For the whole ministry: the day before, text or email everyone serving or bringing food, and anyone with a task due.</span></div>' + sw(o.auto_remind, 'auto-remind', 'auto', 'Automatic Reminders') + '</div></div><h4 class="nsub">Just For You</h4>' : '') +
+    '<div class="fld"><label for="n_ch">Send Them By</label><select class="inp" id="n_ch" data-change="notify-channel">' + [['email', 'Email'], ['text', 'Text Message'], ['both', 'Email And Text']].map(function (c) { return '<option value="' + c[0] + '"' + (p.channel === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>' +
     '<div class="swlist">' + NOTIFY.map(function (n) { return '<div class="swrow"><div class="main"><b>' + esc(n[1]) + '</b><span>' + esc(n[2]) + '</span></div>' + sw(p[n[0]], 'notify', n[0], n[1]) + '</div>'; }).join('') + '</div>' +
-    ((p.channel !== 'email') && !me.phone ? '<p class="small danger">Add your phone number under My Profile to get texts.</p>' : '') + '</div>';
+    ((p.channel !== 'email') && !me.phone ? '<p class="small danger">Add your phone number under My Profile to get texts.</p>' : '') +
+    (live && p.channel !== 'email' && chs.indexOf('text') < 0 ? '<p class="small danger">Texting isn’t set up for your ministry yet, so these come by email only.</p>' : '') + '</div>';
   h += secHead('Team And Access', owner && a.members.length < 10 ? addBtn('Invite', 'invite') : '', a.members.length + ' of 10') +
     '<div class="list">' + a.members.map(function (m) {
       var self = m.user_id === S.user.id;
@@ -2276,7 +2290,7 @@ var A = {
   'pub-sign': function (t, id) {
     var it = S.pub.items.find(function (x) { return x.id === id; });
     var f = it.kind === 'attend' ? F.rsvp : F.signup.map(function (x) { return x.k === 'note' ? Object.assign({}, x, { label: it.kind === 'meal' ? 'What Are You Bringing?' : 'Anything We Should Know?' }) : x; });
-    openSheet(function () { return '<h3>' + (it.kind === 'attend' ? 'RSVP' : 'Sign Up') + '</h3><p class="lead">' + esc(it.title + (it.on_date ? ' · ' + fmtLong(it.on_date) : '') + (it.time_label ? ' · ' + it.time_label : '')) + '</p>' + formBody(f, {}) + '<p class="small muted">Add a phone or email so the team can reach you. ' + (it.kind === 'attend' ? 'Your name is not shown to others.' : 'Only your first name is shown to others.') + '</p>' + sheetFoot(false, 'Sign Me Up'); },
+    openSheet(function () { return '<h3>' + (it.kind === 'attend' ? 'RSVP' : 'Sign Up') + '</h3><p class="lead">' + esc(it.title + (it.on_date ? ' · ' + fmtLong(it.on_date) : '') + (it.time_label ? ' · ' + it.time_label : '')) + '</p>' + formBody(f, {}) + '<p class="small muted">Add a phone or email so the team can reach you' + (it.kind === 'attend' ? '. ' : ' and send you a reminder the day before. ') + (it.kind === 'attend' ? 'Your name is not shown to others.' : 'Only your first name is shown to others.') + '</p>' + sheetFoot(false, 'Sign Me Up'); },
       function () {
         var v = readForm(f, {});
         return busy(DB.rpc('ed_sign', { p_slug: S.pubSlug, p_item: id, p_name: v.name, p_phone: v.phone, p_email: v.email, p_note: v.note, p_party: it.kind === 'attend' ? Math.max(1, Math.min(50, v.party || 1)) : 1 })).then(function (tok) {
@@ -2299,6 +2313,8 @@ var A = {
   'edit-me': function () { var me = myMember(); editProfile(F_ME, me, 'My Profile', function (v) { return DB.updateMe(org().id, { name: v.name, phone: v.phone || '' }).then(function () { me.name = v.name; me.phone = v.phone || ''; }); }); },
   'change-email': function () { var f = [{ k: 'email', label: 'New Login Email', type: 'email', auto: true, hint: 'We’ll send a confirmation link to the new address. Your login changes once you click it.' }]; editProfile(f, {}, 'Change Login Email', function (v) { return DB.changeEmail(v.email).then(function () { if (DB.mode === 'demo') { S.user.email = v.email; myMember().email = v.email; } else toast('Check ' + v.email + ' for a confirmation link'); }); }); },
   'change-pw': function () { var f = [{ k: 'pw', label: 'New Password', auto: true, hint: 'At least 8 characters.' }]; openSheet(function () { return '<h3>Change Password</h3><div class="fgrid"><div class="fld"><label for="f_pw">New Password</label><input class="inp" id="f_pw" name="pw" type="password" minlength="8" autocomplete="new-password" autofocus><span class="hint">At least 8 characters.</span></div></div>' + sheetFoot(false); }, function () { var v = $('#layer #f_pw').value; if (v.length < 8) { sheetErr('Use at least 8 characters.'); return; } return busy(DB.changePassword(v), 'Password changed').then(closeSheet).catch(function () {}); }); },
+  'auto-remind': function () { var o = org(), v = !o.auto_remind; o.auto_remind = v; render(); DB.updateOrg(o.id, { auto_remind: v }).then(function () { toast(v ? 'Automatic reminders on' : 'Automatic reminders off'); }, function (e) { o.auto_remind = !v; render(); toast(errMsg(e)); }); },
+  'notify-test': function () { toast('Sending…'); DB.notify('test').then(function (r) { toast(r && r.sent ? 'Test sent. Check your ' + (r.sent > 1 ? 'email and phone' : 'messages') + '.' : (r && r.errors && r.errors[0]) || 'Nothing was sent. Add your email or phone under My Profile.'); }, function (e) { toast(errMsg(e)); }); },
   notify: function (t, k) { var me = myMember(), p = prefs(); p[k] = !p[k]; me.prefs = p; render(); DB.updateMe(org().id, { prefs: p }).catch(function (e) { toast(errMsg(e)); }); },
 };
 
