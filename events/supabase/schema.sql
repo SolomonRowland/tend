@@ -1,4 +1,4 @@
--- Tent & Table database (version 11).
+-- Tent & Table database (version 12).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -15,7 +15,7 @@
 --     money: ed_offerings, ed_expenses (plus vendor and speaker costs on the assignments)
 --     follow-up: ed_cards (connection cards)
 --     prayer: ed_prayer (scripture, declarations and needs the prayer team intercedes for)
---   Public pages call only the ed_public, ed_sign, ed_unsign, ed_mine and ed_connect functions.
+--   Public pages call only the ed_public, ed_sign, ed_unsign, ed_mine, ed_connect and ed_checkin functions.
 
 -- ============================================================ accounts
 create table if not exists public.ed_orgs (
@@ -312,6 +312,14 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 12: volunteer shifts have start and end times; connection cards name who follows up and by when
+alter table public.ed_items add column if not exists start_time time;
+alter table public.ed_items add column if not exists end_time time;
+alter table public.ed_cards add column if not exists follow_up_ref text not null default '';
+alter table public.ed_cards drop constraint if exists ed_cards_follow_up_ref_check;
+alter table public.ed_cards add constraint ed_cards_follow_up_ref_check check (length(follow_up_ref) <= 60);
+alter table public.ed_cards add column if not exists follow_up_on date;
+
 -- version 11: each task records who created it (task_owner); the work goes to the assignees
 alter table public.ed_tasks add column if not exists task_owner text not null default '';
 alter table public.ed_tasks drop constraint if exists ed_tasks_task_owner_check;
@@ -589,8 +597,8 @@ begin
     returning id into nid;
   insert into public.ed_schedule (event_id, on_date, start_time, end_time, title, location, owner, owner_ref, notes)
     select nid, on_date + delta, start_time, end_time, title, location, owner, owner_ref, notes from public.ed_schedule where event_id = p_event;
-  insert into public.ed_items (event_id, kind, title, on_date, time_label, needed, notes, sort)
-    select nid, kind, title, on_date + delta, time_label, needed, notes, sort from public.ed_items where event_id = p_event;
+  insert into public.ed_items (event_id, kind, title, on_date, time_label, start_time, end_time, needed, notes, sort)
+    select nid, kind, title, on_date + delta, time_label, start_time, end_time, needed, notes, sort from public.ed_items where event_id = p_event;
   insert into public.ed_tasks (event_id, phase, area, title, due_on, due_time, owner, task_owner, assignee_refs, needed, notes, sort)
     select nid, phase, area, title, due_on + delta, due_time, owner, task_owner, assignee_refs, needed, notes, sort from public.ed_tasks where event_id = p_event;
   insert into public.ed_agenda (event_id, title, leader, leader_ref, start_time, minutes, notes, sort)
@@ -676,6 +684,32 @@ language sql stable security definer set search_path = public as $$
   select coalesce(jsonb_agg(jsonb_build_object('token', s.token, 'item_id', s.item_id, 'name', s.name)), '[]'::jsonb)
   from public.ed_signups s where s.token = any (coalesce(p_tokens[1:50], '{}'));
 $$;
+
+-- Self check-in from the event's check-in QR code: the phone number someone signed up or RSVP'd with
+-- checks them in for today's shifts and services. "Today" is in the ministry's time zone.
+create or replace function public.ed_checkin(p_slug text, p_phone text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare ev public.ed_events; want text; today date; res jsonb;
+begin
+  select * into ev from public.ed_events where slug = lower(trim(p_slug));
+  if ev.id is null then raise exception 'This event was not found.'; end if;
+  want := regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g');
+  if length(want) = 11 and left(want, 1) = '1' then want := substr(want, 2); end if;
+  if length(want) < 7 then raise exception 'Enter the phone number you signed up with.'; end if;
+  today := (now() at time zone coalesce((select nullif(timezone, '') from public.ed_orgs where id = ev.org_id), 'America/Chicago'))::date;
+  with hits as (
+    select s.id, s.name, i.title from public.ed_signups s join public.ed_items i on i.id = s.item_id
+    where i.event_id = ev.id
+      and (i.on_date = today or (i.on_date is null and ev.starts_on <= today and coalesce(ev.ends_on, ev.starts_on) >= today))
+      and right(regexp_replace(s.phone, '[^0-9]', '', 'g'), 10) = right(want, 10)
+    limit 20
+  ), upd as (
+    update public.ed_signups s set checked_in_at = coalesce(s.checked_in_at, now()) from hits where s.id = hits.id returning s.id
+  )
+  select coalesce(jsonb_agg(jsonb_build_object('name', hits.name, 'title', hits.title)), '[]'::jsonb) into res from hits where hits.id in (select id from upd);
+  if res = '[]'::jsonb then raise exception 'We couldn''t find a sign-up for today with that number. Please see someone at the welcome table.'; end if;
+  return res;
+end $$;
 
 create or replace function public.ed_connect(p_slug text, p_name text, p_phone text, p_email text, p_responses text[], p_prayer text)
 returns void language plpgsql security definer set search_path = public as $$
@@ -764,12 +798,12 @@ revoke all on function public.ed_is_member(uuid), public.ed_is_owner(uuid), publ
   public.ed_create_org(text, text), public.ed_create_invite(uuid), public.ed_accept_invite(text, text), public.ed_remove_member(uuid, uuid),
   public.ed_renew_event(uuid, date, date, jsonb), public.ed_copy_event(uuid, text, date),
   public.ed_public(text), public.ed_sign(text, uuid, text, text, text, text, int), public.ed_unsign(text), public.ed_mine(text[]),
-  public.ed_connect(text, text, text, text, text[], text) from public;
+  public.ed_connect(text, text, text, text, text[], text), public.ed_checkin(text, text) from public;
 grant execute on function public.ed_is_member(uuid), public.ed_is_owner(uuid), public.ed_can_event(uuid), public.ed_same_org(uuid, text, uuid),
   public.ed_create_org(text, text), public.ed_create_invite(uuid), public.ed_accept_invite(text, text), public.ed_remove_member(uuid, uuid),
   public.ed_renew_event(uuid, date, date, jsonb), public.ed_copy_event(uuid, text, date) to authenticated;
 grant execute on function public.ed_public(text), public.ed_sign(text, uuid, text, text, text, text, int), public.ed_unsign(text),
-  public.ed_mine(text[]), public.ed_connect(text, text, text, text, text[], text) to anon, authenticated;
+  public.ed_mine(text[]), public.ed_connect(text, text, text, text, text[], text), public.ed_checkin(text, text) to anon, authenticated;
 
 -- ============================================================ version 9: prayer
 -- Scripture, declarations and the needs the prayer team intercedes for. Nothing is checked off:

@@ -71,7 +71,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v13', D = null;
+  var KEY = 'ed.demo.v15', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -118,6 +118,17 @@ function DemoDB() {
     },
     ed_unsign: function (a) { D.t.ed_signups = T('ed_signups').filter(function (s) { return s.token !== a.p_token; }); return null; },
     ed_mine: function (a) { return T('ed_signups').filter(function (s) { return a.p_tokens.indexOf(s.token) >= 0; }).map(function (s) { return { token: s.token, item_id: s.item_id, name: s.name }; }); },
+    ed_checkin: function (a) {
+      var ev = T('ed_events').find(function (e) { return e.slug === a.p_slug; }); if (!ev) throw new Error('This event was not found.');
+      var want = String(a.p_phone || '').replace(/[^0-9]/g, '').replace(/^1(?=\d{10}$)/, '');
+      if (want.length < 7) throw new Error('Enter the phone number you signed up with.');
+      var today = isoDay(new Date()), out = [];
+      T('ed_items').filter(function (i) { return i.event_id === ev.id && (i.on_date === today || (!i.on_date && ev.starts_on <= today && (ev.ends_on || ev.starts_on) >= today)); }).forEach(function (i) {
+        T('ed_signups').filter(function (s) { return s.item_id === i.id && String(s.phone || '').replace(/[^0-9]/g, '').replace(/^1(?=\d{10}$)/, '') === want; }).forEach(function (s) { if (!s.checked_in_at) s.checked_in_at = new Date().toISOString(); out.push({ name: s.name, title: i.title }); });
+      });
+      if (!out.length) throw new Error('We couldn’t find a sign-up for today with that number. Please see someone at the welcome table.');
+      return out;
+    },
     ed_connect: function (a) {
       var ev = T('ed_events').find(function (e) { return e.slug === a.p_slug; }); if (!ev) throw new Error('This event was not found.');
       if (!String(a.p_name || '').trim()) throw new Error('Please add your name.');
@@ -280,15 +291,15 @@ function demoSeed() {
   add('ed_setlists', { event_id: R, on_date: nights[1], title: 'Night 2', rehearsal: '5:30 PM Sound Check', songs: 'This Is Amazing Grace\nBuild My Life\nHoly Spirit' });
   // sign-ups
   var sort = 0;
-  function item(kind, title, d, needed, notes, tl) { return add('ed_items', { event_id: R, kind: kind, title: title, on_date: d, time_label: tl || '', needed: needed, notes: notes || '', sort: sort++ }); }
+  function item(kind, title, d, needed, notes, tl, st, et) { return add('ed_items', { event_id: R, kind: kind, title: title, on_date: d, time_label: tl || '', start_time: st || null, end_time: et || null, needed: needed, notes: notes || '', sort: sort++ }); }
   function su(it, name, phone, extra) { add('ed_signups', Object.assign({ event_id: R, item_id: it.id, name: name, phone: phone, email: '', note: '', token: token(), checked_in_at: null, party: 1 }, extra || {})); }
-  var setup = item('serve', 'Setup Crew', addDays(revStart, -1), 12, 'Meet at the field. Bring work gloves.', '8 AM');
+  var setup = item('serve', 'Setup Crew', addDays(revStart, -1), 12, 'Meet at the field. Bring work gloves.', '8 AM–12 PM', '08:00', '12:00');
   ['Marcus Reed', 'Tony Alvarez', 'Luke Harmon', 'Josh Whitfield', 'Caleb Ortiz', 'Sam Tate', 'Eli Brooks'].forEach(function (n, i) { su(setup, n, '(555) 201-00' + (20 + i)); });
   nights.forEach(function (d, i) {
-    var p = item('serve', 'Parking Team', d, 4, 'Vests are in the trailer.', '6 PM');
-    var g = item('serve', 'Greeters', d, 4, '', '6:15 PM');
-    var u = item('serve', 'Ushers And Offering', d, 4, '', '6:30 PM');
-    var k = item('serve', 'Kids Tent', d, 3, 'Background check required.', '6:30 PM');
+    var p = item('serve', 'Parking Team', d, 4, 'Vests are in the trailer.', '6–7:30 PM', '18:00', '19:30');
+    var g = item('serve', 'Greeters', d, 4, '', '6:15–7:15 PM', '18:15', '19:15');
+    var u = item('serve', 'Ushers And Offering', d, 4, '', '6:30–9 PM', '18:30', '21:00');
+    var k = item('serve', 'Kids Tent', d, 3, 'Background check required.', '6:30–9 PM', '18:30', '21:00');
     var at = item('attend', 'Night ' + (i + 1) + ' Service', d, 400, 'Doors open at 6:30 PM.', '7 PM');
     [['The Morales Family', '(555) 501-0001', 5], ['Dorothy Pruitt', '(555) 501-0002', 1], ['Kevin And Amy Shaw', '(555) 501-0003', 2], ['Grace Fellowship Youth', '(555) 501-0004', 14], ['Walter Hines', '(555) 501-0005', 1], ['The Okafor Family', '(555) 501-0006', 4]].slice(0, 6 - i).forEach(function (r, j) { su(at, r[0], r[1], { party: r[2], checked_in_at: i === 0 && j < 2 ? new Date().toISOString() : null }); });
     su(p, 'Ray Dunn', '(555) 301-1001'); su(p, 'Eli Brooks', '(555) 301-1002'); if (i < 2) su(p, 'Sam Tate', '(555) 301-1003');
@@ -302,7 +313,7 @@ function demoSeed() {
     if (i < 3) su(m2, 'Teresa Hill', '(555) 401-0002', { note: 'Green beans' });
     if (i === 0) { su(m2, 'Joy Patel', '(555) 401-0003', { note: 'Mac and cheese' }); su(m3, 'Carol Fox', '(555) 401-0004', { note: 'Banana pudding' }); }
   });
-  var tear = item('serve', 'Teardown Crew', addDays(revStart, 4), 12, 'Lunch provided.', '8 AM');
+  var tear = item('serve', 'Teardown Crew', addDays(revStart, 4), 12, 'Lunch provided.', '8–11 AM', '08:00', '11:00');
   ['Marcus Reed', 'Tony Alvarez', 'Dale Price'].forEach(function (n, i) { su(tear, n, '(555) 201-00' + (10 + i)); });
   // vendors and contacts
   function book(name, extra) { add('ed_event_vendors', Object.assign({ event_id: R, vendor_id: V[name].id, service: '', status: 'Booked', arrival: '', cost: 0, paid: 0, pay_status: 'Not Paid', payer: 'Linda Grey', due_on: null, notes: '' }, extra)); }
@@ -349,8 +360,16 @@ function demoSeed() {
   [['Opening Prayer', 'Pastor Solomon', 5], ['Tent Revival Plan And Budget', 'Steve Moss', 20], ['Treasurer’s Report', 'Linda Grey', 10], ['Follow-Up On New Believers', 'Pam Hughes', 15], ['Spring Outreach Ideas', 'Pastor Solomon', 15], ['Closing Prayer', '', 5]]
     .forEach(function (a, i) { add('ed_agenda', { event_id: board.id, title: a[0], leader: a[1], minutes: a[2], done: false, notes: '', sort: i }); });
   ['Pastor Solomon', 'Pam Hughes', 'Steve Moss', 'Linda Grey'].forEach(function (n) { add('ed_event_people', { event_id: board.id, person_id: P[n].id, team: 'leader', role: 'Board', days: '', details: {}, amount: 0, pay_status: 'Not Paid', payer: '', due_on: null, notes: '' }); });
-  add('ed_tasks', { event_id: board.id, phase: 'planning', area: 'Admin', title: 'Print Agenda And Treasurer’s Report', due_on: addDays(today, 1), due_time: '', owner: 'Linda Grey', done: false, notes: '', sort: 0 });
+  add('ed_tasks', { event_id: board.id, phase: 'planning', area: 'Admin', title: 'Print Agenda And Treasurer’s Report', due_on: addDays(today, 1), due_time: '', task_owner: 'Pastor Solomon', owner: 'Linda Grey', assignee_refs: ['ed_people:' + P['Linda Grey'].id], needed: 1, done: false, notes: '', sort: 0 });
   add('ed_items', { event_id: board.id, kind: 'meal', title: 'Snacks And Coffee', on_date: board.starts_on, time_label: '6:45 PM', needed: 1, notes: '', sort: 0 });
+
+  // tomorrow: a small serve day, so reminders have something to send
+  var pantry = ev('Community Food Pantry', addDays(today, 1), 0, { time_label: '9 AM–12 PM', place: 'Fellowship Hall', address: '410 Main St, Waterman, IL', about: 'Groceries for any family who needs them.', sections: ['volunteers', 'tasks', 'v2'], volunteer_goal: 8 });
+  [['Sorting And Packing', '8:30–10 AM', '08:30', '10:00', 4, [['Ray Dunn', '(555) 301-1001'], ['Grace Kim', '(555) 301-2001'], ['Aaron Webb', '(555) 301-3001']]], ['Carry-Out Helpers', '10 AM–12 PM', '10:00', '12:00', 3, [['Eli Brooks', '(555) 301-1002'], ['Hannah Lowe', '(555) 301-4001']]]].forEach(function (s, k) {
+    var it = add('ed_items', { event_id: pantry.id, kind: 'serve', title: s[0], on_date: pantry.starts_on, time_label: s[1], start_time: s[2], end_time: s[3], needed: s[4], notes: '', sort: k });
+    s[5].forEach(function (x) { add('ed_signups', { event_id: pantry.id, item_id: it.id, name: x[0], phone: x[1], email: '', note: '', token: token(), checked_in_at: null, party: 1 }); });
+  });
+  add('ed_tasks', { event_id: pantry.id, phase: 'planning', area: 'Hospitality', title: 'Pick Up Bread Donation From Miller’s Bakery', due_on: addDays(today, 1), due_time: '7:30 AM', task_owner: 'Pastor Solomon', owner: 'Steve Moss', assignee_refs: ['ed_people:' + P['Steve Moss'].id], needed: 1, done: false, notes: '', sort: 0 });
 
   var prayer = ev('Prayer Night', today, 0, { time_label: '6:30 PM', place: 'Prayer Room', sections: ['people', 'agenda', 'followup', 'calendar', 'tasks', 'volunteers', 'guests', 'prayer', 'v2'], theme: 'Ask, Seek, Knock' });
   [['18:00', 'Prayer Team Huddle', 'Pastor’s Office'], ['18:30', 'Worship And Open Prayer', 'Prayer Room'], ['19:15', 'Prayer Stations', 'Prayer Room'], ['20:00', 'Closing And Coffee', 'Fellowship Hall']].forEach(function (s, i) { add('ed_schedule', { event_id: prayer.id, on_date: today, start_time: s[0], end_time: '', title: s[1], location: s[2], owner: '', notes: '' }); });
@@ -383,7 +402,7 @@ function demoSeed() {
    ['Derrick Shaw', '(555) 900-1002', ['I recommitted my life to Jesus', 'I’m looking for a church home'], '', 'contacted', 'Steve Moss'],
    ['Maria Lopez', '', ['I’d like someone to pray with me'], 'Healing for my mom, Rosa.', 'new', ''],
    ['Kevin Grant', '(555) 900-1004', ['I gave my life to Jesus', 'I’d like to be baptized'], '', 'connected', 'Pastor Solomon']
-  ].forEach(function (c) { add('ed_cards', { event_id: outreach.id, name: c[0], phone: c[1], email: '', responses: c[2], prayer: c[3], status: c[4], follow_up_by: c[5], notes: '' }); });
+  ].forEach(function (c, k) { add('ed_cards', { event_id: outreach.id, name: c[0], phone: c[1], email: '', responses: c[2], prayer: c[3], status: c[4], follow_up_by: c[5], follow_up_ref: P[c[5]] ? 'ed_people:' + P[c[5]].id : '', follow_up_on: c[4] === 'connected' ? null : addDays(today, k ? 3 : -2), notes: '' }); });
 
   var y = new Date().getFullYear();
   add('ed_budget', { org_id: O, year: y, name: 'Annual Tent Revival', planned: 9000, event_id: R, notes: '' });

@@ -104,7 +104,7 @@ function allContacts() {
 function refOf(c) { return c.t + ':' + c.r.id; }
 function refContact(ref) { if (!ref) return null; var i = ref.indexOf(':'), t = ref.slice(0, i), id = ref.slice(i + 1), r = byId(t, id); if (!r) return null; return allContacts().find(function (c) { return c.t === t && c.r.id === id; }) || null; }
 // Picking a contact fills in the name, so print-outs and old rows still read right.
-function refSync(v) { [['leader_ref', 'leader'], ['owner_ref', 'owner']].forEach(function (p) { if (p[0] in v) { var c = refContact(v[p[0]]); if (c) v[p[1]] = c.name; else if (!v[p[0]]) v[p[0]] = ''; } }); return v; }
+function refSync(v) { [['leader_ref', 'leader'], ['owner_ref', 'owner'], ['follow_up_ref', 'follow_up_by']].forEach(function (p) { if (p[0] in v) { var c = refContact(v[p[0]]); if (c) v[p[1]] = c.name; else if (!v[p[0]]) v[p[0]] = ''; } }); return v; }
 // Who can take a task: team (staff, board, prayer team), volunteers, vendors and other contacts. Not guests, worship or speakers.
 var TASK_GROUPS = ['Team Member', 'Board', 'Prayer Team', 'Volunteer'];
 function taskEligible(c) { return c.t !== 'ed_people' || (c.r.groups || []).some(function (g) { return TASK_GROUPS.indexOf(g) >= 0; }) || !(c.r.groups || []).length; }
@@ -122,6 +122,12 @@ var VENDOR_CATS = ['Tent', 'Sound And Lights', 'Food', 'Restrooms', 'Rentals', '
 var GEAR_CATS = ['Sound', 'Power', 'Tables And Chairs', 'Tents', 'Stage', 'Parking', 'Ushers', 'Kids', 'Baptism', 'Hospitality', 'Other'];
 var PAY = ['Not Paid', 'Deposit Paid', 'Paid In Full'];
 var TEAMS = [['leader', 'Leadership'], ['team', 'Ministry Team'], ['speaker', 'Speakers'], ['worship', 'Worship Team'], ['volunteer', 'Volunteers']];
+var CARD_TONE = { new: 'red', contacted: 'amber', connected: 'green' };
+function cardStatusLabel(s) { return { new: 'New', contacted: 'Contacted', connected: 'Connected' }[s] || s; }
+var DECISIONS = [['I gave my life to Jesus', 'Salvations'], ['I recommitted my life to Jesus', 'Recommitments'], ['I’d like someone to pray with me', 'Prayer'], ['I’m looking for a church home', 'Church Home'], ['I’d like to be baptized', 'Baptism'], ['I’d like to serve', 'Want To Serve']];
+function decisionTiles(cards) {
+  return '<div class="stats glance">' + DECISIONS.map(function (d) { var n = cards.filter(function (c) { return (c.responses || []).indexOf(d[0]) >= 0; }).length; return stat(d[1], n, d[1] === 'Salvations' && n > 0); }).join('') + '</div>';
+}
 var RESPONSES = ['I gave my life to Jesus', 'I recommitted my life to Jesus', 'I’d like someone to pray with me', 'I’m looking for a church home', 'I’d like to be baptized', 'I’d like to serve'];
 var PHASES = [['planning', 'Planning'], ['prep', 'Prep'], ['setup', 'Setup'], ['during', 'During The Event'], ['teardown', 'Teardown'], ['followup', 'After The Event']];
 var TASK_AREAS = ['Hospitality', 'Food', 'Stage', 'AV And Sound', 'Worship', 'Kids', 'Parking', 'Security', 'Prayer', 'Decor', 'Setup Crew', 'Admin'];
@@ -175,7 +181,7 @@ function org() { return S.acct && S.acct.org; }
 function T(t) { return S.db[t] || (S.db[t] = []); }
 function byId(t, id) { return T(t).find(function (r) { return r.id === id; }); }
 function evRows(t, ev) { var id = (ev || S.ev || {}).id; return T(t).filter(function (r) { return r.event_id === id; }); }
-function put(t, row) { var a = T(t), i = a.findIndex(function (r) { return r.id === row.id; }); if (i >= 0) a[i] = row; else a.push(row); return row; }
+function put(t, row) { var a = T(t), i = a.findIndex(function (r) { return r.id === row.id; }); if (i >= 0) a[i] = row; else a.push(row); snapSoon(); return row; }
 function drop(t, id) { if (t === 'ed_people') T('ed_prayer').forEach(function (p) { if (p.person_id === id) p.person_id = null; }); drop0(t, id); }
 function drop0(t, id) { (CASCADE[t] || []).forEach(function (c) { T(c[0]).filter(function (r) { return r[c[1]] === id; }).forEach(function (r) { drop(c[0], r.id); }); }); S.db[t] = T(t).filter(function (r) { return r.id !== id; }); }
 function save(t, row, msg) { return busy(DB.save(t, row), msg === undefined ? 'Saved' : msg).then(function (r) { put(t, r); return r; }); }
@@ -197,16 +203,39 @@ function busy(p, okMsg) {
 function boot() {
   var m = /[?&]join=([A-Za-z0-9]+)/.exec(location.search);
   if (m) { lset('ed.join', m[1]); try { history.replaceState(null, '', location.pathname); } catch (e) {} }
-  if (/^#\/(e|c)\//.test(location.hash || '')) { route(); return; }
+  if (/^#\/(e|c|v|r|k)\//.test(location.hash || '')) { route(); return; }
   DB.user().then(function (u) { S.user = u; if (!u) { S.loading = false; render(); return; } return loadAcct(); })
-    .catch(function (e) { S.loading = false; S.authMsg = errMsg(e); render(); });
+    .catch(function (e) { if (useSnap(lget('ed.snap.last'))) { render(); return; } S.loading = false; S.authMsg = errMsg(e); render(); });
 }
 function loadAcct() {
   return DB.myOrg().then(function (a) {
     S.acct = a; if (!a) { S.loading = false; render(); return; }
-    return loadAll().then(function () { S.loading = false; route(); render(); });
-  }).catch(function (e) { S.loading = false; S.authMsg = errMsg(e); render(); });
+    return loadAll().then(function () { S.loading = false; S.offline = 0; saveSnap(); route(); render(); });
+  }).catch(function (e) { if (useSnap()) { route(); render(); return; } S.loading = false; S.authMsg = errMsg(e); render(); });
 }
+/* Offline: after every load and change, the ministry's data is kept on this device. With no signal,
+   the app opens from that copy (read-only until the connection is back) so event-day screens still work. */
+function snapKey(uid) { return 'ed.snap.' + (uid || (S.user && S.user.id) || ''); }
+function saveSnap() {
+  if (!DB || DB.mode !== 'cloud' || !S.acct || !S.user) return;
+  try { localStorage.setItem(snapKey(), JSON.stringify({ at: Date.now(), user: { id: S.user.id, email: S.user.email }, acct: S.acct, db: S.db })); localStorage.setItem('ed.snap.last', S.user.id); } catch (e) {}
+}
+var snapT = 0;
+function snapSoon() { clearTimeout(snapT); snapT = setTimeout(saveSnap, 1200); }
+function useSnap(uid) {
+  if (!DB || DB.mode !== 'cloud') return false;
+  var s = null; try { s = JSON.parse(localStorage.getItem(snapKey(uid)) || 'null'); } catch (e) {}
+  if (!s || !s.acct) return false;
+  if (!S.user) S.user = s.user;
+  S.acct = s.acct; S.db = s.db || {}; S.offline = s.at || 1; S.loading = false; return true;
+}
+function offlineBar() {
+  if (!S.offline || S.pubMode) return '';
+  var t = S.offline > 1 ? new Date(S.offline).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+  return '<div class="offbar" role="status">' + IC.warn + '<span>No connection. ' + (t ? 'Showing what was saved ' + esc(t) + '. ' : '') + 'Changes won’t save until you’re back online.</span></div>';
+}
+window.addEventListener('offline', function () { if (S.acct && !S.offline) { S.offline = 1; render(); } });
+window.addEventListener('online', function () { if (S.offline && S.user) { S.offline = 0; loadAcct(); } });
 function loadAll() {
   var oid = org().id;
   return Promise.all([DB.list('ed_events', 'org_id', oid)].concat(DIR_TABLES.map(function (t) { return DB.list(t, 'org_id', oid); }))).then(function (r) {
@@ -226,7 +255,7 @@ function refreshEvent() {
 
 /* ================================================================ routing */
 function route() {
-  var m = /^#\/(e|c|v|r)\/([a-z0-9-]+)/.exec(location.hash || '');
+  var m = /^#\/(e|c|v|r|k)\/([a-z0-9-]+)/.exec(location.hash || '');
   if (m) { S.pubMode = m[1]; S.pubSlug = m[2]; S.cardDone = false; render(); return loadPublic(); }
   if (S.pubMode && !window.ED_DEMO) { S.pubMode = ''; S.pub = null; }
   var w = /^#\/w\/([0-9a-f-]{36})/.exec(location.hash || '');
@@ -254,13 +283,13 @@ function openPub(kind, slug) {
 /* ================================================================ render core */
 function render() {
   var h;
-  if (S.pubMode) h = S.pubMode === 'c' ? viewCard() : viewPublic();
+  if (S.pubMode) h = S.pubMode === 'c' ? viewCard() : S.pubMode === 'k' ? viewSelfCheckin() : viewPublic();
   else if (S.loading) h = '<div class="auth"><div class="logo">' + IC.tent + '</div><p class="muted">Loading…</p></div>';
   else if (!S.user) h = viewAuth();
   else if (!S.acct) h = viewSetup();
   else if (S.ev) h = viewWorkspace();
   else h = viewShell();
-  $('#app').innerHTML = h;
+  $('#app').innerHTML = offlineBar() + h;
   document.body.classList.toggle('has-nav', !!(S.user && S.acct && !S.ev && !S.pubMode));
   renderLayer();
 }
@@ -368,7 +397,13 @@ function fieldHtml(f, data) {
   }
   return '<div class="' + cls + '">' + lab + inp + hint + '</div>';
 }
+function shiftWhen(i) { return i.time_label || ''; }
+function timeRange(s, e) { if (!s) return ''; var a = fmtTime(s), b = fmtTime(e); if (!b) return a; if (a.slice(-2) === b.slice(-2)) a = a.slice(0, -3); return a + '–' + b; }
+var F_SHIFT = [
+  { k: 'title', label: 'Role Or Team', auto: true, ph: 'Parking' }, { k: 'on_date', label: 'Date', type: 'date', w: 6 }, { k: 'start_time', label: 'Starts', type: 'time', w: 3 }, { k: 'end_time', label: 'Ends', type: 'time', w: 3 },
+  { k: 'needed', label: 'People Needed', type: 'int', half: true, def: 1 }, { k: 'notes', label: 'Details For People Signing Up', type: 'textarea', ph: 'Wear a bright shirt. Meet at the welcome tent.' }];
 function itemFields(kind) {
+  if (kind === 'serve') return F_SHIFT;
   if (kind !== 'attend') return F.item;
   return [{ k: 'title', label: 'Service Or Night', auto: true, ph: 'Night 1 Service' }, { k: 'on_date', label: 'Date', type: 'date', half: true }, { k: 'time_label', label: 'Time', half: true, ph: '7 PM' },
     { k: 'needed', label: 'Seats Available', type: 'int', half: true, def: 200 }, { k: 'notes', label: 'Details For Guests', type: 'textarea', ph: 'Doors open at 6:30 PM.' }];
@@ -480,7 +515,9 @@ var F = {
   card: [
     { k: 'name', label: 'Name', auto: true }, { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true },
     { k: 'status', label: 'Status', type: 'select', opts: [['new', 'New'], ['contacted', 'Contacted'], ['connected', 'Connected']], half: true },
-    { k: 'follow_up_by', label: 'Follow-Up By', type: 'list', opts: function () { return peopleNames(); }, half: true },
+    { k: 'follow_up_on', label: 'Follow Up By (Date)', type: 'date', half: true },
+    { k: 'follow_up_ref', label: 'Who Follows Up', type: 'contact', none: 'Pick from contacts', hint: 'It shows in their My Stuff.' },
+    { k: 'follow_up_by', label: 'Or Type A Name', type: 'list', opts: function () { return peopleNames(); }, ph: 'Not in contacts? Type it here.' },
     { k: 'responses', label: 'Responses', type: 'multi', opts: RESPONSES, one: true }, { k: 'prayer', label: 'Prayer Request', type: 'textarea' }, { k: 'notes', label: 'Follow-Up Notes', type: 'textarea' }]
 };
 var F_ASSIGN = {
@@ -535,14 +572,14 @@ function viewSetup() {
 /* ================================================================ ministry shell */
 function viewShell() {
   if (S.tab === 'settings') return viewSettings();
-  var body = S.tab === 'directory' ? viewDirectory() : S.tab === 'events' ? viewEvents() : viewHome();
+  var body = S.tab === 'directory' ? viewDirectory() : S.tab === 'events' ? viewEvents() : S.tab === 'mine' ? viewMine() : viewHome();
   var me = myMember(), hr = new Date().getHours();
-  var title = S.tab === 'home' ? (hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening') : { events: 'Events', directory: 'Directory' }[S.tab];
-  var sub = S.tab === 'home' ? [me.name ? me.name.split(' ')[0] : '', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })].filter(Boolean).join(' · ') : '';
+  var title = S.tab === 'home' ? (hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening') : { events: 'Events', directory: 'Directory', mine: 'My Stuff' }[S.tab];
+  var sub = S.tab === 'home' ? [me.name ? me.name.split(' ')[0] : '', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })].filter(Boolean).join(' · ') : S.tab === 'mine' ? 'Everything on your plate, across every event' : '';
   return head(title, sub, logoMark(),
       (S.tab === 'events' ? addBtn('New Event', 'new-event') : '') + '<button class="iconbtn" data-a="open-settings" aria-label="Settings">' + IC.gear + '</button>', org().name) +
     '<main>' + body + demoNote() + '</main>' +
-    '<nav class="bottomnav" aria-label="Main">' + [['home', 'Home', IC.home], ['events', 'Events', IC.cal], ['directory', 'Directory', IC.book]].map(function (t) {
+    '<nav class="bottomnav" aria-label="Main"><div class="navbrand">' + logoMark() + '<b>' + esc(org().name) + '</b></div>' + [['home', 'Home', IC.home], ['mine', 'My Stuff', IC.user], ['events', 'Events', IC.cal], ['directory', 'Directory', IC.book]].map(function (t) {
       return '<button data-a="nav" data-v="' + t[0] + '"' + (S.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span></button>';
     }).join('') + '</nav>';
 }
@@ -591,7 +628,7 @@ function viewDirectory() {
         return '<option value="g:' + g + '"' + (ty === 'g:' + g ? ' selected' : '') + '>&nbsp;&nbsp;– ' + esc({ Speaker: 'Speakers', 'Team Member': 'Staff And Team Members' }[g] || g) + '</option>'; }).join('') : '');
     }).join('') + '</select>' +
       '<select class="inp sm" data-change="dir-status" aria-label="Status">' + [['current', 'Current'], ['previous', 'Previous'], ['all', 'Current And Previous']].map(function (o) { return '<option value="' + o[0] + '"' + (S.dirStatus === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div></div>';
-    return h + tool + secHead(plural(list.length, 'Contact'), addBtn('Add Contact', 'contact-new', ty && !grp ? ty : '')) +
+    return h + tool + secHead(plural(list.length, 'Contact'), '<span class="hbtns"><label class="btn sm plain filebtn">Import<input type="file" accept=".csv,.vcf,.txt,text/csv,text/vcard" data-change="import-file" hidden></label>' + addBtn('Add Contact', 'contact-new', ty && !grp ? ty : '') + '</span>') +
       listBox(list.map(contactRow), q || ty ? 'No contacts match.' : 'Add your team, volunteers, guests, vendors and everyone else here once, then add them to any event.');
   }
   // equipment
@@ -608,7 +645,7 @@ function viewDirectory() {
       }), '');
     }).join('') : '<div class="empty card">Everything the ministry owns: sound gear, tables, cones, offering buckets. Each event picks from this list.</div>');
 }
-function avatar(n, tone) { var i = String(n || '?').replace(/^(pastor|rev\.?|evangelist|dr\.?)\s+/i, '').split(/\s+/).map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase(); return '<span class="avatar' + (tone ? ' tone-' + tone : '') + '" aria-hidden="true">' + esc(i) + '</span>'; }
+function avatar(n, tone) { var i = String(n || '?').replace(/^(pastor|rev\.?|evangelist|dr\.?)\s+/i, '').replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(Boolean).map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase() || '?'; return '<span class="avatar' + (tone ? ' tone-' + tone : '') + '" aria-hidden="true">' + esc(i) + '</span>'; }
 
 function eventMoney(e) {
   var id = e.id, vend = T('ed_event_vendors').filter(function (r) { return r.event_id === id && r.status !== 'Cancelled'; }), ppl = T('ed_event_people').filter(function (r) { return r.event_id === id && num(r.amount) > 0; }), exp = T('ed_expenses').filter(function (r) { return r.event_id === id; });
@@ -645,11 +682,21 @@ function openDirRecord(t, id) {
   }
   openSheet(function () {
     return '<div class="sheethead">' + (t !== 'ed_equipment' ? avatar(r.name) : '') + '<div><h3>' + esc(r.name) + '</h3>' + (sub ? '<p class="lead">' + esc(sub) + '</p>' : '') + '</div></div>' + actions(r) + infoList(info) +
-      prayingFor(t, id) + '<h4>Events</h4>' + (used.length ? '<div class="list">' + used.map(function (u) {
+      prayingFor(t, id) + theirList(t, r) + '<h4>Events</h4>' + (used.length ? '<div class="list">' + used.map(function (u) {
         return row({ act: 'open-event', id: u.e.id, title: esc(u.e.title), sub: esc([fmtRange(u.e.starts_on, u.e.ends_on), u.a.role || u.a.service || (u.a.quantity ? 'Bringing ' + u.a.quantity : '')].filter(Boolean).join(' · ')) });
       }).join('') + '</div>' : '<p class="small muted">Not used in any event yet.</p>') +
       '<div class="acts"><button class="btn ghost" data-a="sheet-del">Delete</button><span class="grow"></span><button class="btn plain" data-a="close">Close</button><button class="btn" data-a="dir-edit" data-id="' + r.id + '" data-t="' + t + '">Edit</button></div>';
   }, null, { del: function () { ask('Delete ' + r.name + '?', 'Delete', function () { return remove(t, r.id).then(render); }, used.length ? 'It will also be removed from ' + plural(used.length, 'event') + '.' : ''); } });
+}
+function theirList(t, r) {
+  if (t === 'ed_equipment') return '';
+  var ref = t + ':' + r.id, st = stuffFor([ref], [String(r.name || '').toLowerCase()]), open = st.tasks.filter(function (x) { return !x.t.done; });
+  if (!open.length && !st.lead.length) return '';
+  var txt = listOf(ref).text;
+  return '<h4>Assigned To ' + esc(firstName(r.name)) + '</h4><div class="list">' + open.slice(0, 6).map(myTaskRow).join('') + st.lead.slice(0, 4).map(function (x) {
+      return row({ title: esc(x.x.title), sub: esc([x.e.title, x.d ? fmtDay(x.d) : '', fmtTime(x.k)].filter(Boolean).join(' · ')), lead: '<span class="time">Lead</span>' }); }).join('') + '</div>' +
+    (open.length > 6 ? '<p class="small muted">' + (open.length - 6) + ' more tasks.</p>' : '') +
+    '<div class="btnrow">' + (r.phone ? '<a class="btn sm" href="' + esc(smsHref(r.phone, txt)) + '">' + IC.text + ' Text Their List</a>' : '') + (r.email ? '<a class="btn sm plain" href="' + esc(mailHref(r.email, 'Your list · ' + ((org() || {}).name || ''), txt)) + '">' + IC.mail + ' Email It</a>' : '') + '<button class="btn sm plain" data-a="copy" data-v="' + esc(txt) + '">Copy</button></div>';
 }
 function prayingFor(t, id) {
   if (t !== 'ed_people') return '';
@@ -658,6 +705,79 @@ function prayingFor(t, id) {
   return '<h4>Praying For</h4><div class="list">' + ps.map(function (x) {
     return row({ act: 'open-prayer', id: x.p.id, lead: '<span class="prayic' + (x.p.answer ? ' done' : '') + '">' + (x.p.answer ? IC.check : IC.heart) + '</span>', title: esc(x.p.title), sub: esc([x.e.title, x.p.answer ? 'What God did: ' + x.p.answer : x.p.follow_up_on ? 'Follow up ' + fmtDay(x.p.follow_up_on, { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ')), right: x.p.answer ? pill('Answered', 'green') : followDue(x.p) ? pill('Follow Up', 'amber') : '' });
   }).join('') + '</div>';
+}
+function parseCSV(text) {
+  var rows = [], row = [], f = '', q = false, i, c;
+  text = String(text || '').replace(/^﻿/, '');
+  for (i = 0; i < text.length; i++) {
+    c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',' || c === ';' || c === '\t') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(function (r) { return r.some(function (x) { return String(x).trim(); }); });
+}
+var IMP_COLS = { name: /^(full ?name|name|contact|contact name|display name)$/, first: /^(first|first ?name|given ?name)$/, last: /^(last|last ?name|surname|family ?name)$/,
+  phone: /^(phone|mobile|cell|cell ?phone|mobile ?phone|phone ?number|primary ?phone|phone 1 - value|telephone)$/, email: /^(email|e-mail|email ?address|e-mail 1 - value|email 1 - value)$/,
+  title: /^(title|role|job ?title|position)$/, organization: /^(organization|organisation|company|business|org|organization 1 - name)$/, address: /^(address|street|mailing ?address|home ?address)$/,
+  notes: /^(notes?|comments?)$/, type: /^(type|contact ?type|group|category|kind)$/ };
+function rowsFromCSV(text) {
+  var rows = parseCSV(text); if (rows.length < 2) return [];
+  var head = rows[0].map(function (h) { return String(h).trim().toLowerCase(); }), map = {};
+  Object.keys(IMP_COLS).forEach(function (k) { var i = head.findIndex(function (h) { return IMP_COLS[k].test(h); }); if (i >= 0) map[k] = i; });
+  if (map.name == null && map.first == null && map.organization == null) return null;
+  return rows.slice(1).map(function (r) {
+    var g = function (k) { return map[k] != null ? String(r[map[k]] || '').trim() : ''; };
+    return { name: g('name') || [g('first'), g('last')].filter(Boolean).join(' ') || g('organization'), phone: g('phone'), email: g('email'), title: g('title'), organization: g('organization'), address: g('address'), notes: g('notes'), type: g('type') };
+  }).filter(function (x) { return x.name; });
+}
+function rowsFromVCF(text) {
+  var out = [];
+  String(text || '').replace(/\r\n[ \t]/g, '').split(/BEGIN:VCARD/i).slice(1).forEach(function (card) {
+    var get = function (k) { var m = new RegExp('^' + k + '(?:;[^:\n]*)?:(.*)$', 'im').exec(card); return m ? m[1].replace(/\\,/g, ',').replace(/\\;/g, ';').trim() : ''; };
+    var n = get('N').split(';'), name = get('FN') || [n[1], n[0]].filter(Boolean).join(' ');
+    var adr = get('ADR').split(';').filter(Boolean).join(', ');
+    if (name) out.push({ name: name, phone: get('TEL'), email: get('EMAIL'), title: get('TITLE'), organization: get('ORG').split(';')[0], address: adr, notes: get('NOTE'), type: '' });
+  });
+  return out;
+}
+function typeOf(s) { s = String(s || '').toLowerCase(); return /vendor|business|supplier/.test(s) ? 'vendor' : /volunteer/.test(s) ? 'volunteer' : /guest|visitor|attend/.test(s) ? 'guest' : /team|staff|board|leader|worship|speaker|prayer/.test(s) ? 'team' : /other|partner|official/.test(s) ? 'other' : ''; }
+function importFile(file) {
+  var rd = new FileReader();
+  rd.onload = function () {
+    var txt = String(rd.result || ''), rows = /BEGIN:VCARD/i.test(txt) ? rowsFromVCF(txt) : rowsFromCSV(txt);
+    if (rows === null) { toast('Couldn’t find a Name column. Add a header row with Name, Phone and Email.'); return; }
+    if (!rows.length) { toast('No contacts found in that file.'); return; }
+    S.imp = { rows: rows.slice(0, 1000), as: rows.some(function (r) { return typeOf(r.type); }) ? 'file' : 'volunteer' };
+    importSheet();
+  };
+  rd.onerror = function () { toast('That file couldn’t be read.'); };
+  rd.readAsText(file);
+}
+function impDup(r) { var p = digits(r.phone).slice(-10), e = String(r.email || '').toLowerCase(), n = r.name.toLowerCase(); return allContacts().some(function (c) { return c.name.toLowerCase() === n && (!p || digits(c.phone).slice(-10) === p || (e && String(c.email || '').toLowerCase() === e) || (!c.phone && !c.email)); }); }
+function importSheet() {
+  openSheet(function () {
+    var im = S.imp, fresh = im.rows.filter(function (r) { return !impDup(r); }), dup = im.rows.length - fresh.length, hasType = im.rows.some(function (r) { return typeOf(r.type); });
+    return '<h3>Import Contacts</h3><p class="lead">Found ' + plural(im.rows.length, 'contact') + (dup ? '. ' + dup + ' already in your contacts will be skipped' : '') + '.</p>' +
+      '<div class="fgrid"><div class="fld"><label for="imp_as">Add Them As</label><select class="inp" id="imp_as" data-change="imp-as">' + (hasType ? '<option value="file"' + (im.as === 'file' ? ' selected' : '') + '>Use the Type column in the file</option>' : '') +
+      CTYPES.map(function (c) { return '<option value="' + c[0] + '"' + (im.as === c[0] ? ' selected' : '') + '>' + esc(c[1]) + '</option>'; }).join('') + '</select><span class="hint">You can change anyone’s type later.</span></div></div>' +
+      '<div class="list imp-prev">' + fresh.slice(0, 8).map(function (r) { var ty = im.as === 'file' ? typeOf(r.type) || 'other' : im.as; return row({ lead: avatar(r.name, CTYPE_TONE[ty]), title: esc(r.name), sub: contactSub([r.title, r.organization], r.phone, r.email), right: pill(ctypeOne(ty), 'tone-' + CTYPE_TONE[ty]) }); }).join('') + '</div>' +
+      (fresh.length > 8 ? '<p class="small muted">And ' + (fresh.length - 8) + ' more.</p>' : '') +
+      '<p class="small muted">Spreadsheets need a header row (Name, Phone, Email; Title, Organization, Address, Notes and Type are optional). From a phone, export contacts as a .vcf file.</p>' +
+      '<div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Cancel</button><button class="btn" data-a="sheet-save"' + (fresh.length ? '' : ' disabled') + '>Import ' + fresh.length + '</button></div>';
+  }, function () {
+    var im = S.imp, fresh = im.rows.filter(function (r) { return !impDup(r); }), oid = org().id, n = 0;
+    var rowFor = function (r) {
+      var ty = im.as === 'file' ? typeOf(r.type) || 'other' : im.as, base = { org_id: oid, phone: r.phone.slice(0, 40), email: r.email.slice(0, 120), address: r.address.slice(0, 300), notes: r.notes.slice(0, 2000) };
+      if (ty === 'vendor') return ['ed_vendors', Object.assign(base, { name: (r.organization || r.name).slice(0, 120), contact_name: r.organization ? r.name.slice(0, 80) : '', category: '', website: '' })];
+      if (ty === 'other') return ['ed_contacts', Object.assign(base, { name: r.name.slice(0, 120), organization: r.organization.slice(0, 120), role: r.title.slice(0, 80), website: '' })];
+      return ['ed_people', Object.assign(base, { name: r.name.slice(0, 120), title: r.title.slice(0, 80), status: 'current', groups: [{ team: 'Team Member', volunteer: 'Volunteer', guest: 'Guest' }[ty]] })];
+    };
+    return busy(fresh.reduce(function (p, r) { var x = rowFor(r); return p.then(function () { return DB.save(x[0], x[1]).then(function (saved) { put(x[0], saved); n++; }); }); }, Promise.resolve()), '').then(function () { closeSheet(); S.imp = null; toast('Imported ' + plural(n, 'contact')); render(); }).catch(function () { render(); });
+  });
 }
 function newContact(type, after) {
   S.newGroups = { team: ['Team Member'], volunteer: ['Volunteer'], guest: ['Guest'] }[type] || [];
@@ -714,6 +834,169 @@ function viewHome() {
     return '<button class="qa" data-a="' + q[0] + '"' + (q[3] ? ' data-id="' + q[3] + '"' : '') + '>' + q[2] + '<span>' + q[1] + '</span></button>';
   }).join('') + '</div>';
   return h;
+}
+
+/* ---------------------------------------------------------------- my stuff
+   Everything assigned to one person across every event: tasks, agenda segments and schedule items
+   they lead, teams they serve on, and connection cards they follow up. "Me" is the login's own
+   contact (picked in My Stuff, or matched by email, phone or name). */
+var TOMORROW = addDays(TODAY, 1);
+function myRefs() {
+  var me = myMember(), p = me.prefs || {}, out = [];
+  if (p.contact_ref && refContact(p.contact_ref)) out.push(p.contact_ref);
+  if (p.contact_ref === 'none') return out;
+  var em = String(me.email || (S.user && S.user.email) || '').toLowerCase(), ph = digits(me.phone).replace(/^\+?1/, ''), nm = String(me.name || '').toLowerCase();
+  allContacts().forEach(function (c) {
+    var r = refOf(c); if (out.indexOf(r) >= 0 || (p.contact_ref && p.contact_ref !== r && out.length)) return;
+    if ((em && String(c.email || '').toLowerCase() === em) || (ph.length >= 7 && digits(c.phone).replace(/^\+?1/, '') === ph) || (nm && c.name.toLowerCase() === nm)) out.push(r);
+  });
+  return out;
+}
+function myNames() { var me = myMember(), n = refNames(myRefs()); if (me.name) n.push(me.name); return n.map(function (x) { return x.toLowerCase(); }); }
+function hasName(text, names) { return splitNames(text).some(function (x) { return names.indexOf(x.toLowerCase()) >= 0; }); }
+function stuffFor(refs, names, created) {
+  var out = { tasks: [], lead: [], serve: [], cards: [] }, evs = {};
+  events().forEach(function (e) { evs[e.id] = e; });
+  T('ed_tasks').forEach(function (t) {
+    var e = evs[t.event_id]; if (!e) return;
+    var mine = created ? names.indexOf(String(t.task_owner || '').toLowerCase()) >= 0 : ((t.assignee_refs || []).some(function (r) { return refs.indexOf(r) >= 0; }) || hasName(t.owner, names));
+    if (mine) out.tasks.push({ t: t, e: e });
+  });
+  if (created) return out;
+  T('ed_agenda').forEach(function (x) { var e = evs[x.event_id]; if (e && (e.ends_on || e.starts_on || '9') >= TODAY && (refs.indexOf(x.leader_ref) >= 0 || hasName(x.leader, names))) out.lead.push({ kind: 'agenda', x: x, e: e, d: e.starts_on || '', k: x.start_time || '' }); });
+  T('ed_schedule').forEach(function (x) { var e = evs[x.event_id]; if (e && (x.on_date || '9') >= TODAY && (refs.indexOf(x.owner_ref) >= 0 || hasName(x.owner, names))) out.lead.push({ kind: 'sched', x: x, e: e, d: x.on_date || '', k: x.start_time || '' }); });
+  out.lead.sort(function (a, b) { return (a.d + a.k).localeCompare(b.d + b.k); });
+  T('ed_event_people').forEach(function (x) { var e = evs[x.event_id]; if (e && (e.ends_on || e.starts_on || '9') >= TODAY && refs.indexOf('ed_people:' + x.person_id) >= 0) out.serve.push({ x: x, e: e }); });
+  out.serve.sort(function (a, b) { return String(a.e.starts_on || '9').localeCompare(String(b.e.starts_on || '9')); });
+  T('ed_cards').forEach(function (x) { var e = evs[x.event_id]; if (e && x.status !== 'connected' && (refs.indexOf(x.follow_up_ref) >= 0 || hasName(x.follow_up_by, names))) out.cards.push({ x: x, e: e }); });
+  return out;
+}
+function whenGroup(t) { if (!t.due_on) return 'none'; if (t.due_on < TODAY) return 'late'; if (t.due_on === TODAY) return 'today'; if (t.due_on <= addDays(TODAY, 7)) return 'week'; return 'later'; }
+var WHEN = [['late', 'Overdue'], ['today', 'Today'], ['week', 'This Week'], ['later', 'Coming Up'], ['none', 'No Due Date']];
+function myTaskRow(x) {
+  var t = x.t, late = !t.done && t.due_on && t.due_on < TODAY;
+  return '<div class="row">' + ck(t.done, 'toggle-task', t.id) + '<button class="main" data-a="my-task" data-id="' + t.id + '"><div class="t' + (t.done ? ' done' : '') + '">' + esc(t.title) + '</div><div class="s"><span class="evtag">' + esc(x.e.title) + '</span>' +
+    (t.due_on ? '<span class="' + (late ? 'danger' : '') + '">' + esc(fmtDay(t.due_on, { month: 'short', day: 'numeric' }) + (t.due_time ? ', ' + t.due_time : '')) + '</span>' : '') + (taskNeed(t) ? '<span class="need"> · ' + esc(taskNeed(t)) + '</span>' : '') + '</div></button></div>';
+}
+function stuffText(title, st) {
+  var L = [title];
+  var open = st.tasks.filter(function (x) { return !x.t.done; }).sort(function (a, b) { return String(a.t.due_on || '9').localeCompare(String(b.t.due_on || '9')); });
+  if (open.length) { L.push('', 'TASKS'); open.forEach(function (x) { L.push('[ ] ' + x.t.title + ' · ' + x.e.title + (x.t.due_on ? ' · due ' + fmtDay(x.t.due_on) + (x.t.due_time ? ', ' + x.t.due_time : '') : '')); }); }
+  if (st.lead.length) { L.push('', 'LEADING'); st.lead.forEach(function (x) { L.push(x.x.title + ' · ' + x.e.title + ' · ' + [x.d ? fmtDay(x.d) : '', fmtTime(x.k)].filter(Boolean).join(', ')); }); }
+  if (st.serve.length) { L.push('', 'SERVING ON'); st.serve.forEach(function (x) { L.push(x.e.title + ' · ' + teamLabel(x.x.team) + (x.x.role ? ' (' + x.x.role + ')' : '') + (x.e.starts_on ? ' · ' + fmtRange(x.e.starts_on, x.e.ends_on) : '')); }); }
+  if (st.cards.length) { L.push('', 'FOLLOW UP WITH'); st.cards.forEach(function (x) { L.push(x.x.name + (x.x.phone ? ' · ' + x.x.phone : '') + ' · ' + x.e.title); }); }
+  if (L.length === 1) L.push('Nothing assigned right now.');
+  return L.join('\n');
+}
+function viewMine() {
+  var refs = myRefs(), names = myNames(), created = S.mineTab === 'created', st = stuffFor(refs, names, created), ev = S.mineEv || '';
+  var tasks = st.tasks.filter(function (x) { return (!ev || x.e.id === ev) && (S.mineDone || !x.t.done); });
+  var open = st.tasks.filter(function (x) { return !x.t.done; });
+  var h = tabs([['assigned', 'Assigned To Me'], ['created', 'Created By Me']], created ? 'created' : 'assigned', 'mine-tab', 'seg-tabs');
+  if (!refs.length && !created) h += '<div class="card tip"><b>Which Contact Is You?</b><p class="small muted">Pick yourself from your contacts so tasks, agenda segments and teams assigned to you show up here.</p><button class="btn sm" data-a="pick-me">Choose Me</button></div>';
+  h += '<div class="stats three">' + stat('Overdue', open.filter(function (x) { return whenGroup(x.t) === 'late'; }).length, true) + stat('This Week', open.filter(function (x) { var g = whenGroup(x.t); return g === 'today' || g === 'week'; }).length) + stat('Open Tasks', open.length) + '</div>';
+  if (!created) { var rem = reminders(); h += '<button class="card remcard" data-a="reminders"><span class="docic">' + IC.text + '</span><span class="main"><b>Reminders To Send' + (rem.length ? ' · ' + rem.filter(function (r) { return !remSent(r.key); }).length : '') + '</b><span>' + (rem.length ? 'Volunteers serving tomorrow and tasks due soon. Text or email each one in a tap.' : 'Nothing to send today. Volunteers serving tomorrow and tasks coming due will show up here.') + '</span></span><span class="chev">' + IC.chev + '</span></button>'; }
+  // the big picture: each event with what's mine in it
+  var byEv = {};
+  st.tasks.concat(st.lead, st.serve, st.cards).forEach(function (x) { (byEv[x.e.id] = byEv[x.e.id] || { e: x.e, t: 0, l: 0, s: 0, c: 0 }); });
+  open.forEach(function (x) { byEv[x.e.id].t++; }); st.lead.forEach(function (x) { byEv[x.e.id].l++; }); st.serve.forEach(function (x) { byEv[x.e.id].s++; }); st.cards.forEach(function (x) { byEv[x.e.id].c++; });
+  var evl = Object.keys(byEv).map(function (k) { return byEv[k]; }).filter(function (x) { return (x.e.ends_on || x.e.starts_on || '9') >= TODAY || x.t; }).sort(function (a, b) { return String(a.e.starts_on || '9').localeCompare(String(b.e.starts_on || '9')); });
+  if (evl.length) h += secHead('By Event') + '<div class="list">' + evl.map(function (x) {
+    var d = x.e.starts_on ? dt(x.e.starts_on) : null;
+    return row({ act: 'open-event', id: x.e.id, lead: '<span class="datebox sm">' + (d ? '<small>' + d.toLocaleDateString('en-US', { month: 'short' }) + '</small><b>' + d.getDate() + '</b>' : '<small>TBD</small>') + '</span>', title: esc(x.e.title),
+      sub: esc([x.t ? plural(x.t, 'Task') : '', x.l ? plural(x.l, 'Segment') + ' To Lead' : '', x.s ? 'Serving' : '', x.c ? plural(x.c, 'Card') + ' To Follow Up' : ''].filter(Boolean).join(' · ') || 'All done'), right: '' });
+  }).join('') + '</div>';
+  var evs = evl.map(function (x) { return x.e; });
+  h += secHead(created ? 'Tasks I Created' : 'My Tasks', '', String(tasks.filter(function (x) { return !x.t.done; }).length)) +
+    '<div class="toolbar"><select class="inp sm" data-change="mine-ev" aria-label="Event"><option value="">All Events</option>' + evs.map(function (e) { return '<option value="' + e.id + '"' + (ev === e.id ? ' selected' : '') + '>' + esc(e.title) + '</option>'; }).join('') + '</select>' +
+    '<label class="cbx inline"><input type="checkbox" data-change="mine-done"' + (S.mineDone ? ' checked' : '') + '><span>Show Done</span></label></div>';
+  var any = false;
+  WHEN.forEach(function (w) {
+    var g = tasks.filter(function (x) { return x.t.done ? w[0] === 'none' && false : whenGroup(x.t) === w[0]; }).sort(function (a, b) { return String(a.t.due_on || '').localeCompare(String(b.t.due_on || '')); });
+    if (!g.length) return; any = true;
+    h += '<div class="grouplbl' + (w[0] === 'late' ? ' danger' : '') + '">' + w[1] + ' · ' + g.length + '</div><div class="list">' + g.map(myTaskRow).join('') + '</div>';
+  });
+  var dn = S.mineDone ? tasks.filter(function (x) { return x.t.done; }) : [];
+  if (dn.length) { any = true; h += '<div class="grouplbl">Done · ' + dn.length + '</div><div class="list">' + dn.map(myTaskRow).join('') + '</div>'; }
+  if (!any) h += '<div class="empty card">' + (created ? 'Tasks you add to any event show up here.' : refs.length ? 'No open tasks. You’re all caught up.' : 'Choose your contact above to see what’s assigned to you.') + '</div>';
+  if (!created) {
+    if (st.lead.length) h += secHead('Leading', '', String(st.lead.length)) + '<div class="list">' + st.lead.map(function (x) {
+      return row({ act: 'open-event-tab', id: x.e.id, t: '', lead: '<span class="time">' + esc(fmtTime(x.k) || (x.d ? fmtDay(x.d, { month: 'short', day: 'numeric' }) : '')) + '</span>', title: esc(x.x.title), sub: esc([x.e.title, x.d ? fmtDay(x.d) : '', x.kind === 'agenda' ? 'Agenda' : 'Schedule'].filter(Boolean).join(' · ')) }).replace('data-a="open-event-tab"', 'data-a="open-event-tab" data-v="' + (x.kind === 'agenda' ? 'agenda' : 'calendar') + '"');
+    }).join('') + '</div>';
+    if (st.serve.length) h += secHead('Serving On', '', String(st.serve.length)) + '<div class="list">' + st.serve.map(function (x) {
+      return row({ act: 'open-event', id: x.e.id, title: esc(x.e.title), sub: esc([teamLabel(x.x.team), x.x.role, fmtRange(x.e.starts_on, x.e.ends_on)].filter(Boolean).join(' · ')) });
+    }).join('') + '</div>';
+    if (st.cards.length) h += secHead('Follow Up With', '', String(st.cards.length)) + '<div class="list">' + st.cards.map(function (x) {
+      return row({ act: 'open-event-tab', id: x.e.id, lead: avatar(x.x.name), title: esc(x.x.name), sub: esc([x.e.title, x.x.phone || x.x.email, (x.x.responses || [])[0]].filter(Boolean).join(' · ')), right: pill(cardStatusLabel(x.x.status), CARD_TONE[x.x.status]) }).replace('data-a="open-event-tab"', 'data-a="open-event-tab" data-v="followup"');
+    }).join('') + '</div>';
+    h += secHead('Send Or Print My List') + shareTools('mine', 'me');
+  }
+  return h;
+}
+/* ---------- reminders: who should hear from you, ready to text or email in a tap */
+function remSent(key) { return !!lget('ed.rem.' + key); }
+function firstName(n) { return String(n || '').replace(/^(pastor|rev\.?|evangelist|dr\.?)\s+/i, '').split(' ')[0]; }
+function reminders() {
+  var o = org() || {}, sig = o.name ? ' – ' + o.name : '', out = [];
+  events().forEach(function (e) {
+    withEvent(e, function () {
+      var days = eventDays(e);
+      if (on('volunteers') || on('food')) evRows('ed_items').filter(function (i) { return (i.kind === 'serve' || i.kind === 'meal') && (i.on_date === TOMORROW || (!i.on_date && e.starts_on === TOMORROW)); }).forEach(function (i) {
+        var when = shiftWhen(i);
+        signups(i.id).filter(function (s) { return s.phone || s.email; }).forEach(function (s) {
+          out.push({ key: TODAY + ':s:' + s.id, kind: 'shift', name: s.name, phone: s.phone, email: s.email, e: e, why: i.title + (when ? ' · ' + when : ''),
+            subject: 'Tomorrow: ' + i.title + ' at ' + e.title,
+            msg: 'Hi ' + firstName(s.name) + ', a reminder that you’re ' + (i.kind === 'meal' ? 'bringing ' + i.title : 'serving on ' + i.title) + ' at ' + e.title + ' tomorrow' + (when ? ', ' + when : '') + (e.place ? ' at ' + e.place : '') + '. Thank you!' + sig });
+        });
+      });
+      if (on('volunteers') && e.starts_on === TOMORROW) assigned('volunteer').filter(function (x) { return x.p.phone || x.p.email; }).forEach(function (x) {
+        out.push({ key: TODAY + ':v:' + x.a.id, kind: 'shift', name: x.p.name, phone: x.p.phone, email: x.p.email, e: e, why: 'Volunteer team' + (x.a.role ? ' · ' + x.a.role : ''), subject: 'Tomorrow: ' + e.title,
+          msg: 'Hi ' + firstName(x.p.name) + ', a reminder that you’re serving at ' + e.title + ' tomorrow' + (e.time_label ? ', ' + e.time_label : '') + (e.place ? ' at ' + e.place : '') + '. Thank you!' + sig });
+      });
+      evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on >= TODAY && t.due_on <= TOMORROW; }).forEach(function (t) {
+        (t.assignee_refs || []).map(refContact).filter(function (c) { return c && (c.phone || c.email); }).forEach(function (c) {
+          var dl = t.due_on === TODAY ? 'today' : 'tomorrow';
+          out.push({ key: TODAY + ':t:' + t.id + ':' + c.r.id, kind: 'task', name: c.name, phone: c.phone, email: c.email, e: e, why: t.title + ' · due ' + dl, subject: 'Due ' + dl + ': ' + t.title,
+            msg: 'Hi ' + firstName(c.name) + ', a reminder that “' + t.title + '” for ' + e.title + ' is due ' + dl + (t.due_time ? ' by ' + t.due_time : '') + '. Thank you!' + sig });
+        });
+      });
+    });
+  });
+  return out;
+}
+function smsHref(phone, body) { return 'sms:' + digits(phone) + '?&body=' + encodeURIComponent(body); }
+function mailHref(to, subject, body, bcc) { return 'mailto:' + encodeURIComponent(to || '') + '?' + (bcc ? 'bcc=' + encodeURIComponent(bcc) + '&' : '') + 'subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body); }
+function remindersSheet() {
+  openSheet(function () {
+    var list = reminders(), left = list.filter(function (r) { return !remSent(r.key); }).length;
+    var block = function (kind, title) {
+      var g = list.filter(function (r) { return r.kind === kind; }); if (!g.length) return '';
+      var mails = g.filter(function (r) { return r.email; }).map(function (r) { return r.email; });
+      return '<h4>' + esc(title) + ' · ' + g.length + '</h4>' + (kind === 'shift' && mails.length > 1 ? '<p class="small"><a class="link" href="' + esc(mailHref('', 'Tomorrow at ' + g[0].e.title, 'Hi everyone, a reminder that you’re serving tomorrow. Thank you!' + ((org() || {}).name ? ' – ' + org().name : ''), mails.join(','))) + '" data-a="rem-all" data-id="' + esc(g.map(function (r) { return r.email ? r.key : ''; }).filter(Boolean).join('|')) + '">Email all ' + mails.length + ' at once (BCC)</a></p>' : '') +
+        '<div class="list">' + g.map(function (r) {
+          var sent = remSent(r.key);
+          return '<div class="row rem' + (sent ? ' sent' : '') + '">' + avatar(r.name, sent ? 'green' : '') + '<div class="main"><div class="t">' + esc(r.name) + (sent ? ' ' + pill('Sent', 'green') : '') + '</div><div class="s">' + esc(r.why + ' · ' + r.e.title) + '</div>' +
+            '<div class="rem-acts">' + (r.phone ? '<a class="btn sm" href="' + esc(smsHref(r.phone, r.msg)) + '" data-a="rem-sent" data-id="' + esc(r.key) + '">' + IC.text + ' Text</a>' : '') + (r.email ? '<a class="btn sm plain" href="' + esc(mailHref(r.email, r.subject, r.msg)) + '" data-a="rem-sent" data-id="' + esc(r.key) + '">' + IC.mail + ' Email</a>' : '') +
+            '<button class="btn sm plain" data-a="copy" data-v="' + esc(r.msg) + '">Copy</button></div></div></div>';
+        }).join('') + '</div>';
+    };
+    return '<h3>Reminders To Send</h3><p class="lead">' + (list.length ? left + ' of ' + list.length + ' still to send. Each opens a text or email with the message written for you.' : 'Nothing to send right now.') + '</p>' +
+      block('shift', 'Serving Tomorrow') + block('task', 'Tasks Due Soon') +
+      (list.length ? '' : '<p class="small muted">Volunteers who signed up for tomorrow, and contacts with tasks due today or tomorrow, show up here with a ready-to-send message.</p>') +
+      '<p class="small muted" style="margin-top:14px">Messages go from your own phone or email. Automatic sending needs a texting and email service connected to your ministry account.</p>' +
+      '<div class="acts"><span class="grow"></span><button class="btn plain" data-a="close">Done</button></div>';
+  });
+}
+function pickMe() {
+  var cur = (myMember().prefs || {}).contact_ref || '';
+  openSheet(function () {
+    var cs = allContacts().filter(function (c) { return c.t === 'ed_people' && c.status !== 'previous'; });
+    return '<h3>Which Contact Is You?</h3><p class="lead">Tasks, segments and teams assigned to this contact show up in your My Stuff.</p><div class="fgrid"><div class="fld"><label for="me_ref">You</label><select class="inp" id="me_ref"><option value="">Match me by email, phone or name</option>' +
+      cs.map(function (c) { var r = refOf(c); return '<option value="' + esc(r) + '"' + (cur === r ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select><span class="hint">Not listed? Add yourself in Directory › Contacts first.</span></div></div>' + sheetFoot(false);
+  }, function () {
+    var me = myMember(), p = Object.assign({}, me.prefs || {}, { contact_ref: $('#me_ref').value });
+    return busy(DB.updateMe(org().id, { prefs: p }), 'Saved').then(function () { me.prefs = p; closeSheet(); render(); }).catch(function () {});
+  });
 }
 
 /* ---------------------------------------------------------------- settings */
@@ -866,7 +1149,7 @@ function volunteersView(e) {
   var av = assigned('volunteer');
   return top + shareBar('v') + goalCard(e) + secHead('Volunteer Team', addBtn('Add Volunteer', 'pick-people', 'volunteer'), av.length ? String(av.length) : '') +
     listBox(av.map(function (x) { return personRow(x); }), 'Volunteers you place yourself, from your contacts.') +
-    signupBlock('serve', 'Volunteer Spots', 'Add Spot');
+    signupBlock('serve', 'Volunteer Shifts', 'Add Shift');
 }
 function volCount() { return assigned('volunteer').length + evRows('ed_signups').filter(function (s) { var i = byId('ed_items', s.item_id); return i && i.kind === 'serve'; }).length; }
 function goalCard(e) {
@@ -974,6 +1257,40 @@ function editPrayer(kind, rec) {
   editRow('ed_prayer', rec, prayerFields(kind), { title: rec ? 'Edit ' + lab[0] : lab[1].replace('Add', 'Add A'), base: { event_id: S.ev.id, kind: kind, body: '', answer: '', private: false, person_id: null, follow_up_on: null, sort: prayers(kind).length },
     prep: function (v) { if (!v.person_id) v.person_id = null; return v; }, delMsg: 'Remove this ' + lab[0].toLowerCase() + '?' });
 }
+var WX = {}, US_STATES = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia' };
+function wxPlace(e) {
+  var p = String(e.address || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (!p.length) return null;
+  var last = p[p.length - 1], st = (/\b([A-Z]{2})\b/.exec(last) || [])[1] || '', city = p.length >= 3 ? p[p.length - 2] : p.length === 2 ? (/\d/.test(p[0]) ? (st ? '' : p[1]) : p[0]) : '';
+  if (!city && p.length === 2 && st) city = /\d/.test(p[0]) ? '' : p[0];
+  if (!city) return null;
+  return { city: city.replace(/\d+/g, '').trim(), state: US_STATES[st] || '' };
+}
+function wxWord(c) { return c === 0 ? 'Clear' : c <= 2 ? 'Partly Cloudy' : c === 3 ? 'Cloudy' : c <= 48 ? 'Fog' : c <= 57 ? 'Drizzle' : c <= 67 ? 'Rain' : c <= 77 ? 'Snow' : c <= 82 ? 'Showers' : c <= 86 ? 'Snow Showers' : 'Storms'; }
+function wxLoad(e) {
+  var pl = wxPlace(e), from = e.starts_on > TODAY ? e.starts_on : TODAY, to = (e.ends_on || e.starts_on) < addDays(TODAY, 15) ? (e.ends_on || e.starts_on) : addDays(TODAY, 15), key = 'ed.wx.' + e.id + '.' + from + '.' + to;
+  if (!pl || !window.fetch) { WX[e.id] = null; return; }
+  try { var c = JSON.parse(lget(key) || 'null'); if (c && Date.now() - c.at < 3 * 3600e3) { WX[e.id] = c.v; return; } } catch (er) {}
+  WX[e.id] = 'loading';
+  fetch('https://geocoding-api.open-meteo.com/v1/search?count=10&language=en&format=json&countryCode=US&name=' + encodeURIComponent(pl.city)).then(function (r) { return r.json(); }).then(function (g) {
+    var hit = (g.results || []).find(function (x) { return !pl.state || x.admin1 === pl.state; }); if (!hit) throw new Error('place');
+    return fetch('https://api.open-meteo.com/v1/forecast?latitude=' + hit.latitude + '&longitude=' + hit.longitude + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=auto&start_date=' + from + '&end_date=' + to)
+      .then(function (r) { return r.json(); }).then(function (f) {
+        var dd = f.daily || {}, v = { place: hit.name + (pl.state ? ', ' + Object.keys(US_STATES).find(function (k) { return US_STATES[k] === pl.state; }) : ''), days: (dd.time || []).map(function (t, i) { return { d: t, c: dd.weather_code[i], hi: Math.round(dd.temperature_2m_max[i]), lo: Math.round(dd.temperature_2m_min[i]), p: dd.precipitation_probability_max ? dd.precipitation_probability_max[i] : null }; }) };
+        WX[e.id] = v; lset(key, JSON.stringify({ at: Date.now(), v: v })); render();
+      });
+  }).catch(function () { WX[e.id] = null; });
+}
+function weatherCard(e) {
+  var end = e.ends_on || e.starts_on;
+  if (!e.starts_on || end < TODAY || dayDiff(e.starts_on, TODAY) > 14 || !e.address) return '';
+  if (!(e.id in WX)) wxLoad(e);
+  var w = WX[e.id]; if (!w || w === 'loading' || !w.days.length) return '';
+  return '<div class="card wx"><div class="wx-k">Weather · ' + esc(w.place) + '</div><div class="wx-days">' + w.days.slice(0, 5).map(function (d) {
+    var wet = d.p != null && d.p >= 40;
+    return '<div class="wx-day' + (wet ? ' wet' : '') + '"><b>' + esc(dt(d.d).toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + dt(d.d).getDate()) + '</b><span class="wx-t">' + d.hi + '° <small>' + d.lo + '°</small></span><span class="wx-w">' + esc(wxWord(d.c)) + '</span>' + (d.p != null ? '<span class="wx-p">' + d.p + '% rain</span>' : '') + '</div>';
+  }).join('') + '</div></div>';
+}
 function heartCard(e) {
   var vs = prayers('verse'), ds = prayers('declare'), needs = prayers('intercede').filter(function (p) { return !p.answer; });
   var has = e.theme || e.purpose || vs.length || ds.length;
@@ -1041,7 +1358,7 @@ function wsOverview(e) {
   return '<div class="countdown"><div class="cd-num">' + (days != null && days > 1 ? '<b>' + days + '</b><span>Days<br>To Go</span>' : '<b class="word">' + esc(cd || 'Not Scheduled') + '</b>') + '</div>' +
       '<div class="cd-side">' + (ts.length ? '<div class="cd-k">Tasks</div><div class="cd-v">' + td + ' of ' + ts.length + ' done</div><div class="cd-bar"><i style="width:' + pct + '%"></i></div>' : '<div class="cd-k">' + esc(fmtRange(e.starts_on, e.ends_on)) + '</div>' + ((e.ends_on || e.starts_on || '9') >= TODAY ? '<button class="cd-v link" data-a="ev-tab" data-id="tasks">Add the first task</button>' : '')) +
       (e.address ? '<a class="cd-link" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">' + IC.pin + ' Directions</a>' : '') + '</div></div>' +
-    todayCard(e) + heartCard(e) +
+    todayCard(e) + weatherCard(e) + heartCard(e) +
     (g.length ? secHead('At A Glance') + '<div class="stats glance">' + g.slice(0, 6).join('') + '</div>' : '') +
     secHead('Needs Attention', '', att.length ? String(att.length) : '') +
     (att.length ? '<div class="list">' + att.map(function (a) { return row({ act: 'ev-tab', id: a[3], cls: 'flag ' + a[0], title: esc(a[1]), sub: esc(a[2]) }); }).join('') + '</div>'
@@ -1055,10 +1372,13 @@ function todayCard(e) {
   return '<div class="card today"><div class="today-k">' + IC.cal + ' Today · ' + esc(fmtLong(TODAY)) + '</div>' +
     (sch.length ? '<ol class="today-list">' + sch.map(function (s) { return '<li><b>' + esc(fmtTime(s.start_time) || 'Any Time') + '</b><span>' + esc(s.title) + (s.location ? ' · ' + esc(s.location) : '') + '</span></li>'; }).join('') + '</ol>'
       : '<p class="small muted" style="margin:6px 0 0">' + (on('calendar') ? 'Nothing on today’s schedule.' : 'It’s event day.') + '</p>') +
-    '<div class="btnrow">' + (ci ? '<button class="btn sm" data-a="ev-tab" data-id="checkin">Check People In</button>' : '') + (on('calendar') ? '<button class="btn sm plain" data-a="doc" data-id="schedule">Run Of Show</button>' : '') + '<button class="btn sm plain" data-a="doc" data-id="contacts">Phone List</button></div></div>';
+    '<div class="btnrow">' + (ci ? '<button class="btn sm" data-a="ev-tab" data-id="checkin">Check People In</button><button class="btn sm plain" data-a="show-qr" data-id="k">Check-In QR</button>' : '') + (on('calendar') ? '<button class="btn sm plain" data-a="doc" data-id="schedule">Run Of Show</button>' : '') + '<button class="btn sm plain" data-a="doc" data-id="contacts">Phone List</button></div></div>';
 }
 function debriefCard(e) {
   var over = e.starts_on && (e.ends_on || e.starts_on) < TODAY;
+  return (over ? '<button class="card praybar recapbar" data-a="doc" data-id="recap"><span class="docic">' + IC.list + '</span><span class="main"><b>Event Recap</b><span>Attendance, volunteers, decisions, money and answered prayer on one page. Share it with the board.</span></span><span class="chev">' + IC.chev + '</span></button>' : '') + debriefCard0(e, over);
+}
+function debriefCard0(e, over) {
   if (!over && !e.debrief) return '';
   return secHead(over ? 'Notes For Next Year' : 'Notes From Last Time', '<button class="link" data-a="edit-debrief">' + (e.debrief ? 'Edit' : 'Add Notes') + '</button>') +
     '<div class="card notes">' + (e.debrief ? esc(e.debrief) : '<span class="muted">What worked, what didn’t, what to change. These stay with the event when you choose Start Next Year.</span>') + '</div>';
@@ -1267,8 +1587,10 @@ function wsFollowup(e) {
   var all = evRows('ed_cards').sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
   var c = function (s) { return all.filter(function (x) { return x.status === s; }).length; };
   var st = subTabs('followup', [['new', 'New', c('new')], ['contacted', 'Contacted', c('contacted')], ['connected', 'Connected', c('connected')], ['all', 'All', all.length]], 'new');
+  var open = all.filter(function (x) { return x.status !== 'connected'; }), unassigned = open.filter(function (x) { return !x.follow_up_ref && !x.follow_up_by; }).length, late = open.filter(function (x) { return x.follow_up_on && x.follow_up_on < TODAY; }).length;
+  var top = all.length ? secHead('Decisions', '', plural(all.length, 'Card')) + decisionTiles(all) + (unassigned || late ? '<div class="err soft">' + esc([unassigned ? plural(unassigned, 'card') + ' with no one assigned' : '', late ? late + ' past their follow-up date' : ''].filter(Boolean).join(' · ')) + '</div>' : '') : '';
   var list = st.cur === 'all' ? all : all.filter(function (x) { return x.status === st.cur; });
-  return shareBar('c') + st.html + '<div class="btnrow">' + addBtn('Add A Card', 'add-card') + '<button class="btn sm plain" data-a="csv-cards">Download List</button></div>' +
+  return shareBar('c') + top + st.html + '<div class="btnrow">' + addBtn('Add A Card', 'add-card') + '<button class="btn sm plain" data-a="csv-cards">Download List</button></div>' +
     listBox(list.map(function (x) {
       return row({ act: 'edit-card', id: x.id, lead: avatar(x.name), title: esc(x.name), sub: (x.responses || []).map(function (r) { return '<span class="tag">' + esc(r) + '</span>'; }).join(' ') + (x.prayer ? '<br>Prayer: ' + esc(x.prayer) : '') + '<br>' + (x.follow_up_by ? 'Follow-Up By ' + esc(x.follow_up_by) : '<span class="danger">No One Assigned</span>'),
         right: pill(x.status[0].toUpperCase() + x.status.slice(1), { new: 'red', contacted: 'amber', connected: 'green' }[x.status]) });
@@ -1278,7 +1600,7 @@ function wsFollowup(e) {
 /* ---------- share */
 function pubUrl(kind) { var base = location.href.split('#')[0].split('?')[0]; return base + (DB.mode === 'demo' && !window.ED_DEMO ? '?demo' : '') + '#/' + kind + '/' + S.ev.slug; }
 function qrSvg(text) { try { var q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); } catch (e) { return ''; } }
-var SHARE = { v: ['Volunteer Sign-Up', 'People pick a spot to serve or a dish to bring.', 'Scan To Serve Or Bring Food'], r: ['Guest RSVP', 'Guests let you know they’re coming and how many.', 'Scan To RSVP'], c: ['Connection Card', 'Guests fill it out on their phone during the altar call or after service.', 'Scan To Fill Out A Connection Card'] };
+var SHARE = { k: ['Self Check-In', 'Volunteers and guests check themselves in with the phone number they signed up with.', 'Scan To Check In'], v: ['Volunteer Sign-Up', 'People pick a spot to serve or a dish to bring.', 'Scan To Serve Or Bring Food'], r: ['Guest RSVP', 'Guests let you know they’re coming and how many.', 'Scan To RSVP'], c: ['Connection Card', 'Guests fill it out on their phone during the altar call or after service.', 'Scan To Fill Out A Connection Card'] };
 function shareBar(k) {
   var url = pubUrl(k);
   return '<div class="sharebar"><button class="sb-qr" data-a="show-qr" data-id="' + k + '" aria-label="Show QR Code">' + qrSvg(url) + '</button><div class="main"><b>' + esc(SHARE[k][0]) + '</b><span>' + (S.ev.is_open ? 'No account needed.' : 'Sign-ups are closed.') + '</span></div>' +
@@ -1296,6 +1618,7 @@ var DOCS = [
   ['contacts', 'Contact Sheet', 'Team, speakers, worship, vendors and contacts with phone numbers.', 'always'],
   ['equipment', 'Equipment Checklist', 'Items and counts, with Loaded and Returned boxes.', 'equipment'],
   ['payments', 'Payments Owed', 'What is still owed, to whom, who pays and when.', 'money'],
+  ['recap', 'Event Recap', 'One page for the board and for next year: attendance, volunteers, decisions, money, tasks, answered prayer and notes.', 'always'],
   ['prayer', 'Prayer Guide', 'Theme, scripture, declarations, what you’re interceding for and what God did. Private needs are left off.', 'prayer']
 ];
 function docOn(d) { return d[3] === 'always' || (d[3] === 'money' ? on('money') || on('vendors') : on(d[3])); }
@@ -1304,6 +1627,7 @@ function sharePage(e) {
   if (on('volunteers') || on('food')) links.push('v');
   if (on('guests')) links.push('r');
   if (on('followup')) links.push('c');
+  if (on('volunteers') || on('guests')) links.push('k');
   return '<div class="share-intro"><h2>Share And Print</h2><p class="small muted">Send a link, show a QR code, or print a sheet. Printing lets you save as a PDF to text or email.</p></div>' +
     (links.length ? secHead('Links And QR Codes') + links.map(shareBar).join('') : '') +
     secHead('Printable Sheets') + '<div class="list">' + DOCS.filter(docOn).map(function (d) {
@@ -1379,6 +1703,25 @@ function docBuild(k) {
     var ps = payables(e).filter(function (p) { return p.owed > 0; }).sort(function (x, y) { return String(x.due || '9').localeCompare(String(y.due || '9')); });
     if (ps.length) { H.push(table(['To', 'For', 'Owed', 'Who Pays', 'Due'], ps.map(function (p) { T2.push(p.name + ' · ' + money(p.owed) + (p.payer ? ' · ' + p.payer : '') + (p.due ? ' · due ' + fmtDay(p.due) : '')); return [esc(p.name || ''), esc(p.what || ''), money(p.owed), esc(p.payer || ''), p.due ? esc(fmtDay(p.due)) : '']; }))); H.push('<p class="total">Total owed: ' + money(ps.reduce(function (s, p) { return s + p.owed; }, 0)) + '</p>'); }
     else none('Nothing is owed right now.');
+  }
+  if (k === 'recap') {
+    var dl = function (pairs) { pairs = pairs.filter(function (p) { return p[1] !== '' && p[1] != null && p[1] !== 0 && p[1] !== '0'; }); if (!pairs.length) { if (/^<h2>/.test(H[H.length - 1])) { H.pop(); T2.splice(-2); } return; } H.push('<dl>' + pairs.map(function (p) { T2.push(p[0] + ': ' + p[1]); return '<dt>' + esc(p[0]) + '</dt><dd>' + esc(String(p[1])) + '</dd>'; }).join('') + '</dl>'); };
+    if (e.theme) { H.push('<p><b>' + esc(e.theme) + '</b></p>'); T2.push('', e.theme); }
+    var att = evRows('ed_items').filter(function (i) { return i.kind === 'attend'; }), rs = [].concat.apply([], att.map(function (i) { return signups(i.id); }));
+    var srv = evRows('ed_items').filter(function (i) { return i.kind === 'serve'; }), vs = [].concat.apply([], srv.map(function (i) { return signups(i.id); }));
+    if (on('guests') || on('volunteers')) { h2('People'); dl([
+      on('guests') && rs.length ? ['RSVPs', rs.reduce(function (s, x) { return s + (x.party || 1); }, 0) + ' people (' + plural(rs.length, 'RSVP') + ')'] : ['', ''],
+      on('guests') ? ['Guests Checked In', rs.filter(function (x) { return x.checked_in_at; }).reduce(function (s, x) { return s + (x.party || 1); }, 0)] : ['', ''],
+      on('volunteers') ? ['Volunteers', volCount() + (num(e.volunteer_goal) ? ' of a goal of ' + num(e.volunteer_goal) : '')] : ['', ''],
+      on('volunteers') && vs.length ? ['Volunteers Checked In', vs.filter(function (x) { return x.checked_in_at; }).length + ' of ' + vs.length + ' who signed up'] : ['', ''],
+      ['Team', evRows('ed_event_people').filter(function (x) { return x.team !== 'volunteer'; }).length]]); }
+    var cards = evRows('ed_cards');
+    if (on('followup')) { h2('Connection Cards'); dl([['Cards', cards.length]].concat(DECISIONS.map(function (d) { var n = cards.filter(function (c) { return (c.responses || []).indexOf(d[0]) >= 0; }).length; return [d[1], n || '']; }), [['Followed Up', cards.filter(function (c) { return c.status !== 'new'; }).length + ' of ' + cards.length]])); }
+    if (on('money') || on('vendors')) { var mm = eventMoney(e); h2('Money'); dl([['Budget', mm.budget ? money(mm.budget) : ''], ['Committed', money(mm.committed)], ['Paid', money(mm.paid)], ['Still Owed', mm.owed ? money(mm.owed) : ''], ['Given', mm.given ? money(mm.given) : '']]); }
+    var tks = evRows('ed_tasks'); if (tks.length) { h2('Tasks'); dl([['Done', tks.filter(function (t) { return t.done; }).length + ' of ' + tks.length], ['Still Open', tks.filter(function (t) { return !t.done; }).map(function (t) { return t.title; }).slice(0, 8).join(', ')]]); }
+    var ans = evRows('ed_prayer').filter(function (p) { return p.kind === 'intercede' && p.answer && !p.private; });
+    if (ans.length) { h2('What God Did'); H.push('<ul>' + ans.map(function (p) { var w = prayFor(p); T2.push('• ' + (w ? w.name + ': ' : '') + p.title + ': ' + p.answer); return '<li><b>' + esc((w ? w.name + ': ' : '') + p.title) + '</b><br>' + esc(p.answer) + '</li>'; }).join('') + '</ul>'); }
+    if (e.debrief) { h2('Notes For Next Year'); H.push('<p>' + esc(e.debrief) + '</p>'); T2.push(e.debrief); }
   }
   if (k === 'agenda') {
     var ag = evRows('ed_agenda').sort(function (x, y) { return x.sort - y.sort; });
@@ -1529,6 +1872,16 @@ function viewPublic() {
     mine + (e.is_open ? '' : '<div class="err">Sign-ups for this event are closed.</div>') +
     (S.pubMode !== 'r' && e.volunteer_goal && pubOn('volunteers') ? pubGoal(e) : '') + section('attend', 'Attend', 'Let us know you’re coming so we can save you a seat.') + section('serve', 'Serve', 'Pick a spot. The team will reach out with details.') + section('meal', 'Bring Food', 'Sign up to bring a meal or dish for the team.') +
     (!its.length ? '<div class="empty card">Nothing to sign up for yet. Check back soon.</div>' : '') + backLink() + '</main>';
+}
+function viewSelfCheckin() {
+  if (S.pubErr) return viewPublic();
+  if (!S.pub) return '<main class="auth"><p class="muted">Loading…</p></main>';
+  var done = S.ciDone;
+  if (done) return '<main class="pub">' + pubHero() + '<div class="card thanks"><span class="okmark">' + IC.check + '</span><h2>You’re Checked In</h2><p class="lead">' + esc(done.map(function (d) { return d.name + ' · ' + d.title; }).join('\n')) + '</p><p class="small muted">Thank you for being here.</p><button class="btn ghost" data-a="ci-again">Check In Someone Else</button></div>' + backLink() + '</main>';
+  return '<main class="pub">' + pubHero('<p class="lead">Welcome! Check yourself in with the phone number you used to sign up or RSVP.</p>') +
+    '<form data-form="selfci" class="fgrid"><div class="fld"><label for="ci_phone">Your Phone Number</label><input class="inp" id="ci_phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(555) 555-0123"></div>' +
+    '<div class="fld"><button class="btn block" type="submit"' + (S.busy ? ' disabled' : '') + '>Check Me In</button></div></form>' +
+    (S.cardErr ? '<div class="err">' + esc(S.cardErr) + '</div>' : '') + backLink() + '</main>';
 }
 function viewCard() {
   if (S.pubErr) return viewPublic();
@@ -1723,7 +2076,12 @@ function posterHtml(k) {
   var url = pubUrl(k), o = org() || {};
   return (o.logo ? '<img class="plogo-big" src="' + esc(o.logo) + '" alt="">' : '') + '<p class="pmin">' + esc(o.name || '') + '</p><h1>' + esc(S.ev.title) + '</h1><p>' + esc(SHARE[k][2]) + '</p><div class="qrbig">' + qrSvg(url) + '</div><p class="url">' + esc(url) + '</p>';
 }
-function outOf(kind, id) { return kind === 'qr' ? { title: SHARE[id][0] + ' · ' + S.ev.title, text: inviteText(id) } : docBuild(id); }
+function listOf(id) {
+  if (id === 'me') { var me = myMember(); return { title: 'My List · ' + (me.name || ''), text: stuffText((me.name || 'My') + '’s list · ' + ((org() || {}).name || ''), stuffFor(myRefs(), myNames())) }; }
+  var c = refContact(id) || { name: '' };
+  return { title: c.name + '’s List', text: stuffText(c.name + '’s list · ' + ((org() || {}).name || ''), stuffFor([id], [c.name.toLowerCase()])) };
+}
+function outOf(kind, id) { if (kind === 'mine') { var l = listOf(id); l.html = '<div class="printdoc"><pre class="plist">' + esc(l.text) + '</pre></div>'; return l; } return kind === 'qr' ? { title: SHARE[id][0] + ' · ' + S.ev.title, text: inviteText(id) } : docBuild(id); }
 
 /* ================================================================ event wiring */
 document.addEventListener('click', function (ev) {
@@ -1751,6 +2109,10 @@ document.addEventListener('change', function (ev) {
   if (ev.target.closest && ev.target.closest('.pickrow')) pickFoot();
   var t = ev.target, k = t.getAttribute('data-change'); if (!k) return;
   if (k === 'dir-type') { S.dirType = t.value; render(); }
+  if (k === 'mine-ev') { S.mineEv = t.value; render(); }
+  if (k === 'imp-as' && S.imp) { S.imp.as = t.value; renderLayer(); }
+  if (k === 'mine-done') { S.mineDone = t.checked; render(); }
+  if (k === 'import-file' && t.files && t.files[0]) importFile(t.files[0]);
   if (k === 'dir-status') { S.dirStatus = t.value; render(); }
   if (k === 'dir-cat') { S.dirCat = t.value; render(); }
   if (k === 'budget-year') { S.budgetYear = +t.value; render(); }
@@ -1839,6 +2201,12 @@ var A = {
   'edit-prayer': function (t, id) { var p = byId('ed_prayer', id); if (p) editPrayer(p.kind, p); },
   'open-prayer': function (t, id) { var p = byId('ed_prayer', id); if (!p) return; closeSheet(); openEvent(p.event_id); S.evTab = 'prayer'; S.sub.area_prayer = p.kind; render(); },
   'edit-heart': function () { editRow('ed_events', S.ev, HEART_FIELDS.map(function (f, i) { return Object.assign({}, f, { auto: i === 0 }); }), { title: 'The Heart Of This Event', sub: 'A theme and purpose for your team. Add scripture and declarations under Prayer.', del: false, required: 'id', after: function (r) { S.ev = r; } }); },
+  'mine-tab': function (t) { S.mineTab = t.getAttribute('data-v'); render(); },
+  'my-task': function (t, id) { var x = byId('ed_tasks', id); if (!x) return; openEvent(x.event_id); goArea('tasks'); render(); A['edit-task'](t, id); },
+  'pick-me': function () { pickMe(); },
+  reminders: function () { remindersSheet(); },
+  'rem-sent': function (t, id) { lset('ed.rem.' + id, '1'); setTimeout(function () { if (S.sheet) redrawSheet(); render(); }, 300); },
+  'rem-all': function (t, id) { id.split('|').forEach(function (k) { lset('ed.rem.' + k, '1'); }); setTimeout(function () { if (S.sheet) redrawSheet(); render(); }, 300); },
   'add-agenda': function () { editRow('ed_agenda', null, F.agenda, { title: 'Add Segment', base: { event_id: S.ev.id, done: false, leader_ref: '', sort: evRows('ed_agenda').length } }); },
   'edit-agenda': function (t, id) { editRow('ed_agenda', byId('ed_agenda', id), F.agenda, { title: 'Edit Segment' }); },
   'toggle-agenda': function (t, id) { toggle('ed_agenda', id, 'done'); },
@@ -1848,8 +2216,8 @@ var A = {
   'add-setlist': function () { editRow('ed_setlists', null, F.setlist, { title: 'Add Set List', base: { event_id: S.ev.id, on_date: S.ev.starts_on } }); },
   'edit-setlist': function (t, id) { editRow('ed_setlists', byId('ed_setlists', id), F.setlist, { title: 'Edit Set List' }); },
   // sign-ups
-  'add-item': function (t, kind) { editRow('ed_items', null, itemFields(kind), { title: kind === 'meal' ? 'Add Meal' : kind === 'attend' ? 'Add A Service' : 'Add Volunteer Spot', base: { event_id: S.ev.id, kind: kind, needed: kind === 'attend' ? 200 : 1, on_date: S.ev.starts_on, sort: evRows('ed_items').length }, prep: function (v) { v.needed = Math.max(1, Math.min(5000, v.needed || 1)); return v; } }); },
-  'edit-item': function (t, id) { var it = byId('ed_items', id); editRow('ed_items', it, itemFields(it.kind), { title: it.kind === 'meal' ? 'Edit Meal' : it.kind === 'attend' ? 'Edit Service' : 'Edit Volunteer Spot', prep: function (v) { v.needed = Math.max(1, Math.min(5000, v.needed || 1)); return v; }, delMsg: 'Delete this spot?', delSub: signups(id).length ? 'The ' + plural(signups(id).length, 'person', 'people') + ' signed up will be removed too.' : '' }); },
+  'add-item': function (t, kind) { editRow('ed_items', null, itemFields(kind), { title: kind === 'meal' ? 'Add Meal' : kind === 'attend' ? 'Add A Service' : 'Add A Shift', base: { event_id: S.ev.id, kind: kind, needed: kind === 'attend' ? 200 : 1, on_date: S.ev.starts_on, sort: evRows('ed_items').length }, prep: function (v) { v.needed = Math.max(1, Math.min(5000, v.needed || 1)); if (v.kind === 'serve' && (v.start_time || v.end_time)) v.time_label = timeRange(v.start_time, v.end_time); return v; } }); },
+  'edit-item': function (t, id) { var it = byId('ed_items', id); editRow('ed_items', it, itemFields(it.kind), { title: it.kind === 'meal' ? 'Edit Meal' : it.kind === 'attend' ? 'Edit Service' : 'Edit Shift', prep: function (v) { if (v.kind === 'serve' && (v.start_time || v.end_time)) v.time_label = timeRange(v.start_time, v.end_time); v.needed = Math.max(1, Math.min(5000, v.needed || 1)); return v; }, delMsg: 'Delete this spot?', delSub: signups(id).length ? 'The ' + plural(signups(id).length, 'person', 'people') + ' signed up will be removed too.' : '' }); },
   'add-signup': function (t, id) { var it = byId('ed_items', id); editRow('ed_signups', null, it.kind === 'attend' ? F.rsvp : F.signup, { title: it.kind === 'attend' ? 'Add An RSVP' : it.kind === 'meal' ? 'Add A Dish' : 'Add A Volunteer', sub: it.title + (it.on_date ? ' · ' + fmtDay(it.on_date) : ''), base: { event_id: S.ev.id, item_id: id, checked_in_at: null, note: '', party: 1 }, prep: function (v) { v.party = Math.max(1, Math.min(50, v.party || 1)); return v; }, saveLabel: 'Add' }); },
   'del-signup': function (t, id) { var s = byId('ed_signups', id); ask('Remove ' + s.name + ' from this spot?', 'Remove', function () { return remove('ed_signups', id, 'Removed').then(render); }); },
   checkin: function (t, id) { toggle('ed_signups', id, 'checked_in_at', function (r) { return r.checked_in_at ? null : new Date().toISOString(); }); },
@@ -1884,11 +2252,12 @@ var A = {
   'doc-copy': function (t, id) { copyText(docBuild(id).text); },
   'doc-print': function (t, id) { printHtml(docBuild(id).html); },
   'slot-open': function (t, id) { S.openSlots = S.openSlots || {}; S.openSlots[id] = !S.openSlots[id]; render(); },
+  'ci-again': function () { S.ciDone = null; S.cardErr = ''; render(); },
   'pub-go': function (t, id) { openPub(id, S.pubSlug); },
-  'leave-pub': function () { if (/^#\/(e|c|v|r)\//.test(location.hash)) { try { history.pushState(null, '', location.pathname + location.search); } catch (e) {} } S.pubMode = ''; S.pub = null; S.cardDone = false; if (!S.user && !window.ED_DEMO) boot(); else if (S.pubFromEv && byId('ed_events', S.pubFromEv)) { var back = S.pubFromEv, tab = S.evTab, sub = S.sub; S.pubFromEv = null; openEvent(back); S.evTab = tab; S.sub = sub; render(); } else render(); },
+  'leave-pub': function () { S.ciDone = null; if (/^#\/(e|c|v|r|k)\//.test(location.hash)) { try { history.pushState(null, '', location.pathname + location.search); } catch (e) {} } S.pubMode = ''; S.pub = null; S.cardDone = false; if (!S.user && !window.ED_DEMO) boot(); else if (S.pubFromEv && byId('ed_events', S.pubFromEv)) { var back = S.pubFromEv, tab = S.evTab, sub = S.sub; S.pubFromEv = null; openEvent(back); S.evTab = tab; S.sub = sub; render(); } else render(); },
   'out-copy': function (t, id) { copyText(outOf(t.getAttribute('data-v'), id).text, 'Copied. Paste it into a text or email.'); },
   'out-share': function (t, id) { var x = outOf(t.getAttribute('data-v'), id); try { navigator.share({ title: x.title, text: x.text }).catch(function () {}); } catch (er) { copyText(x.text, 'Copied'); } },
-  'out-print': function (t, id) { if (window.ED_DEMO) { toast('Printing works in the app, not in this demo'); return; } if (t.getAttribute('data-v') === 'qr') A['print-qr'](t, id); else printHtml(docBuild(id).html); },
+  'out-print': function (t, id) { if (window.ED_DEMO) { toast('Printing works in the app, not in this demo'); return; } if (t.getAttribute('data-v') === 'qr') A['print-qr'](t, id); else printHtml(outOf(t.getAttribute('data-v'), id).html); },
   'print-qr': function (t, id) {
     var d = document.createElement('div'); d.className = 'printonly';
     d.innerHTML = posterHtml(SHARE[id] ? id : 'v');
@@ -1936,6 +2305,11 @@ document.addEventListener('submit', function (ev) {
   } else if (k === 'join') {
     if (!v.code) { S.authMsg = 'Paste the code from your invite link.'; render(); return; }
     DB.rpc('ed_accept_invite', { p_code: v.code.replace(/^.*join=/, ''), p_display: v.me }).then(function () { lset('ed.join', null); return loadAcct(); }).catch(function (e) { S.authMsg = errMsg(e); render(); });
+  } else if (k === 'selfci') {
+    S.cardErr = '';
+    if (digits(v.phone).replace(/^\+?1/, '').length < 7) { S.cardErr = 'Enter the phone number you signed up with.'; render(); return; }
+    S.busy = true; render();
+    DB.rpc('ed_checkin', { p_slug: S.pubSlug, p_phone: v.phone }).then(function (r) { S.busy = false; S.ciDone = r || []; render(); window.scrollTo(0, 0); }, function (e) { S.busy = false; S.cardErr = errMsg(e); render(); });
   } else if (k === 'card') {
     S.cardErr = '';
     if (!v.phone && !v.email) { S.cardErr = 'Add a phone number or email so we can reach you.'; render(); return; }
