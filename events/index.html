@@ -34,7 +34,7 @@ input,select,textarea{font:inherit;color:var(--ink)}
 a{color:var(--red)}
 [hidden]{display:none!important}
 #app{max-width:720px;margin:0 auto;min-height:100vh;padding-bottom:calc(28px + var(--safe-bot));overflow-x:hidden}
-body.has-nav #app{padding-bottom:calc(76px + var(--safe-bot))}
+body.has-nav:not(.in-ev) #app{padding-bottom:calc(76px + var(--safe-bot))}
 main{padding:16px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .grow{flex:1}.center{text-align:center}.muted{color:var(--muted)}.small{font-size:13px}.danger{color:var(--red)}.danger svg{vertical-align:-3px}
@@ -817,7 +817,9 @@ blockquote.heart-v cite{display:block;margin-top:4px;font-family:inherit;font-st
 .offbar svg{flex:none;width:16px;height:16px}
 .plist{white-space:pre-wrap;font:inherit;margin:0}
 .navbrand{display:none}
+.bottomnav.deskonly{display:none}
 @media(min-width:1024px){
+  .bottomnav.deskonly{display:flex}
   body.has-nav{padding-left:240px}
   body.has-nav #app{max-width:860px}
   #app{max-width:900px}
@@ -833,6 +835,9 @@ blockquote.heart-v cite{display:block;margin-top:4px;font-family:inherit;font-st
   .top{border-radius:0 0 24px 24px}
   .sheet{max-width:620px}
 }
+.card.mycard{margin:0 0 4px}
+.notenote{margin:0 0 12px;line-height:1.5}
+.link.inline{display:inline;padding:0;min-height:0;font-size:inherit;vertical-align:baseline}
 </style>
 </head>
 <body>

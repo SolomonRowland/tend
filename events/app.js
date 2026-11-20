@@ -290,7 +290,8 @@ function render() {
   else if (S.ev) h = viewWorkspace();
   else h = viewShell();
   $('#app').innerHTML = offlineBar() + h;
-  document.body.classList.toggle('has-nav', !!(S.user && S.acct && !S.ev && !S.pubMode));
+  document.body.classList.toggle('has-nav', !!(S.user && S.acct && !S.pubMode));
+  document.body.classList.toggle('in-ev', !!(S.user && S.acct && S.ev && !S.pubMode));
   renderLayer();
 }
 function renderLayer() {
@@ -579,9 +580,14 @@ function viewShell() {
   return head(title, sub, logoMark(),
       (S.tab === 'events' ? addBtn('New Event', 'new-event') : '') + '<button class="iconbtn" data-a="open-settings" aria-label="Settings">' + IC.gear + '</button>', org().name) +
     '<main>' + body + demoNote() + '</main>' +
-    '<nav class="bottomnav" aria-label="Main"><div class="navbrand">' + logoMark() + '<b>' + esc(org().name) + '</b></div>' + [['home', 'Home', IC.home], ['mine', 'My Stuff', IC.user], ['events', 'Events', IC.cal], ['directory', 'Directory', IC.book]].map(function (t) {
-      return '<button data-a="nav" data-v="' + t[0] + '"' + (S.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span></button>';
-    }).join('') + '</nav>';
+    mainNav(S.tab, '');
+}
+// The four main places. On a phone it is the bottom bar (hidden inside an event, which has its own back button);
+// on a wide screen it is a sidebar that stays put inside events too.
+function mainNav(cur, cls) {
+  return '<nav class="bottomnav' + (cls ? ' ' + cls : '') + '" aria-label="Main"><div class="navbrand">' + logoMark() + '<b>' + esc(org().name) + '</b></div>' + [['home', 'Home', IC.home], ['mine', 'My Stuff', IC.user], ['events', 'Events', IC.cal], ['directory', 'Directory', IC.book]].map(function (t) {
+    return '<button data-a="nav" data-v="' + t[0] + '"' + (cur === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span></button>';
+  }).join('') + '</nav>';
 }
 function demoNote() { return DB.mode === 'demo' ? '<p class="small muted demo-note">This is a demo ministry kept in your browser. <a href="#" data-a="reset-demo">Reset The Demo</a>' + (window.supabase && !window.ED_DEMO ? ' · <a href="#" data-a="leave-demo">Leave The Demo</a>' : '') + '</p>' : ''; }
 function myMember() { return ((S.acct && S.acct.members) || []).find(function (m) { return S.user && m.user_id === S.user.id; }) || {}; }
@@ -818,6 +824,9 @@ function viewHome() {
     '<button class="stat c-green" data-a="nav" data-v="events"><div class="v">' + up.length + '</div><div class="k">Upcoming Events</div></button>' +
     '<button class="stat ' + (late ? 'c-red' : 'c-ink') + '" data-a="home-jump" data-v="week"><div class="v">' + dueWk + '</div><div class="k">Tasks This Week' + (late ? ' · ' + late + ' Late' : '') + '</div></button>' +
     '<button class="stat ' + (volNeed ? 'c-amber' : 'c-ink') + '" data-a="home-jump" data-v="att"><div class="v">' + volNeed + '</div><div class="k">Volunteers Needed</div></button></div>';
+  var mr = myRefs(), my = stuffFor(mr, myNames()), myOpen = my.tasks.filter(function (x) { return !x.t.done; }), myLate = myOpen.filter(function (x) { return x.t.due_on && x.t.due_on < TODAY; }).length, remLeft = reminders().filter(function (r) { return !remSent(r.key); }).length;
+  var myBits = [plural(myOpen.length, 'open task'), myLate ? myLate + ' overdue' : '', my.lead.length ? plural(my.lead.length, 'segment') + ' to lead' : '', my.cards.length ? plural(my.cards.length, 'card') + ' to follow up' : '', remLeft ? plural(remLeft, 'reminder') + ' to send' : ''].filter(Boolean);
+  h += '<button class="card remcard mycard" data-a="nav" data-v="mine"><span class="docic">' + IC.user + '</span><span class="main"><b>My Stuff</b><span>' + esc(myBits.join(' · ')) + '</span></span><span class="chev">' + IC.chev + '</span></button>';
   h += secHead('Next Up');
   if (next) {
     var days = next.starts_on ? dayDiff(next.starts_on, TODAY) : null, ts = evRows('ed_tasks', next), td = ts.filter(function (t) { return t.done; }).length;
@@ -826,7 +835,7 @@ function viewHome() {
   } else h += '<div class="card empty">No upcoming events. ' + addBtn('Plan An Event', 'new-event') + '</div>';
   h += '<div id="home-att"></div>' + secHead('Needs Attention', '', att.length ? String(att.length) : '') + (att.length ? '<div class="list">' + att.slice(0, 8).map(function (a) {
     return '<button class="row flag ' + a.x[0] + '" data-a="open-event-tab" data-id="' + a.e.id + '" data-v="' + a.x[3] + '"><div class="main"><div class="t">' + esc(a.x[1]) + '</div><div class="s">' + esc(a.e.title) + (a.x[2] ? ' · ' + esc(a.x[2]) : '') + '</div></div><span class="chev">' + IC.chev + '</span></button>';
-  }).join('') + '</div>' + (att.length > 8 ? '<p class="small muted">' + (att.length - 8) + ' more inside each event.</p>' : '') : '<div class="empty good">' + IC.check + ' Everything is on track.</div>');
+  }).join('') + '</div>' + (att.length > 8 ? '<p class="small muted">' + (att.length - 8) + ' more. Open an event to see all of its items.</p>' : '') : '<div class="empty good">' + IC.check + ' Everything is on track.</div>');
   h += '<div id="home-week"></div>' + secHead('This Week') + listBox(week.slice(0, 8).map(function (w) {
     return '<button class="row" data-a="open-event-tab" data-id="' + w.e.id + '" data-v="' + w.tab + '"><span class="datebox sm"><small>' + dt(w.d).toLocaleDateString('en-US', { weekday: 'short' }) + '</small><b>' + dt(w.d).getDate() + '</b></span><div class="main"><div class="t">' + esc(w.title) + '</div><div class="s">' + esc(w.sub) + '</div></div><span class="chev">' + IC.chev + '</span></button>';
   }), 'Nothing scheduled in the next 7 days.');
@@ -904,7 +913,7 @@ function viewMine() {
   if (evl.length) h += secHead('By Event') + '<div class="list">' + evl.map(function (x) {
     var d = x.e.starts_on ? dt(x.e.starts_on) : null;
     return row({ act: 'open-event', id: x.e.id, lead: '<span class="datebox sm">' + (d ? '<small>' + d.toLocaleDateString('en-US', { month: 'short' }) + '</small><b>' + d.getDate() + '</b>' : '<small>TBD</small>') + '</span>', title: esc(x.e.title),
-      sub: esc([x.t ? plural(x.t, 'Task') : '', x.l ? plural(x.l, 'Segment') + ' To Lead' : '', x.s ? 'Serving' : '', x.c ? plural(x.c, 'Card') + ' To Follow Up' : ''].filter(Boolean).join(' · ') || 'All done'), right: '' });
+      sub: esc([x.t ? plural(x.t, 'task') : '', x.l ? plural(x.l, 'segment') + ' to lead' : '', x.s ? 'Serving' : '', x.c ? plural(x.c, 'card') + ' to follow up' : ''].filter(Boolean).join(' · ') || 'All done'), right: '' });
   }).join('') + '</div>';
   var evs = evl.map(function (x) { return x.e; });
   h += secHead(created ? 'Tasks I Created' : 'My Tasks', '', String(tasks.filter(function (x) { return !x.t.done; }).length)) +
@@ -921,10 +930,11 @@ function viewMine() {
   if (!any) h += '<div class="empty card">' + (created ? 'Tasks you add to any event show up here.' : refs.length ? 'No open tasks. You’re all caught up.' : 'Choose your contact above to see what’s assigned to you.') + '</div>';
   if (!created) {
     if (st.lead.length) h += secHead('Leading', '', String(st.lead.length)) + '<div class="list">' + st.lead.map(function (x) {
-      return row({ act: 'open-event-tab', id: x.e.id, t: '', lead: '<span class="time">' + esc(fmtTime(x.k) || (x.d ? fmtDay(x.d, { month: 'short', day: 'numeric' }) : '')) + '</span>', title: esc(x.x.title), sub: esc([x.e.title, x.d ? fmtDay(x.d) : '', x.kind === 'agenda' ? 'Agenda' : 'Schedule'].filter(Boolean).join(' · ')) }).replace('data-a="open-event-tab"', 'data-a="open-event-tab" data-v="' + (x.kind === 'agenda' ? 'agenda' : 'calendar') + '"');
+      return row({ act: 'open-event-tab', id: x.e.id, t: '', lead: x.d ? '<span class="datebox sm"><small>' + dt(x.d).toLocaleDateString('en-US', { weekday: 'short' }) + '</small><b>' + dt(x.d).getDate() + '</b></span>' : '', title: esc(x.x.title), sub: esc([fmtTime(x.k), x.e.title, x.kind === 'agenda' ? 'Agenda' : 'Schedule'].filter(Boolean).join(' · ')) }).replace('data-a="open-event-tab"', 'data-a="open-event-tab" data-v="' + (x.kind === 'agenda' ? 'agenda' : 'calendar') + '"');
     }).join('') + '</div>';
-    if (st.serve.length) h += secHead('Serving On', '', String(st.serve.length)) + '<div class="list">' + st.serve.map(function (x) {
-      return row({ act: 'open-event', id: x.e.id, title: esc(x.e.title), sub: esc([teamLabel(x.x.team), x.x.role, fmtRange(x.e.starts_on, x.e.ends_on)].filter(Boolean).join(' · ')) });
+    var byEv = []; st.serve.forEach(function (x) { var g = byEv.find(function (y) { return y.e === x.e; }); if (!g) byEv.push(g = { e: x.e, roles: [] }); var r = x.x.role || teamLabel(x.x.team); if (r && g.roles.indexOf(r) < 0) g.roles.push(r); });
+    if (byEv.length) h += secHead('Serving On', '', String(byEv.length)) + '<div class="list">' + byEv.map(function (g) {
+      return row({ act: 'open-event', id: g.e.id, title: esc(g.e.title), sub: esc([g.roles.join(', '), fmtRange(g.e.starts_on, g.e.ends_on)].filter(Boolean).join(' · ')) });
     }).join('') + '</div>';
     if (st.cards.length) h += secHead('Follow Up With', '', String(st.cards.length)) + '<div class="list">' + st.cards.map(function (x) {
       return row({ act: 'open-event-tab', id: x.e.id, lead: avatar(x.x.name), title: esc(x.x.name), sub: esc([x.e.title, x.x.phone || x.x.email, (x.x.responses || [])[0]].filter(Boolean).join(' · ')), right: pill(cardStatusLabel(x.x.status), CARD_TONE[x.x.status]) }).replace('data-a="open-event-tab"', 'data-a="open-event-tab" data-v="followup"');
@@ -1020,10 +1030,10 @@ function viewSettings() {
     '<div class="card"><div class="sheethead">' + avatar(me.name || S.user.email) + '<div><h3>' + esc(me.name || 'Add Your Name') + '</h3><p class="lead">' + (owner ? 'Account Owner' : 'Member') + '</p></div></div>' +
     kv([['Phone', me.phone], ['Login Email', S.user.email || me.email]]) +
     '<div class="btnrow"><button class="btn sm ghost" data-a="change-email">Change Login Email</button><button class="btn sm ghost" data-a="change-pw">Change Password</button></div></div>';
-  h += secHead('Notifications') + '<div class="card"><div class="fld"><label for="n_ch">Send Them By</label><select class="inp" id="n_ch" data-change="notify-channel">' + [['email', 'Email'], ['text', 'Text Message'], ['both', 'Email And Text']].map(function (c) { return '<option value="' + c[0] + '"' + (p.channel === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>' +
+  h += secHead('Notifications') + '<div class="card"><p class="small muted notenote">Automatic texts and emails start once a sending service is connected to your account. Your choices below are saved for then. Until it is, open <button class="link inline" data-a="nav" data-v="mine">My Stuff</button> for reminders you can send in a tap.</p><div class="fld"><label for="n_ch">Send Them By</label><select class="inp" id="n_ch" data-change="notify-channel">' + [['email', 'Email'], ['text', 'Text Message'], ['both', 'Email And Text']].map(function (c) { return '<option value="' + c[0] + '"' + (p.channel === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>' +
     '<div class="swlist">' + NOTIFY.map(function (n) { return '<div class="swrow"><div class="main"><b>' + esc(n[1]) + '</b><span>' + esc(n[2]) + '</span></div>' + sw(p[n[0]], 'notify', n[0], n[1]) + '</div>'; }).join('') + '</div>' +
     ((p.channel !== 'email') && !me.phone ? '<p class="small danger">Add your phone number under My Profile to get texts.</p>' : '') + '</div>';
-  h += secHead('Team And Access', owner && a.members.length < 10 ? addBtn('Invite', 'invite') : '', a.members.length + ' Of 10') +
+  h += secHead('Team And Access', owner && a.members.length < 10 ? addBtn('Invite', 'invite') : '', a.members.length + ' of 10') +
     '<div class="list">' + a.members.map(function (m) {
       var self = m.user_id === S.user.id;
       return row({ lead: avatar(m.name || m.email), title: esc(m.name || m.email) + (self ? ' <span class="muted small">(You)</span>' : ''), sub: esc([m.email, m.phone].filter(Boolean).join(' · ')), right: (m.role === 'owner' ? pill('Owner', 'red') : '') + (owner && !self ? '<button class="iconbtn sm" data-a="remove-member" data-id="' + esc(m.user_id) + '" aria-label="Remove ' + esc(m.name || m.email) + '">' + IC.close + '</button>' : '') });
@@ -1112,7 +1122,7 @@ function viewWorkspace() {
     if (!subs.some(function (x) { return x[0] === cur; })) cur = S.sub[key] = subs[0][0];
     body = (subs.length > 1 ? tabs(subs, cur, 'sub-tab" data-k="' + key, 'subtabs') : '') + areaView(S.evTab, cur, e);
   }
-  return '<div class="ws">' + h + '<main>' + body + '</main></div>';
+  return '<div class="ws">' + h + '<main>' + body + '</main></div>' + mainNav('events', 'deskonly');
 }
 function areaView(area, sub, e) {
   if (sub === 'schedule') return wsCalendar(e);
@@ -1356,7 +1366,7 @@ function wsOverview(e) {
   if (g.length > 6) g = g.slice(0, 6);
   if (g.length % 3) g = g.slice(0, g.length - g.length % 3);
   return '<div class="countdown"><div class="cd-num">' + (days != null && days > 1 ? '<b>' + days + '</b><span>Days<br>To Go</span>' : '<b class="word">' + esc(cd || 'Not Scheduled') + '</b>') + '</div>' +
-      '<div class="cd-side">' + (ts.length ? '<div class="cd-k">Tasks</div><div class="cd-v">' + td + ' of ' + ts.length + ' done</div><div class="cd-bar"><i style="width:' + pct + '%"></i></div>' : '<div class="cd-k">' + esc(fmtRange(e.starts_on, e.ends_on)) + '</div>' + ((e.ends_on || e.starts_on || '9') >= TODAY ? '<button class="cd-v link" data-a="ev-tab" data-id="tasks">Add the first task</button>' : '')) +
+      '<div class="cd-side">' + (ts.length ? '<div class="cd-k">Tasks</div><div class="cd-v">' + td + ' of ' + ts.length + ' done</div><div class="cd-bar"><i style="width:' + pct + '%"></i></div>' : '<div class="cd-k">' + esc(fmtRange(e.starts_on, e.ends_on)) + '</div>' + ((e.starts_on || '9') > TODAY ? '<button class="cd-v link" data-a="ev-tab" data-id="tasks">Add the first task</button>' : '')) +
       (e.address ? '<a class="cd-link" href="' + esc(mapUrl(e.address)) + '" target="_blank" rel="noopener">' + IC.pin + ' Directions</a>' : '') + '</div></div>' +
     todayCard(e) + weatherCard(e) + heartCard(e) +
     (g.length ? secHead('At A Glance') + '<div class="stats glance">' + g.slice(0, 6).join('') + '</div>' : '') +
@@ -1427,7 +1437,7 @@ function signupBlock(kind, title, addLabel) {
   var f = fill(kind), groups = [];
   list.forEach(function (i) { var g = groups.find(function (x) { return x.d === (i.on_date || ''); }); if (!g) groups.push(g = { d: i.on_date || '', items: [] }); g.items.push(i); });
   var att = kind === 'attend';
-  return secHead(title, addBtn(addLabel, 'add-item', kind, 'ghost'), att ? '' : f.have + ' Of ' + f.need + ' Filled') +
+  return secHead(title, addBtn(addLabel, 'add-item', kind, 'ghost'), att ? '' : f.have + ' of ' + f.need + ' filled') +
     '<div class="btnrow"><button class="btn sm plain" data-a="csv-signups" data-id="' + kind + '">Download List</button></div>' +
     (groups.length ? groups.map(function (g) {
       return '<div class="grouplbl">' + esc(g.d ? fmtLong(g.d) : 'Any Day') + '</div>' + g.items.map(function (i) {
@@ -1533,7 +1543,7 @@ function wsTasks(e) {
     '<div class="btnrow" style="margin-top:14px">' + addBtn('Add Task', 'add-task') + (every.length ? '<button class="btn sm plain" data-a="doc" data-id="tasks">' + IC.list + ' Print Or Share</button>' : '') + '</div>' +
     (every.length ? '<div class="taskbar">' + st.html.replace('class="subtabs"', 'class="subtabs mini"') + areaSelect('tk_area', 'task-area', S.taskArea) + '</div>' : '') +
     g.groups.map(function (x) {
-      return secHead(x[0], '', x[1].filter(function (t) { return t.done; }).length + ' Of ' + x[1].length + ' Done') + listBox(x[1].map(function (t) { return taskRow(t, by); }), '');
+      return secHead(x[0], '', x[1].filter(function (t) { return t.done; }).length + ' of ' + x[1].length + ' done') + listBox(x[1].map(function (t) { return taskRow(t, by); }), '');
     }).join('') + (every.length ? '' : '<div class="empty card" style="margin-top:12px"><b>No tasks yet.</b><br>Add what has to happen before, during and after: prep, setup, food, teardown. Give each one a segment and an area so you can print one list per team.</div>');
 }
 
@@ -2135,7 +2145,7 @@ var A = {
   close: closeSheet,
   'sheet-save': function () { if (S.sheet && S.sheet.save) { var p = S.sheet.save(); if (p && p.catch) p.catch(function () {}); } },
   'sheet-del': function () { if (S.sheet && S.sheet.del) S.sheet.del(); },
-  nav: function (t) { S.tab = t.getAttribute('data-v'); render(); window.scrollTo(0, 0); },
+  nav: function (t) { S.tab = t.getAttribute('data-v'); if (S.ev) { closeEvent(); return; } render(); window.scrollTo(0, 0); },
   'auth-mode': function (t) { S.authMode = t.getAttribute('data-v'); S.authMsg = ''; render(); },
   'try-demo': function () { lset('ed.mode', 'demo'); location.reload(); },
   'leave-demo': function () { lset('ed.mode', null); location.href = location.pathname; },
