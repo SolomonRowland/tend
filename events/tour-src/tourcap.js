@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const OUT = __dirname + '/shots/'; const BASE = 'http://127.0.0.1:8765/events/';
+const OUT = __dirname + '/tour/'; const BASE = 'http://127.0.0.1:8765/events/';
 (async () => {
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 }); p.setDefaultTimeout(5000); await p.route(/fonts\./, r => r.abort());
 const errs=[]; p.on('pageerror', e => errs.push(e.message));
@@ -22,4 +22,8 @@ await step('share', async()=>{ await p.click('[data-a="ev-tab"][data-id="sharepa
 await step('money', async()=>{ await fresh(); await p.click('[data-a="nav"][data-v="events"]'); await p.click('text=Annual Tent Revival'); await p.click('.areabar [data-v="money"]'); await shot('s15-money'); });
 await step('dir', async()=>{ await fresh(); await p.click('[data-a="nav"][data-v="directory"]'); await shot('s16-directory'); });
 await step('today', async()=>{ await fresh(); await p.click('[data-a="nav"][data-v="events"]'); await p.click('text=Prayer Night'); await shot('s17-today'); });
+await step('prayer', async()=>{ await fresh(); await p.click('[data-a="nav"][data-v="events"]'); await p.click('text=Annual Tent Revival'); await p.click('.areabar [data-v="prayer"]'); await shot('s18-prayer'); });
+await step('mine', async()=>{ await fresh(); await p.click('[data-a="nav"][data-v="mine"]'); await shot('s19-mine'); await p.click('[data-a="reminders"]'); await shot('s20-reminders'); await p.click('#layer [data-a="close"]').catch(()=>{}); });
+await step('selfci', async()=>{ const slug = await p.evaluate(() => S.db.ed_events.find(e=>e.title==='Prayer Night').slug); await p.goto(BASE + '?demo#/k/' + slug); await p.reload(); await p.waitForTimeout(500); await p.fill('#ci_phone', '(555) 555-0141'); await shot('s21-selfci'); });
+await step('recap', async()=>{ await fresh(); await p.click('[data-a="nav"][data-v="events"]'); await p.click('text=Summer Park Outreach'); await p.click('.recapbar'); await shot('s22-recap'); });
 console.log(errs.join('\n')||'ok'); await b.close(); })();

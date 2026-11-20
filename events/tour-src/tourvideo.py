@@ -15,23 +15,24 @@ F_EYE = ImageFont.truetype(IB, 26); F_H = ImageFont.truetype(CB, 78); F_B = Imag
 RED = (200, 22, 32); INK = (20, 22, 26); MUTED = (92, 98, 108); BG = (245, 243, 240)
 
 SCENES = [
-  ('title', 6.5, None, '', 'Tent & Table', 'Ministry events, planned in one calm place.'),
-  ('text', 7.5, None, 'WHY IT EXISTS', 'Events take more than a calendar.', 'Volunteers, vendors, meals, tasks and money usually live in group texts, spreadsheets and sticky notes. Tent & Table brings them together.'),
+  ('title', 6.5, None, '', 'Tent & Table', 'Ministry events, planned in one place.'),
+  ('text', 7.5, None, 'WHY IT EXISTS', 'Events take more than a calendar.', 'Volunteers, meals, tasks and money usually live in group texts, spreadsheets and sticky notes. Tent & Table brings them together.'),
   ('shot', 7, 's01-home', 'HOME', 'Your ministry at a glance.', 'See what’s next, what needs attention and this week’s tasks the moment you open it.'),
-  ('list', 9, None, 'WHAT IT DOES WELL', 'Built for ministry events.', ['Plan every event step by step', 'One contact list for everyone', 'Share sign-ups by link or QR code', 'Track volunteers, RSVPs and money', 'Print or text any list']),
-  ('shot', 6.5, 's03-wiz-name', 'STEP 1 · CREATE', 'Start with a short walkthrough.', 'Name, dates, place and the details people will see.'),
-  ('shot', 7, 's04-wiz-needs', 'STEP 1 · CREATE', 'Answer yes or no.', 'Guests, volunteers, speakers, meals, money. The event only shows the parts you need.'),
-  ('shot', 7, 's05-overview', 'STEP 2 · ORGANIZE', 'Every event gets its own workspace.', 'Overview, Plan, Contacts and Money, with a countdown and what needs attention.'),
-  ('shot', 7, 's06-tasks-area', 'STEP 2 · ORGANIZE', 'Tasks from prep to teardown.', 'Group them by segment or by area, like Food, Stage or AV.'),
-  ('shot', 6.5, 's16-directory', 'STEP 2 · ORGANIZE', 'One list of contacts.', 'Team, volunteers, guests, vendors and everyone else, added once.'),
-  ('shot', 6.5, 's09-picker', 'STEP 2 · ORGANIZE', 'Pull people into the event.', 'Pick who’s serving straight from your contacts. No retyping.'),
-  ('shot', 6.5, 's12-share', 'STEP 3 · INVITE', 'Share it everywhere.', 'One Share page for every link, QR code and printable sheet.'),
-  ('shot', 6.5, 's13-qr', 'STEP 3 · INVITE', 'A QR code for every list.', 'Copy the invite, send it from your phone, or print a poster for the tables.'),
-  ('shot', 6.5, 's14-public', 'STEP 3 · INVITE', 'No account needed.', 'People sign up to serve or RSVP right from their phone.'),
-  ('shot', 6.5, 's10-volunteers', 'STEP 4 · TRACK', 'Watch the goal fill up.', 'See who signed up and how many more volunteers you need.'),
-  ('shot', 6.5, 's07-tasks-print', 'STEP 4 · TRACK', 'Print any list.', 'Hand the food team just their tasks, or save it as a PDF.'),
-  ('shot', 6.5, 's17-today', 'STEP 5 · EVENT DAY', 'Today, one tap away.', 'The schedule, check-in and phone list, right on the Overview.'),
-  ('title', 7, None, '', 'Plan it once. Share it everywhere.', 'You can find this tour anytime in Settings.'),
+  ('shot', 7, 's04-wiz-needs', 'CREATE', 'Start with a short walkthrough.', 'The basics, then yes or no for each part. The event only shows what you need.'),
+  ('shot', 7, 's05-overview', 'ORGANIZE', 'Every event gets its own workspace.', 'The theme, purpose and key verse sit right on top.'),
+  ('shot', 7, 's06-tasks-area', 'ORGANIZE', 'Tasks from prep to teardown.', 'Assign them to your team and set how many people each one needs.'),
+  ('shot', 7, 's18-prayer', 'PRAY', 'Cover it in prayer.', 'Intercession, declarations and scripture, plus what God did.'),
+  ('shot', 6.5, 's16-directory', 'ORGANIZE', 'One list of contacts.', 'Import them from a spreadsheet or your phone.'),
+  ('shot', 6.5, 's09-picker', 'ORGANIZE', 'Pull people into the event.', 'Pick who’s serving straight from your contacts. No retyping.'),
+  ('shot', 7, 's19-mine', 'MY STUFF', 'Everything on your plate.', 'Your tasks, what you lead and who to follow up with, across every event.'),
+  ('shot', 7, 's20-reminders', 'MY STUFF', 'Reminders, already written.', 'Text or email tomorrow’s volunteers and anyone with a task due, in one tap.'),
+  ('shot', 6.5, 's13-qr', 'INVITE', 'A link and QR code for every list.', 'Copy the invite, text it, or print a poster for the tables.'),
+  ('shot', 6.5, 's14-public', 'INVITE', 'No account needed.', 'People pick a shift or RSVP right from their phone.'),
+  ('shot', 6.5, 's10-volunteers', 'TRACK', 'Watch the goal fill up.', 'See who signed up and how many more volunteers you need.'),
+  ('shot', 6.5, 's17-today', 'EVENT DAY', 'Today, one tap away.', 'The schedule, check-in and phone list, right on the Overview.'),
+  ('shot', 6.5, 's21-selfci', 'EVENT DAY', 'Self check-in.', 'Scan the QR code at the door and enter the phone number you signed up with.'),
+  ('shot', 6.5, 's22-recap', 'AFTER', 'The Event Recap.', 'Attendance, decisions, money and answered prayer on one page for the board.'),
+  ('title', 7, None, '', 'Plan it once. Share it everywhere.', 'On a phone or a laptop, even without signal. Find this tour in Settings.'),
 ]
 
 def wrap(d, text, f, width):
@@ -54,7 +55,7 @@ def background():
 BGIM = background()
 
 def phone(name):
-    sc = Image.open(os.path.join(D, 'shots', name + '.png')).convert('RGB')
+    sc = Image.open(os.path.join(D, 'tour', name + '.png')).convert('RGB')
     ph_h = 900; ph_w = int(sc.width * ph_h / sc.height)
     sc = sc.resize((ph_w, ph_h), Image.LANCZOS)
     bez = 16; r = 54
