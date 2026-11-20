@@ -1,4 +1,4 @@
--- Tent & Table database (version 13).
+-- Tent & Table database (version 14).
 -- Paste this whole file into Supabase: SQL Editor -> New query -> Run.
 -- It is safe to run more than once. Every table starts with "ed_", so it can
 -- share a Supabase project with Tend Home without touching Tend's data.
@@ -312,6 +312,11 @@ create table if not exists public.ed_signups (
 );
 create index if not exists ed_signups_event_idx on public.ed_signups (event_id);
 create index if not exists ed_signups_item_idx on public.ed_signups (item_id);
+-- version 14: background checks (a cleared date and optional expiry on each person; a flag on shifts that need one)
+alter table public.ed_people add column if not exists bg_cleared_on date;
+alter table public.ed_people add column if not exists bg_expires_on date;
+alter table public.ed_items add column if not exists needs_check boolean not null default false;
+
 -- version 13: automatic texts and emails (supabase/functions/ed-notify). The function writes the log
 -- with the service key; members can read their ministry's log so the app shows what already went out.
 alter table public.ed_orgs add column if not exists auto_remind boolean not null default false;
@@ -623,8 +628,8 @@ begin
     returning id into nid;
   insert into public.ed_schedule (event_id, on_date, start_time, end_time, title, location, owner, owner_ref, notes)
     select nid, on_date + delta, start_time, end_time, title, location, owner, owner_ref, notes from public.ed_schedule where event_id = p_event;
-  insert into public.ed_items (event_id, kind, title, on_date, time_label, start_time, end_time, needed, notes, sort)
-    select nid, kind, title, on_date + delta, time_label, start_time, end_time, needed, notes, sort from public.ed_items where event_id = p_event;
+  insert into public.ed_items (event_id, kind, title, on_date, time_label, start_time, end_time, needed, needs_check, notes, sort)
+    select nid, kind, title, on_date + delta, time_label, start_time, end_time, needed, needs_check, notes, sort from public.ed_items where event_id = p_event;
   insert into public.ed_tasks (event_id, phase, area, title, due_on, due_time, owner, task_owner, assignee_refs, needed, notes, sort)
     select nid, phase, area, title, due_on + delta, due_time, owner, task_owner, assignee_refs, needed, notes, sort from public.ed_tasks where event_id = p_event;
   insert into public.ed_agenda (event_id, title, leader, leader_ref, start_time, minutes, notes, sort)
@@ -660,7 +665,7 @@ begin
       'logo', (select logo from public.ed_orgs where id = ev.org_id)),
     'items', coalesce((
       select jsonb_agg(jsonb_build_object('id', i.id, 'kind', i.kind, 'title', i.title, 'on_date', i.on_date,
-        'time_label', i.time_label, 'needed', i.needed, 'notes', i.notes,
+        'time_label', i.time_label, 'needed', i.needed, 'notes', i.notes, 'needs_check', i.needs_check,
         'taken', coalesce((select case when i.kind = 'attend' then sum(s.party) else count(*) end
                            from public.ed_signups s where s.item_id = i.id), 0),
         'names', case when i.kind = 'attend' then '[]'::jsonb else coalesce((select jsonb_agg(split_part(s.name, ' ', 1) order by s.created_at)

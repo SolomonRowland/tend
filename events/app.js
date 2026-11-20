@@ -398,11 +398,24 @@ function fieldHtml(f, data) {
   }
   return '<div class="' + cls + '">' + lab + inp + hint + '</div>';
 }
+// Background checks: cleared on a date, good for 2 years unless an expiry date is set.
+var BG_YEARS = 2;
+function bgExpires(p) { return p && p.bg_cleared_on ? (p.bg_expires_on || (+p.bg_cleared_on.slice(0, 4) + BG_YEARS) + p.bg_cleared_on.slice(4)) : ''; }
+function bgStatus(p) { if (!p || !p.bg_cleared_on) return 'none'; var x = bgExpires(p); return x < TODAY ? 'expired' : x <= addDays(TODAY, 30) ? 'expiring' : 'ok'; }
+function bgText(p) { var s = bgStatus(p), x = bgExpires(p); return s === 'none' ? 'None on file' : s === 'expired' ? 'Expired ' + fmtDay(x, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Cleared ' + fmtDay(p.bg_cleared_on, { month: 'short', day: 'numeric', year: 'numeric' }) + ' · good until ' + fmtDay(x, { month: 'short', day: 'numeric', year: 'numeric' }); }
+// The contact a sign-up belongs to: same phone, or the same name.
+function personForSignup(s) { var ph = digits(s.phone).slice(-10), n = String(s.name || '').trim().toLowerCase(); return T('ed_people').find(function (p) { return ph && ph.length >= 7 && digits(p.phone).slice(-10) === ph; }) || T('ed_people').find(function (p) { return p.name.toLowerCase() === n; }) || null; }
+// Who on a check-required shift isn't cleared (or will have expired by the shift).
+function bgGaps(i) {
+  if (!i.needs_check) return [];
+  var day = i.on_date || (S.ev && S.ev.starts_on) || TODAY;
+  return signups(i.id).map(function (s) { var p = personForSignup(s), x = bgExpires(p); return { s: s, p: p, why: !p ? 'not in Contacts' : !p.bg_cleared_on ? 'no check on file' : x < day ? 'expired ' + fmtDay(x, { month: 'short', day: 'numeric' }) : '' }; }).filter(function (g) { return g.why; });
+}
 function shiftWhen(i) { return i.time_label || ''; }
 function timeRange(s, e) { if (!s) return ''; var a = fmtTime(s), b = fmtTime(e); if (!b) return a; if (a.slice(-2) === b.slice(-2)) a = a.slice(0, -3); return a + '–' + b; }
 var F_SHIFT = [
   { k: 'title', label: 'Role Or Team', auto: true, ph: 'Parking' }, { k: 'on_date', label: 'Date', type: 'date', w: 6 }, { k: 'start_time', label: 'Starts', type: 'time', w: 3 }, { k: 'end_time', label: 'Ends', type: 'time', w: 3 },
-  { k: 'needed', label: 'People Needed', type: 'int', half: true, def: 1 }, { k: 'notes', label: 'Details For People Signing Up', type: 'textarea', ph: 'Wear a bright shirt. Meet at the welcome tent.' }];
+  { k: 'needed', label: 'People Needed', type: 'int', half: true, def: 1 }, { k: 'needs_check', label: 'Background check required (kids, youth)', type: 'check' }, { k: 'notes', label: 'Details For People Signing Up', type: 'textarea', ph: 'Wear a bright shirt. Meet at the welcome tent.' }];
 function itemFields(kind) {
   if (kind === 'serve') return F_SHIFT;
   if (kind !== 'attend') return F.item;
@@ -450,7 +463,8 @@ var F = {
     { k: 'status', label: 'Status', type: 'select', opts: [['current', 'Current'], ['previous', 'Previous']], half: true },
     { k: 'groups', label: 'Contact Type', type: 'multi', opts: GROUPS, hint: 'Pick all that fit. Board, worship, speakers, prayer team and staff all count as Team.' },
     { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true },
-    { k: 'address', label: 'Address' }, { k: 'notes', label: 'Notes', type: 'textarea', ph: 'Background check date, skills, shirt size…' }],
+    { k: 'bg_cleared_on', label: 'Background Check Cleared', type: 'date', half: true }, { k: 'bg_expires_on', label: 'Check Expires', type: 'date', half: true, hint: 'Leave blank and it’s good for 2 years.' },
+    { k: 'address', label: 'Address' }, { k: 'notes', label: 'Notes', type: 'textarea', ph: 'Skills, shirt size, allergies…' }],
   vendor: [
     { k: 'name', label: 'Business Name', auto: true }, { k: 'category', label: 'Category', type: 'list', opts: VENDOR_CATS, half: true }, { k: 'contact_name', label: 'Contact Person', half: true, ph: 'Who you talk to' },
     { k: 'phone', label: 'Phone', type: 'tel', half: true }, { k: 'email', label: 'Email', type: 'email', half: true },
@@ -680,7 +694,7 @@ function viewBudget() {
 function openDirRecord(t, id) {
   var r = byId(t, id); if (!r) return;
   var used = usedIn(t, id), sub = '', info = [];
-  if (t === 'ed_people') { sub = [personTypes(r).map(ctypeOne).join(', '), r.title, r.status === 'previous' ? 'Previous' : ''].filter(Boolean).join(' · '); info = [['Contact Type', (r.groups || []).join(', ')], ['Phone', r.phone], ['Email', r.email], ['Address', r.address], ['Notes', r.notes]]; }
+  if (t === 'ed_people') { sub = [personTypes(r).map(ctypeOne).join(', '), r.title, r.status === 'previous' ? 'Previous' : ''].filter(Boolean).join(' · '); info = [['Contact Type', (r.groups || []).join(', ')], ['Phone', r.phone], ['Email', r.email], ['Background Check', r.bg_cleared_on || personTypes(r).indexOf('volunteer') >= 0 ? bgText(r) : ''], ['Address', r.address], ['Notes', r.notes]]; }
   if (t === 'ed_vendors') { sub = ['Vendor', r.category].filter(Boolean).join(' · '); info = [['Contact', r.contact_name], ['Phone', r.phone], ['Email', r.email], ['Website', r.website], ['Address', r.address], ['Notes', r.notes]]; }
   if (t === 'ed_contacts') { sub = ['Other', r.role, r.organization].filter(Boolean).join(' · '); info = [['Phone', r.phone], ['Email', r.email], ['Website', r.website], ['Address', r.address], ['Notes', r.notes]]; }
   if (t === 'ed_equipment') {
@@ -1047,6 +1061,9 @@ function viewSettings() {
     '<div class="swlist">' + NOTIFY.map(function (n) { return '<div class="swrow"><div class="main"><b>' + esc(n[1]) + '</b><span>' + esc(n[2]) + '</span></div>' + sw(p[n[0]], 'notify', n[0], n[1]) + '</div>'; }).join('') + '</div>' +
     ((p.channel !== 'email') && !me.phone ? '<p class="small danger">Add your phone number under My Profile to get texts.</p>' : '') +
     (live && p.channel !== 'email' && chs.indexOf('text') < 0 ? '<p class="small danger">Texting isn’t set up for your ministry yet, so these come by email only.</p>' : '') + '</div>';
+  var lastBk = +lget('ed.backup.at') || 0;
+  h += secHead('Back Up Your Data') + '<div class="card"><p class="small muted notenote">Download everything as spreadsheets (contacts, events, tasks, sign-ups, money, connection cards, prayer and more) plus a full copy, in one .zip file. Keep it somewhere safe; it has names, phone numbers and prayer requests.</p>' +
+    '<div class="btnrow"><button class="btn sm" data-a="backup">Download A Backup</button><span class="small muted">' + (lastBk ? 'Last backup from this device: ' + esc(new Date(lastBk).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })) : 'No backup from this device yet.') + '</span></div></div>';
   h += secHead('Team And Access', owner && a.members.length < 10 ? addBtn('Invite', 'invite') : '', a.members.length + ' of 10') +
     '<div class="list">' + a.members.map(function (m) {
       var self = m.user_id === S.user.id;
@@ -1330,6 +1347,7 @@ function heartCard(e) {
 /* ---------- overview */
 function attention(e) {
   var out = [], soon = addDays(TODAY, 14), started = e.starts_on && e.starts_on <= TODAY, ended = (e.ends_on || e.starts_on) && (e.ends_on || e.starts_on) < TODAY;
+  if (on('volunteers') && !ended) { var bgn = {}; evRows('ed_items').filter(function (i) { return i.kind === 'serve' && i.needs_check && (i.on_date || e.starts_on || TODAY) >= TODAY; }).forEach(function (i) { bgGaps(i).forEach(function (g) { bgn[g.s.name] = 1; }); }); var bgl = Object.keys(bgn); if (bgl.length) out.push(['red', bgl.length === 1 ? '1 Volunteer Needs A Background Check' : bgl.length + ' Volunteers Need A Background Check', 'On a check-required shift: ' + bgl.slice(0, 4).join(', ') + (bgl.length > 4 ? '…' : ''), 'volunteers']); }
   if (on('tasks')) { var late = evRows('ed_tasks').filter(function (t) { return !t.done && t.due_on && t.due_on < TODAY; }); if (late.length) out.push(['red', plural(late.length, 'Task') + ' Overdue', late.slice(0, 3).map(function (t) { return t.title; }).join(', '), 'tasks']); }
   if (on('money') || on('vendors') || on('speakers') || on('people')) {
     var pays = payables(e), od = pays.filter(function (p) { return p.owed > 0 && p.due && p.due < TODAY; }), ds = pays.filter(function (p) { return p.owed > 0 && p.due && p.due >= TODAY && p.due <= soon; });
@@ -1455,9 +1473,10 @@ function signupBlock(kind, title, addLabel) {
     '<div class="btnrow"><button class="btn sm plain" data-a="csv-signups" data-id="' + kind + '">Download List</button></div>' +
     (groups.length ? groups.map(function (g) {
       return '<div class="grouplbl">' + esc(g.d ? fmtLong(g.d) : 'Any Day') + '</div>' + g.items.map(function (i) {
-        var su = signups(i.id), tk = taken(i), open = i.needed - tk;
-        return '<div class="card slotcard"><div class="slot-head"><div class="main"><b>' + esc(i.title) + '</b>' + (i.time_label || i.notes ? '<div class="small muted">' + esc([i.time_label, i.notes].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>' +
+        var su = signups(i.id), tk = taken(i), open = i.needed - tk, gaps = bgGaps(i);
+        return '<div class="card slotcard"><div class="slot-head"><div class="main"><b>' + esc(i.title) + '</b>' + (i.needs_check ? ' ' + pill('Check Required', gaps.length ? 'red' : 'green') : '') + (i.time_label || i.notes ? '<div class="small muted">' + esc([i.time_label, i.notes].filter(Boolean).join(' · ')) + '</div>' : '') + '</div>' +
           pill(att ? tk + ' Coming' : tk + ' / ' + i.needed, att ? (open > 0 ? 'green' : 'amber') : open > 0 ? 'amber' : 'green') + '<button class="link" data-a="edit-item" data-id="' + i.id + '">Edit</button></div>' + meter(Math.min(tk, i.needed), i.needed) +
+          (gaps.length ? '<div class="bgwarn">' + IC.warn + '<span><b>Not cleared:</b> ' + gaps.map(function (g) { return '<button class="link inline" data-a="' + (g.p ? 'dir-edit" data-t="ed_people" data-id="' + g.p.id : 'bg-add" data-id="' + g.s.id) + '">' + esc(g.s.name) + '</button> (' + esc(g.why) + ')'; }).join(', ') + '</span></div>' : '') +
           (su.length && (S.openSlots || {})[i.id] ? '<div class="list inner">' + su.map(function (s) {
             return '<div class="row"><div class="main"><div class="t">' + esc(s.name) + (s.checked_in_at ? ' ' + pill('Here', 'green') : '') + '</div><div class="s">' + esc([att && (s.party || 1) > 1 ? 'Party of ' + s.party : '', s.phone, s.email, s.note].filter(Boolean).join(' · ')) + '</div></div>' +
               (s.phone ? '<a class="link" href="sms:' + esc(digits(s.phone)) + '">Text</a>' : '') + '<button class="link quiet" data-a="del-signup" data-id="' + s.id + '">Remove</button></div>';
@@ -1881,7 +1900,7 @@ function viewPublic() {
     list.forEach(function (i) {
       if ((i.on_date || '') !== day) { day = i.on_date || ''; html += '<div class="grouplbl">' + esc(day ? fmtLong(day) : 'Any Day') + '</div>'; }
       var tk = i.taken != null ? i.taken : i.names.length, left = i.needed - tk, mine = mineIds.indexOf(i.id) >= 0, att = kind === 'attend';
-      html += '<div class="slot' + (left <= 0 && !mine ? ' full' : '') + '"><div class="main"><div class="t">' + esc(i.title) + '</div><div class="s">' + esc([i.time_label, i.notes].filter(Boolean).join(' · ')) + (i.time_label || i.notes ? '<br>' : '') +
+      html += '<div class="slot' + (left <= 0 && !mine ? ' full' : '') + '"><div class="main"><div class="t">' + esc(i.title) + '</div><div class="s">' + esc([i.time_label, pubCheckNote(i), i.notes].filter(Boolean).join(' · ')) + (i.time_label || i.notes || i.needs_check ? '<br>' : '') +
         (att ? (left > 0 ? (left <= 25 ? '<b class="red">' + plural(left, 'Seat') + ' Left</b>' : 'Seats available') : 'Full') : (left > 0 ? '<b class="red">' + plural(left, 'Spot') + ' Left</b>' : 'Full') + (i.names.length ? ' · ' + esc(i.names.join(', ')) : '')) + '</div></div>' +
         (mine ? pill(att ? 'You’re Coming' : 'You’re In', 'green') : left > 0 && e.is_open ? '<button class="btn sm" data-a="pub-sign" data-id="' + i.id + '">' + (att ? 'RSVP' : 'Sign Up') + '</button>' : '') + '</div>';
     });
@@ -1897,6 +1916,7 @@ function viewPublic() {
     (S.pubMode !== 'r' && e.volunteer_goal && pubOn('volunteers') ? pubGoal(e) : '') + section('attend', 'Attend', 'Let us know you’re coming so we can save you a seat.') + section('serve', 'Serve', 'Pick a spot. The team will reach out with details.') + section('meal', 'Bring Food', 'Sign up to bring a meal or dish for the team.') +
     (!its.length ? '<div class="empty card">Nothing to sign up for yet. Check back soon.</div>' : '') + backLink() + '</main>';
 }
+function pubCheckNote(i) { return i.needs_check ? 'Background check required' : ''; }
 function viewSelfCheckin() {
   if (S.pubErr) return viewPublic();
   if (!S.pub) return '<main class="auth"><p class="muted">Loading…</p></main>';
@@ -2079,6 +2099,74 @@ function copyEvent() {
 
 /* ================================================================ CSV + clipboard */
 function csv(rows) { return rows.map(function (r) { return r.map(function (c) { c = String(c == null ? '' : c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(','); }).join('\n'); }
+var CRC_T = null;
+function crc32(b) { if (!CRC_T) { CRC_T = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_T[n] = c >>> 0; } } var x = -1; for (var i = 0; i < b.length; i++) x = (x >>> 8) ^ CRC_T[(x ^ b[i]) & 255]; return (x ^ -1) >>> 0; }
+// A plain (stored, uncompressed) .zip: opens on any phone or computer, no library needed.
+function makeZip(files) {
+  var enc = new TextEncoder(), parts = [], dir = [], off = 0, d = new Date(), dt0 = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)), dd0 = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate());
+  var u16 = function (v) { return [v & 255, (v >>> 8) & 255]; }, u32 = function (v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; };
+  files.forEach(function (f) {
+    var name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    var head = [].concat(u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(dt0), u16(dd0), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+    parts.push(new Uint8Array(head), name, data);
+    dir.push(new Uint8Array([].concat(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(dt0), u16(dd0), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(off))), name);
+    off += head.length + name.length + data.length;
+  });
+  var dsize = dir.reduce(function (s, x) { return s + x.length; }, 0);
+  return new Blob(parts.concat(dir, [new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(dsize), u32(off), u16(0)))]), { type: 'application/zip' });
+}
+function backupFiles() {
+  var ev = {}; T('ed_events').forEach(function (e) { ev[e.id] = e; });
+  var et = function (r) { return (ev[r.event_id] || {}).title || ''; }, ed = function (r) { return (ev[r.event_id] || {}).starts_on || ''; };
+  var item = {}; T('ed_items').forEach(function (i) { item[i.id] = i; });
+  var pname = function (t, id) { var r = byId(t, id); return r ? r.name : ''; };
+  var sheet = function (name, head, rows) { return { name: name + '.csv', data: '﻿' + csv([head].concat(rows)) }; };
+  var files = [
+    sheet('contacts', ['Name', 'Type', 'Title Or Role', 'Organization', 'Phone', 'Email', 'Address', 'Groups', 'Status', 'Background Check Cleared', 'Background Check Expires', 'Notes'],
+      T('ed_people').map(function (r) { return [r.name, personTypes(r).map(ctypeOne).join(', '), r.title, '', r.phone, r.email, r.address, (r.groups || []).join(', '), r.status === 'previous' ? 'Previous' : 'Current', r.bg_cleared_on || '', bgExpires(r), r.notes]; })
+        .concat(T('ed_vendors').map(function (r) { return [r.name, 'Vendor', r.category, r.contact_name, r.phone, r.email, r.address, '', '', '', '', r.notes]; }))
+        .concat(T('ed_contacts').map(function (r) { return [r.name, 'Other', r.role, r.organization, r.phone, r.email, r.address, '', '', '', '', r.notes]; }))),
+    sheet('events', ['Event', 'Starts', 'Ends', 'Time', 'Place', 'Address', 'Theme', 'Budget', 'Volunteer Goal', 'About', 'Notes For Next Year'],
+      T('ed_events').map(function (e) { return [e.title, e.starts_on, e.ends_on, e.time_label, e.place, e.address, e.theme || '', e.budget || '', e.volunteer_goal || '', e.about, e.debrief || '']; })),
+    sheet('tasks', ['Event', 'Event Date', 'Task', 'Segment', 'Area', 'Due', 'Time', 'Assigned To', 'People Needed', 'Created By', 'Done', 'Notes'],
+      T('ed_tasks').map(function (t) { return [et(t), ed(t), t.title, t.phase, t.area || '', t.due_on || '', t.due_time || '', t.owner || '', t.needed || 1, t.task_owner || '', t.done ? 'Yes' : '', t.notes]; })),
+    sheet('sign-ups', ['Event', 'What', 'Kind', 'Date', 'Time', 'Name', 'Phone', 'Email', 'Note', 'Party', 'Checked In'],
+      T('ed_signups').map(function (s) { var i = item[s.item_id] || {}; return [et(s), i.title, { serve: 'Volunteer', meal: 'Meal', attend: 'RSVP' }[i.kind] || i.kind, i.on_date || '', i.time_label || '', s.name, s.phone, s.email, s.note, s.party || 1, s.checked_in_at ? 'Yes' : '']; })),
+    sheet('event-team', ['Event', 'Name', 'Team', 'Role', 'Days', 'Amount', 'Payment Status', 'Who Pays', 'Due'],
+      T('ed_event_people').map(function (x) { return [et(x), pname('ed_people', x.person_id), teamLabel(x.team), x.role, x.days, x.amount || '', x.pay_status, x.payer, x.due_on || '']; })),
+    sheet('money', ['Event', 'Kind', 'Who Or What', 'Amount', 'Paid', 'Status', 'Who Pays', 'Due', 'Notes'],
+      T('ed_event_vendors').map(function (x) { return [et(x), 'Vendor', pname('ed_vendors', x.vendor_id) + (x.service ? ': ' + x.service : ''), x.cost, x.paid, x.pay_status, x.payer, x.due_on || '', x.notes]; })
+        .concat(T('ed_event_people').filter(function (x) { return num(x.amount); }).map(function (x) { return [et(x), 'Speaker Or Team', pname('ed_people', x.person_id), x.amount, '', x.pay_status, x.payer, x.due_on || '', x.notes]; }))
+        .concat(T('ed_expenses').map(function (x) { return [et(x), 'Expense', x.description, x.amount, '', x.pay_status, x.payer, x.due_on || '', x.notes]; }))),
+    sheet('offerings', ['Event', 'Service', 'Date', 'Cash', 'Checks', 'Online', 'Other', 'Counted By', 'Deposited', 'Notes'],
+      T('ed_offerings').map(function (o) { return [et(o), o.service, o.on_date || '', o.cash, o.checks, o.online, o.other, [o.counter1, o.counter2].filter(Boolean).join(' and '), o.deposited ? 'Yes' : '', o.notes]; })),
+    sheet('connection-cards', ['Event', 'Name', 'Phone', 'Email', 'Responses', 'Prayer Request', 'Status', 'Follow Up By', 'Follow Up Date', 'Notes'],
+      T('ed_cards').map(function (c) { return [et(c), c.name, c.phone, c.email, (c.responses || []).join('; '), c.prayer, c.status, c.follow_up_by, c.follow_up_on || '', c.notes]; })),
+    sheet('prayer', ['Event', 'Kind', 'Title', 'Details', 'For', 'Follow Up', 'What God Did', 'Private'],
+      T('ed_prayer').map(function (p) { return [et(p), { intercede: 'Prayer Need', declare: 'Declaration', verse: 'Scripture' }[p.kind] || p.kind, p.title, p.body, p.person_id ? pname('ed_people', p.person_id) : '', p.follow_up_on || '', p.answer, p.private ? 'Yes' : '']; })),
+    sheet('schedule', ['Event', 'Date', 'Starts', 'Ends', 'What', 'Where', 'In Charge', 'Notes'],
+      T('ed_schedule').map(function (s) { return [et(s), s.on_date, s.start_time, s.end_time, s.title, s.location, s.owner, s.notes]; })),
+    sheet('agenda', ['Event', 'Order', 'Time', 'Segment', 'Led By', 'Minutes', 'Notes'],
+      T('ed_agenda').map(function (x) { return [et(x), (x.sort || 0) + 1, x.start_time || '', x.title, x.leader, x.minutes, x.notes]; })),
+    sheet('equipment', ['Item', 'Quantity', 'Category', 'Stored At', 'Condition', 'Notes'],
+      T('ed_equipment').map(function (x) { return [x.name, x.quantity, x.category, x.location, x.condition, x.notes]; })),
+    sheet('budget', ['Year', 'Line', 'Planned', 'Event', 'Notes'],
+      T('ed_budget').map(function (b) { return [b.year, b.name, b.planned, b.event_id ? (ev[b.event_id] || {}).title || '' : '', b.notes]; }))
+  ];
+  var o = Object.assign({}, org()); delete o.logo;
+  files.push({ name: 'full-backup.json', data: JSON.stringify({ app: 'Tent & Table', made: new Date().toISOString(), ministry: o, tables: S.db }, null, 1) });
+  files.push({ name: 'READ ME.txt', data: 'Tent & Table backup of ' + (org().name || 'your ministry') + ', made ' + new Date().toLocaleString('en-US') + '.\r\n\r\nEach .csv file opens in Excel, Numbers or Google Sheets.\r\nfull-backup.json is a complete copy of every record, for restoring or moving to another system.\r\nKeep this file somewhere safe: it has names, phone numbers and prayer requests.\r\n' });
+  return files;
+}
+function downloadBackup() {
+  if (window.ED_DEMO) { toast('Downloads work in the installed app'); return; }
+  var name = 'tent-and-table-backup-' + TODAY + '.zip';
+  downloadBlob(name, makeZip(backupFiles())); lset('ed.backup.at', String(Date.now())); render(); toast('Backup saved');
+}
+function downloadBlob(name, blob) {
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
 function download(name, text) {
   if (window.ED_DEMO) { toast('Downloads work in the installed app'); return; }
   var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' })); a.download = name; document.body.appendChild(a); a.click();
@@ -2313,6 +2401,8 @@ var A = {
   'edit-me': function () { var me = myMember(); editProfile(F_ME, me, 'My Profile', function (v) { return DB.updateMe(org().id, { name: v.name, phone: v.phone || '' }).then(function () { me.name = v.name; me.phone = v.phone || ''; }); }); },
   'change-email': function () { var f = [{ k: 'email', label: 'New Login Email', type: 'email', auto: true, hint: 'We’ll send a confirmation link to the new address. Your login changes once you click it.' }]; editProfile(f, {}, 'Change Login Email', function (v) { return DB.changeEmail(v.email).then(function () { if (DB.mode === 'demo') { S.user.email = v.email; myMember().email = v.email; } else toast('Check ' + v.email + ' for a confirmation link'); }); }); },
   'change-pw': function () { var f = [{ k: 'pw', label: 'New Password', auto: true, hint: 'At least 8 characters.' }]; openSheet(function () { return '<h3>Change Password</h3><div class="fgrid"><div class="fld"><label for="f_pw">New Password</label><input class="inp" id="f_pw" name="pw" type="password" minlength="8" autocomplete="new-password" autofocus><span class="hint">At least 8 characters.</span></div></div>' + sheetFoot(false); }, function () { var v = $('#layer #f_pw').value; if (v.length < 8) { sheetErr('Use at least 8 characters.'); return; } return busy(DB.changePassword(v), 'Password changed').then(closeSheet).catch(function () {}); }); },
+  backup: function () { downloadBackup(); },
+  'bg-add': function (t, id) { var s = T('ed_signups').find(function (x) { return x.id === id; }); if (!s) return; closeSheet(); editRow('ed_people', null, F.person, { title: 'Add ' + s.name + ' To Contacts', base: { org_id: org().id, name: s.name, phone: s.phone || '', email: s.email || '', groups: ['Volunteer'], status: 'current', title: '', address: '', notes: '' } }); },
   'auto-remind': function () { var o = org(), v = !o.auto_remind; o.auto_remind = v; render(); DB.updateOrg(o.id, { auto_remind: v }).then(function () { toast(v ? 'Automatic reminders on' : 'Automatic reminders off'); }, function (e) { o.auto_remind = !v; render(); toast(errMsg(e)); }); },
   'notify-test': function () { toast('Sending…'); DB.notify('test').then(function (r) { toast(r && r.sent ? 'Test sent. Check your ' + (r.sent > 1 ? 'email and phone' : 'messages') + '.' : (r && r.errors && r.errors[0]) || 'Nothing was sent. Add your email or phone under My Profile.'); }, function (e) { toast(errMsg(e)); }); },
   notify: function (t, k) { var me = myMember(), p = prefs(); p[k] = !p[k]; me.prefs = p; render(); DB.updateMe(org().id, { prefs: p }).catch(function (e) { toast(errMsg(e)); }); },

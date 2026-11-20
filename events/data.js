@@ -73,7 +73,7 @@ function CloudDB() {
 
 /* ---------------------------------------------------------------- demo */
 function DemoDB() {
-  var KEY = 'ed.demo.v15', D = null;
+  var KEY = 'ed.demo.v16', D = null;
   try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
   if (!D || !D.t) D = demoSeed();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} }
@@ -98,7 +98,7 @@ function DemoDB() {
     var org = T('ed_orgs').find(function (o) { return o.id === ev.org_id; }) || {};
     return { event: { slug: ev.slug, title: ev.title, starts_on: ev.starts_on, ends_on: ev.ends_on, time_label: ev.time_label, place: ev.place, address: ev.address, about: ev.about, contact_line: ev.contact_line, giving_link: ev.giving_link, volunteer_goal: ev.volunteer_goal || 0, volunteer_count: T('ed_signups').filter(function (s) { var i = T('ed_items').find(function (x) { return x.id === s.item_id; }); return i && i.event_id === ev.id && i.kind === 'serve'; }).length + T('ed_event_people').filter(function (p) { return p.event_id === ev.id && p.team === 'volunteer'; }).length, is_open: ev.is_open, sections: ev.sections || [], ministry: org.name, logo: org.logo || '' },
       items: T('ed_items').filter(function (i) { return i.event_id === ev.id; }).sort(function (a, b) { return String(a.on_date || '').localeCompare(String(b.on_date || '')) || a.sort - b.sort; }).map(function (i) {
-        return { id: i.id, kind: i.kind, title: i.title, on_date: i.on_date, time_label: i.time_label, needed: i.needed, notes: i.notes, taken: T('ed_signups').filter(function (s) { return s.item_id === i.id; }).reduce(function (n, s) { return n + (i.kind === 'attend' ? (s.party || 1) : 1); }, 0), names: i.kind === 'attend' ? [] : T('ed_signups').filter(function (s) { return s.item_id === i.id; }).map(function (s) { return s.name.split(' ')[0]; }) };
+        return { id: i.id, kind: i.kind, title: i.title, on_date: i.on_date, time_label: i.time_label, needed: i.needed, notes: i.notes, needs_check: !!i.needs_check, taken: T('ed_signups').filter(function (s) { return s.item_id === i.id; }).reduce(function (n, s) { return n + (i.kind === 'attend' ? (s.party || 1) : 1); }, 0), names: i.kind === 'attend' ? [] : T('ed_signups').filter(function (s) { return s.item_id === i.id; }).map(function (s) { return s.name.split(' ')[0]; }) };
       }) };
   }
   var RPC = {
@@ -233,7 +233,7 @@ function demoSeed() {
   person('Marcus Reed', 'Setup Crew Lead', ['Volunteer', 'Team Member'], '(555) 201-0010');
   person('Tony Alvarez', 'Setup Crew', ['Volunteer'], '(555) 201-0011');
   person('Dale Price', 'Equipment Manager', ['Volunteer'], '(555) 201-0012');
-  person('Hannah Lowe', 'Kids Ministry', ['Volunteer'], '(555) 301-4001', { notes: 'Background check: Aug 2026' });
+  person('Hannah Lowe', 'Kids Ministry', ['Volunteer'], '(555) 301-4001', { bg_cleared_on: addDays(today, -100) });
   person('Ray Dunn', 'Parking Lead', ['Volunteer'], '(555) 301-1001');
   person('Grace Kim', 'Greeter', ['Volunteer'], '(555) 301-2001');
   person('Aaron Webb', 'Usher Lead', ['Volunteer'], '(555) 301-3001');
@@ -303,7 +303,7 @@ function demoSeed() {
     var p = item('serve', 'Parking Team', d, 4, 'Vests are in the trailer.', '6–7:30 PM', '18:00', '19:30');
     var g = item('serve', 'Greeters', d, 4, '', '6:15–7:15 PM', '18:15', '19:15');
     var u = item('serve', 'Ushers And Offering', d, 4, '', '6:30–9 PM', '18:30', '21:00');
-    var k = item('serve', 'Kids Tent', d, 3, 'Background check required.', '6:30–9 PM', '18:30', '21:00');
+    var k = item('serve', 'Kids Tent', d, 3, 'Ages 4–11. Meet at the kids tent.', '6:30–9 PM', '18:30', '21:00'); k.needs_check = true;
     var at = item('attend', 'Night ' + (i + 1) + ' Service', d, 400, 'Doors open at 6:30 PM.', '7 PM');
     [['The Morales Family', '(555) 501-0001', 5], ['Dorothy Pruitt', '(555) 501-0002', 1], ['Kevin And Amy Shaw', '(555) 501-0003', 2], ['Grace Fellowship Youth', '(555) 501-0004', 14], ['Walter Hines', '(555) 501-0005', 1], ['The Okafor Family', '(555) 501-0006', 4]].slice(0, 6 - i).forEach(function (r, j) { su(at, r[0], r[1], { party: r[2], checked_in_at: i === 0 && j < 2 ? new Date().toISOString() : null }); });
     su(p, 'Ray Dunn', '(555) 301-1001'); su(p, 'Eli Brooks', '(555) 301-1002'); if (i < 2) su(p, 'Sam Tate', '(555) 301-1003');
