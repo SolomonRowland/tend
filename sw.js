@@ -1,5 +1,5 @@
 // Tend offline cache. Bump VERSION whenever a file changes so phones pick up the update.
-var VERSION = 'tend-app-v3';
+var VERSION = 'tend-app-v4';
 var FILES = ['./', './index.html', './css/app.css', './vendor/supabase.js', './js/cloud.js', './js/core.js', './js/screens.js', './js/photos.js', './js/notify.js', './js/starter.js', './js/actions.js', './js/swipe.js', './js/data.js', './js/main.js',
   './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (e) {

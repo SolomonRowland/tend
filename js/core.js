@@ -223,12 +223,28 @@ function go(screen, opts, push) {
   else ui.stack = [];
   hideToast(); ui.screen = screen; ui.armed = null; ui.completing = null;
   Object.keys(opts || {}).forEach(function (k) { ui[k] = opts[k]; });
-  render(); view.scrollTop = 0;
+  render(); view.scrollTop = 0; animateView(push ? 'fwd' : 'tab');
+}
+/* a short movement that says which way you went: deeper, back out, or across to another tab */
+function animateView(kind) {
+  view.classList.remove('nav-fwd', 'nav-back', 'nav-tab'); void view.offsetWidth; view.classList.add('nav-' + kind);
+}
+/* a small tap you can feel. Android vibrates; iPhones (17.4 and later) tick when a hidden switch flips. */
+var hapticEl = null;
+function haptic(ms) {
+  try {
+    if (navigator.vibrate) { navigator.vibrate(ms || 10); return; }
+    if (!hapticEl) {
+      hapticEl = document.createElement('label'); hapticEl.style.display = 'none'; hapticEl.setAttribute('aria-hidden', 'true');
+      var sw = document.createElement('input'); sw.type = 'checkbox'; sw.setAttribute('switch', ''); sw.tabIndex = -1; hapticEl.appendChild(sw); document.body.appendChild(hapticEl);
+    }
+    hapticEl.click();
+  } catch (e) {}
 }
 function back() {
   var p = ui.stack.pop(); if (!p) { go('home'); return; }
   hideToast(); ui.screen = p.screen; ui.taskId = p.taskId; ui.conId = p.conId; if (p.itemId !== undefined) ui.itemId = p.itemId; ui.armed = null; ui.form = null;
-  render(); view.scrollTop = p.scroll || 0;
+  render(); view.scrollTop = p.scroll || 0; animateView('back');
 }
 /* A short message that floats above the tab bar, wherever the person has scrolled to.
    warn() is the same for problems: a different look, and read out right away by VoiceOver. */

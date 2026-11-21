@@ -144,6 +144,28 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => { window.__offline = false; window.dispatchEvent(new Event('online')); });
   check('Solomon\'s delete wins', await waitFor(A, id => !db.tasks.some(t => t.id === id) && pendingCount() === 0, did));
   check('and reaches Kelly', await waitFor(B, id => !db.tasks.some(t => t.id === id), did));
+  // ---- polish: one way to confirm, Save within reach, helpful empty states ----
+  await A.evaluate(() => go('settings', {}, true)); await A.click('[data-act=sign-out]');
+  check('Sign Out asks in a dialog', await A.evaluate(() => !!document.querySelector('.sheet[role=alertdialog]') && /Sign Out\?/.test(document.querySelector('.sheet').innerText)));
+  await A.keyboard.press('Escape');
+  check('Escape cancels and stays signed in', await A.evaluate(() => !document.querySelector('.sheet') && !!C.user && ui.screen === 'settings'));
+  await A.click('[data-act=member-rm]');
+  check('removing a person asks first', await A.evaluate(() => /Remove This Person\?/.test((document.querySelector('.sheet') || {}).innerText || '')));
+  await A.click('.sheet [data-act=confirm-cancel]');
+  check('cancel keeps the person', await A.evaluate(() => C.members.length === 2));
+  await B.evaluate(() => go('settings', {}, true)); await B.click('[data-act=house-leave]');
+  check('leaving asks first', await B.evaluate(() => /Leave This Household\?/.test((document.querySelector('.sheet') || {}).innerText || '')));
+  await B.click('.sheet [data-act=confirm-cancel]');
+  check('cancel keeps Kelly in the household', await B.evaluate(() => !!C.hid));
+  await A.click('[data-act=restore]');
+  check('restore asks before replacing everyone\'s list', await A.evaluate(() => /Restore from a Backup\?/.test((document.querySelector('.sheet') || {}).innerText || '')));
+  await A.click('.sheet [data-act=confirm-cancel]');
+  await A.evaluate(() => go('task', { taskId: db.tasks[0].id }, true)); await A.click('[data-act=edit-task]');
+  await A.evaluate(() => { view.scrollTop = 900; }); await sleep(300);
+  check('Save stays on screen in a long form', await A.evaluate(() => { const r = document.querySelector('[data-act=save-task]').getBoundingClientRect(); return view.scrollTop > 300 && r.top >= 0 && r.bottom < 120; }));
+  await A.evaluate(() => { ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); }); await A.fill('#q', 'zzzzqq');
+  check('an empty search says so', await A.evaluate(() => /No Matches/.test(document.querySelector('.empty').innerText)));
+  await A.evaluate(() => { ui.q = ''; go('home'); });
   console.log('errors', errs); console.log(ok, 'passed', bad, 'failed');
   await b.close(); process.exit(bad || errs.length ? 1 : 0);
 })();

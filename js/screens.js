@@ -9,6 +9,8 @@ function tickHint() {
   return '<div class="hint"><i class="tk"></i><span>Tap the circle or swipe right to mark a task done today. Swipe left to snooze it a week. Open a task to pick another date or add a note.</span><button data-act="hint-ok">Got It</button></div>';
 }
 function hideHint() { try { localStorage.setItem('tend.swipeHint', '1'); } catch (e) {} }
+/* a "nothing here" moment: what it is, and what to do next */
+function emptyBox(icon, title, sub) { return '<div class="empty"><span class="ei">' + ic(icon, 26) + '</span><b>' + title + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>'; }
 function showToast(msg, undo, err) {
   var el = document.getElementById('toast'); clearTimeout(showToast.t);
   el.className = ''; el.innerHTML = '<div class="flash' + (err ? ' err' : '') + '" role="' + (err ? 'alert' : 'status') + '">' + ic(err ? 'alert' : 'check', 20, 2.4) + '<span>' + esc(msg) + '</span>' + (undo ? '<button data-act="undo-toast">Undo</button>' : '') + '</div>';
@@ -139,7 +141,8 @@ function filteredTasks() {
 }
 function taskResults() {
   var list = filteredTasks();
-  if (!list.length) return '<p class="empty">' + (ui.q.trim() ? 'No tasks match \u201C' + esc(ui.q.trim()) + '\u201D.' : 'Nothing here. Nice work.') + '</p>';
+  if (!list.length) return ui.q.trim() ? emptyBox('search', 'No Matches', 'No tasks match \u201C' + esc(ui.q.trim()) + '\u201D.')
+    : !db.tasks.length ? emptyBox('tasks', 'No Tasks Yet', 'Tap Add to create your first one.') : emptyBox('check', 'Nothing here. Nice work.', '');
   if (ui.filter !== 'all' && ui.filter !== 'due-all') return list.map(function (r, i) { return taskRow(r, i % 2 === 1); }).join('');
   var order = [['overdue', 'Overdue'], ['due', 'Due Now'], ['snoozed', 'Snoozed'], ['upcoming', 'Upcoming'], ['nodate', 'Needs a date'], ['paused', 'Paused'], ['done', 'Done']], out = '';
   order.forEach(function (g) {
@@ -214,7 +217,7 @@ function contactMatches(c, q) {
 function contactResults() {
   var q = ui.cq.trim().toLowerCase();
   var list = db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).filter(function (c) { return contactMatches(c, q); });
-  if (!list.length) return '<p class="empty">' + (q ? 'No contacts match that search.' : 'No contacts yet. Tap Add to add one.') + '</p>';
+  if (!list.length) return q ? emptyBox('search', 'No Matches', 'No contacts match that search.') : emptyBox('people', 'No Contacts Yet', 'Tap Add to save the first person you call.');
   return list.map(function (c, i) {
     var n = db.tasks.filter(function (t) { return t.contact === c.id; }).length;
     return '<button class="row' + (i % 2 ? ' alt' : '') + '" data-act="contact" data-id="' + esc(c.id) + '"><span class="avatar">' + esc(initials(c.name)) + '</span><span class="col"><span class="name">' + esc(c.name) + '</span>' + (c.role ? '<span class="meta">' + esc(c.role) + '</span>' : '') + '</span><span style="font-size:12.5px;color:var(--rose);font-weight:600">' + (n ? n + (n === 1 ? ' task' : ' tasks') : '') + '</span></button>';
@@ -546,7 +549,7 @@ function scrSettings() {
   h += '<div class="section"><h2 style="font-size:19px">Backup</h2></div><div class="stack">' +
     '<div class="tip" style="margin:0">' + (C.on ? 'Your list is saved online and shared with your household. A backup file is still a good safety net. Save one' : 'Your list is saved on this phone only. Save a backup file') + ' to iCloud Drive or Files about once a month, and before you change phones. ' + (lb ? '<br><strong>Last backup:</strong> ' + fmt(lb, true) + '.' : '<br><strong>No backup yet.</strong>') + '</div>' +
     '<button class="btn primary" data-act="backup">' + ic('save', 20) + 'Save a Backup File</button>' +
-    '<button class="btn secondary" data-act="restore"' + (ui.armed === 'restore' ? ' style="background:var(--fill);color:#fff"' : '') + '>' + ic('upload', 18) + (ui.armed === 'restore' ? 'Tap Again: Replaces the List for Everyone' : 'Restore from a Backup File') + '</button></div>';
+    '<button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Restore from a Backup File</button></div>';
   var rp = remindPrefs(), lab = function (list, v) { var m = list.find(function (x) { return String(x[0]) === String(v); }); return m ? m[1] : ''; };
   h += '<div class="section"><h2 style="font-size:19px">Reminders</h2><button class="link" data-act="edit-prefs">Edit</button></div><div class="listcard">' +
     [['Ready Early', lab(REMIND_DAYS, rp.days)], ['Calendar App', lab(CAL_APPS, rp.cal)], ['Alert Time', rp.cal === 'google' ? 'Set in Google Calendar' : lab(ALERT_HOURS, rp.hour)]].map(function (x) {
@@ -699,7 +702,7 @@ function itemResults() {
   var list = db.items.filter(function (b) { return itemMatches(b, q); });
   var vn = q ? [] : vehicleNamesInTasks();
   if (vn.length) out += '<div class="tip" style="margin:0 0 4px;display:flex;flex-direction:column;gap:10px"><span>Your tasks mention <strong>' + vn.map(esc).join('</strong> and <strong>') + '</strong>. Add ' + (vn.length === 1 ? 'it' : 'them') + ' here so plate #, VIN and insurance show up on those tasks.</span><button class="btn primary" style="min-height:44px;font-size:14.5px;border-radius:12px" data-act="auto-vehicles">Add ' + (vn.length === 1 ? 'This Vehicle' : 'These ' + vn.length + ' Vehicles') + '</button></div>';
-  if (!list.length) return out + (q ? '<p class="empty">Nothing matches that search.</p>' : '<div class="tip" style="margin:0">Save the details you always have to dig for: VIN and plate number, appliance model #, filter sizes, microchip #, passport expiration. Link a belonging to a task and its details show up right on that task.</div>');
+  if (!list.length) return out + (q ? emptyBox('search', 'No Matches', 'Nothing matches that search.') : '<div class="tip" style="margin:0">Save the details you always have to dig for: VIN and plate number, appliance model #, filter sizes, microchip #, passport expiration. Link a belonging to a task and its details show up right on that task.</div>');
   ITEM_ORDER.forEach(function (ty) {
     var part = list.filter(function (b) { return b.type === ty; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
     if (part.length) out += '<div class="grp">' + ITEM_PLURAL[ty] + ' · ' + part.length + '</div>' + part.map(function (b, i) { return itemRow(b, i % 2 === 1); }).join('');

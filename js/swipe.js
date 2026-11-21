@@ -28,7 +28,7 @@ function swMove(e) {
   SW.row.style.transform = 'translateX(' + dx + 'px)';
   SW.el.classList.toggle('left', dx < 0); SW.el.classList.toggle('right', dx > 0);
   var armed = Math.abs(dx) > SW.w * SW_FIRE && (dx > 0 || SW.el.getAttribute('data-snooze') === '1');
-  if (armed !== SW.el.classList.contains('armed')) { SW.el.classList.toggle('armed', armed); if (armed && navigator.vibrate) try { navigator.vibrate(8); } catch (x) {} }
+  if (armed !== SW.el.classList.contains('armed')) { SW.el.classList.toggle('armed', armed); if (armed) haptic(8); }
 }
 function swEnd() {
   if (!SW.el) return;

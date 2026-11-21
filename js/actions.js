@@ -36,7 +36,7 @@ function quickDone(qid, qrow) {
   qrow.classList.add('doing');
   var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
   var qm = qrow.querySelector('.open .st .meta'); if (qm) qm.textContent = qn ? 'Next ' + fmt(qn) : '';
-  if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
+  haptic(12);
   var box = qrow.closest('.swipe') || qrow;
   setTimeout(function () { box.classList.add('gone'); }, 900);
   var on = ui.screen; // if they've moved on to another screen by then, don't pop a toast over it
@@ -46,7 +46,7 @@ function quickDone(qid, qrow) {
 function quickSnooze(id, row) {
   var t = db.tasks.find(function (x) { return x.id === id; }); if (!t) return;
   var qb = snapshot(id), until = addDays(today(), 7);
-  t.snooze = iso(until); save();
+  t.snooze = iso(until); save(); haptic(10);
   var box = row.closest('.swipe') || row; box.classList.add('gone');
   var on = ui.screen;
   setTimeout(function () { if (ui.screen !== on) return; keepRender(); showToast('Snoozed ' + t.name + ' until ' + fmt(until) + '.', qb); }, 300);
@@ -67,7 +67,7 @@ function markDone(dateIso, note) {
   t.history.unshift({ date: dateIso, by: db.user, note: note || '', at: new Date().toISOString() });
   t.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
   t.last = t.history[0].date; t.snooze = null; (t.steps || []).forEach(function (s) { s.d = false; });
-  save();
+  save(); haptic(12);
   var n = nextDue(t);
   render(); showToast('Done' + (dateIso !== iso(today()) ? ' on ' + fmt(parse(dateIso)) : '') + '. ' + (n ? 'Next due ' + fmt(n, true) + '.' : t.freq === 'One-time' ? 'All finished.' : ''), before);
 }
@@ -143,39 +143,64 @@ var CONFIRM = {
   'del-hist': ['Remove This Completion?', 'Tend will recalculate the next due date.', 'Remove'],
   wipe: ['Erase All Data?', 'Every task, contact and belonging on this phone will be erased. Save a backup first if you might want it back.', 'Erase Everything'],
   mylist: ['Load Your Household List?', 'This replaces everything currently on this phone with your household list.', 'Replace'],
-  example: ['Load Example Data?', 'This replaces everything currently on this phone with example data.', 'Replace']
+  example: ['Load Example Data?', 'This replaces everything currently on this phone with example data.', 'Replace'],
+  restore: ['Restore from a Backup?', 'The backup file replaces the list for everyone in your household.', 'Choose File', 1],
+  'sign-out': ['Sign Out?', 'Your household\u2019s list stays safe online. Sign back in any time.', 'Sign Out', 1],
+  'house-leave': ['Leave This Household?', 'You\u2019ll lose its list until someone invites you again.', 'Leave'],
+  'member-rm': ['Remove This Person?', 'They lose the household\u2019s list right away. You can invite them again later.', 'Remove']
 };
+/* what each confirmation is remembered as once it has been agreed to */
+var ARMED_AS = { 'sign-out': 'signout', 'house-leave': 'leave' };
+function armKey(a, c) { return a === 'del-hist' ? 'hist' + c.idx : a === 'member-rm' ? 'rm-' + c.uid : ARMED_AS[a] || a; }
+function needsConfirm(a) {
+  if (!CONFIRM[a]) return false;
+  if (a === 'example' || a === 'mylist') return !!(db && db.tasks.length);
+  if (a === 'restore') return !!(C.on && db && db.tasks.length);
+  if (a === 'sign-out') return C.on && ui.screen === 'settings' && !!db;
+  if (a === 'house-leave' || a === 'member-rm') return C.on;
+  return true;
+}
 function modalHtml() {
   var c = ui.confirm; if (!c) return '';
   if (C.on) CONFIRM.wipe = CONFIRM_CLOUD_WIPE;
-  var t = CONFIRM[c.act];
+  var t = CONFIRM[c.act].slice();
+  if (c.act === 'sign-out') { var pend = pendingCount(); if (pend) t[1] = pend + (pend === 1 ? ' change hasn\u2019t' : ' changes haven\u2019t') + ' reached the household yet and will be lost.'; }
   return '<div class="modal" data-act="confirm-cancel"><div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="mdlT" data-act="noop"><h3 id="mdlT">' + t[0] + '</h3><p>' + t[1] + '</p>' +
-    '<div class="btns2"><button class="btn secondary" data-act="confirm-cancel">Cancel</button><button class="btn solid-danger" data-act="confirm-ok">' + t[2] + '</button></div></div></div>';
+    '<div class="btns2"><button class="btn secondary" data-act="confirm-cancel">Cancel</button><button class="btn ' + (t[3] ? 'primary' : 'solid-danger') + '" data-act="confirm-ok">' + t[2] + '</button></div></div></div>';
 }
+var confirmFrom = null;
+function closeConfirm() { ui.confirm = null; ui.armed = null; showModal(); if (confirmFrom && document.contains(confirmFrom)) { try { confirmFrom.focus(); } catch (e) {} } confirmFrom = null; }
+/* Escape backs out of a question or a photo; iOS only shows :active styles once something listens for touches */
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  if (ui.confirm) closeConfirm(); else if (ui.viewer) { ui.viewer = null; ui.armed = null; showViewer(); }
+});
+document.addEventListener('touchstart', function () {}, { passive: true });
 function showModal() { document.getElementById('modal').innerHTML = modalHtml(); }
 document.addEventListener('click', function (e) {
   var el = e.target.closest('[data-act]'); if (!el) return;
   var a = el.getAttribute('data-act'), T = today();
   if (a === 'noop') return;
-  if (C.on && cloudAct(a, el)) return;
-  if (photoAct(a, el)) return;
-  if (C.on && notifyAct(a, el)) return;
-  if (a === 'confirm-cancel') { ui.confirm = null; ui.armed = null; showModal(); return; }
+  if (a === 'confirm-cancel') { closeConfirm(); return; }
   if (a === 'confirm-ok') {
     var cf = ui.confirm; ui.confirm = null; showModal(); if (!cf) return;
-    ui.armed = cf.act === 'del-hist' ? 'hist' + cf.idx : cf.act;
-    var fx = document.createElement('button'); fx.setAttribute('data-act', cf.act); if (cf.idx != null) fx.setAttribute('data-idx', cf.idx);
+    ui.armed = armKey(cf.act, cf);
+    var fx = document.createElement('button'); fx.setAttribute('data-act', cf.act); if (cf.idx != null) fx.setAttribute('data-idx', cf.idx); if (cf.uid) fx.setAttribute('data-uid', cf.uid);
     fx.hidden = true; document.body.appendChild(fx); fx.click(); fx.remove(); return;
   }
-  if (CONFIRM[a] && !(a === 'example' || a === 'mylist') || ((a === 'example' || a === 'mylist') && db && db.tasks.length)) {
-    var key = a === 'del-hist' ? 'hist' + el.getAttribute('data-idx') : a;
-    if (ui.armed !== key) {
+  /* anything that can't be taken back asks once, the same way, wherever it lives */
+  if (needsConfirm(a)) {
+    var cfm = { act: a, idx: el.getAttribute('data-idx'), uid: el.getAttribute('data-uid') };
+    if (ui.armed !== armKey(a, cfm)) {
       if (a === 'del-task') readForm('taskForm'); if (a === 'del-contact') readForm('contactForm'); if (a === 'del-item') readForm('itemForm');
-      ui.confirm = { act: a, idx: el.getAttribute('data-idx') }; showModal();
-      var okb = document.querySelector('[data-act="confirm-ok"]'); if (okb) okb.focus();
+      confirmFrom = document.activeElement; ui.confirm = cfm; showModal();
+      var okb = document.querySelector('[data-act="confirm-cancel"].btn'); if (okb) okb.focus();
       return;
     }
   }
+  if (C.on && cloudAct(a, el)) return;
+  if (photoAct(a, el)) return;
+  if (C.on && notifyAct(a, el)) return;
   if (['del-hist', 'del-task', 'del-contact', 'del-item', 'example', 'wipe', 'mylist'].indexOf(a) < 0 && ui.armed) { ui.armed = null; }
   switch (a) {
     case 'tab-home': go('home'); break;
@@ -247,7 +272,7 @@ document.addEventListener('click', function (e) {
     case 'step':
       var stt = db.tasks.find(function (x) { return x.id === ui.taskId; }), sti = +el.getAttribute('data-i');
       if (stt && stt.steps && stt.steps[sti]) {
-        stt.steps[sti].d = !stt.steps[sti].d; save(); keepRender();
+        stt.steps[sti].d = !stt.steps[sti].d; save(); haptic(8); keepRender();
         if (stt.steps[sti].d && stt.steps.every(function (s) { return s.d; }) && info(stt).status !== 'done') toast('All steps done. Tap Mark Complete when you\u2019re finished.');
       }
       break;
@@ -294,7 +319,6 @@ document.addEventListener('click', function (e) {
     case 'save-profile': saveProfile(); break;
     case 'backup': backup(); break;
     case 'restore':
-      if (C.on && db && db.tasks.length && ui.armed !== 'restore') { ui.armed = 'restore'; render(); break; }
       ui.armed = null; fileInput.click(); break;
     case 'bring-old': var oldRaw = oldTendRaw(); if (oldRaw) { restoreFrom(oldRaw); toast('Brought over ' + db.tasks.length + ' tasks from the original Tend.'); } break;
     case 'start-empty': db = blank(); save(); go('home'); break;

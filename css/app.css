@@ -278,3 +278,78 @@ html[data-mode="dark"] .input::placeholder{color:#6F7A8C}
 .lrow.step .stepbox{flex:0 0 22px;width:22px;height:22px;border-radius:7px;border:2px solid var(--dusty);display:flex;align-items:center;justify-content:center;color:#fff}
 .lrow.step.on .stepbox{background:var(--fill);border-color:var(--fill)}
 .lrow.step.on .t{color:var(--muted);text-decoration:line-through}
+
+/* ================= polish layer: one set of rules for feel, motion and focus ================= */
+:root{--ease:cubic-bezier(.2,.8,.2,1);--press:.97}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+h1,h2,h3{text-wrap:balance;letter-spacing:-.01em}
+.tip,.sheet p,.welcome p,.field small,.note{text-wrap:pretty}
+.stat .n,.tile .v,.row .st,.lrow .r,.day,.chip .n,.grp{font-variant-numeric:tabular-nums}
+/* the app's own controls shouldn't select or pop the iOS callout on a long press; text you'd copy still can */
+button,nav.tabs,.head,.chip,.btn,.act,label.search svg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button,.btn,.act{touch-action:manipulation}
+
+/* press feedback: everything you can tap answers the finger right away */
+.btn,.act,.addbtn,.fab,.stat,.cat,.role,.themebtn,.chip,.link,.copy,.iconbtn,.backbtn,.textbtn,.seg button,.segdark button,.day,.ph,.photoempty,.entx,.flash button,.hint button,nav.tabs button svg{transition:transform .14s var(--ease),opacity .14s,background-color .18s,border-color .18s,color .18s,box-shadow .18s}
+.btn:active,.act:active,.addbtn:active,.fab:active,.stat:active,.cat:active,.role:active,.themebtn:active,.ph:active,.photoempty:active{transform:scale(var(--press))}
+.chip:active,.link:active,.copy:active,.iconbtn:active,.backbtn:active,.textbtn:active,.seg button:active,.segdark button:active,.day:active,.entx:active,.flash button:active,.hint button:active{transform:scale(.94);opacity:.85}
+nav.tabs button:active svg{transform:scale(.86)}
+.btn.primary:active,.act:not(.soft):active,.fab:active{opacity:.9}
+.row .open,.row:not(.split),button.lrow,.lrow.step,.pick,.listcard>button{transition:opacity .14s}
+.row .open:active,button.row:active,button.lrow:active,.lrow.step:active,.pick:active,.listcard>button:active{opacity:.55}
+.btn[disabled]{pointer-events:none}
+
+/* focus you can see with a keyboard or switch control, and never on a finger tap */
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--mauve);outline-offset:2px}
+.head :focus-visible,.viewer :focus-visible{outline-color:#fff}
+.input:focus,.input:focus-visible{outline:2px solid var(--mauve);outline-offset:0;border-color:var(--mauve);border-radius:12px}
+.input{transition:border-color .15s,box-shadow .15s}
+.search:focus-within{box-shadow:0 0 0 2px var(--mauve)}
+
+/* moving between screens: forward slides in, back slides out, tabs cross-fade */
+@keyframes navfwd{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes navback{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+@keyframes navtab{from{opacity:0}to{opacity:1}}
+#view.nav-fwd{animation:navfwd .24s var(--ease)}
+#view.nav-back{animation:navback .24s var(--ease)}
+#view.nav-tab{animation:navtab .16s ease-out}
+#app{overflow:hidden}
+
+/* confirmations rise into place */
+@keyframes scrimin{from{opacity:0}to{opacity:1}}
+@keyframes sheetin{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.modal{animation:scrimin .18s ease-out;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.sheet{animation:sheetin .24s var(--ease)}
+.viewer{animation:scrimin .18s ease-out}
+
+/* long forms: Cancel and Save stay within reach while you scroll */
+.head:has(>.headrow>[data-act="cancel"]){position:sticky;top:0;z-index:4;padding-bottom:12px;padding-top:calc(var(--safe-top) + 10px);box-shadow:0 1px 0 rgba(0,0,0,.06),0 6px 16px -8px rgba(0,0,0,.25)}
+#view{scroll-padding-top:calc(var(--safe-top) + 76px);scroll-padding-bottom:24px}
+
+/* waiting */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:18px;height:18px;border-radius:999px;border:2.5px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite;flex:0 0 auto;opacity:.9}
+.waiting{display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--muted)}
+.waiting .spin{width:26px;height:26px;color:var(--mauve)}
+
+/* nothing-here moments say what to do next */
+.empty{display:flex;flex-direction:column;align-items:center;gap:6px;margin:40px 28px;line-height:1.4}
+.empty .ei{width:56px;height:56px;border-radius:999px;background:var(--blush);color:var(--rose);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.empty b{font-size:16px;color:var(--ink)}
+
+/* the current tab reads at a glance */
+nav.tabs button{position:relative;isolation:isolate}
+nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:4px;left:50%;width:52px;height:30px;margin-left:-26px;border-radius:999px;background:var(--blush);z-index:-1}
+
+/* people who ask their phone for less motion get none of the movement */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  .spin{animation-duration:1.2s!important;animation-iteration-count:infinite!important}
+}
+
+/* confirmations that don't destroy anything use the everyday button; the search box shows one clear button, not two */
+.sheet .btn.primary{min-height:48px;font-size:15px;border-radius:14px}
+input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;appearance:none;display:none}
+.toprow .search,.toprow .selectwrap{flex:1 1 50%}
+.toprow .headselect{padding-left:10px;padding-right:30px;text-overflow:ellipsis}

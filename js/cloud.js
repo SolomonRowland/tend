@@ -336,12 +336,12 @@ function signOut() {
 
 /* ---------- screens ---------- */
 function cloudScreen() {
-  if (!C.ready) return '<div class="welcome" style="align-items:center;justify-content:center"><p>Opening Tend…</p></div>';
+  if (!C.ready) return '<div class="welcome" style="align-items:center;justify-content:center"><div class="waiting" role="status"><i class="spin"></i><p>Opening Tend…</p></div></div>';
   if (C.recovery && C.user) return scrNewPassword();
   if (!C.user) return scrSignIn();
   if (!C.hid) return scrHousehold();
   if (!db && !C.firstPull) return '<div class="welcome" style="align-items:center;justify-content:center">' + (C.pullErr
-    ? '<p>' + esc(C.pullErr) + '</p><button class="btn primary" data-act="cloud-retry">Try Again</button>' : '<p>Loading your household…</p>') + '</div>';
+    ? '<p>' + esc(C.pullErr) + '</p><button class="btn primary" data-act="cloud-retry">Try Again</button>' : '<div class="waiting" role="status"><i class="spin"></i><p>Loading your household…</p></div>') + '</div>';
   return '';
 }
 function authErr() { return C.err ? '<p class="cerr" role="alert">' + esc(C.err) + '</p>' : ''; }
@@ -355,7 +355,7 @@ function scrSignIn() {
   h += '<form id="authForm" class="stack" style="padding:0;gap:14px" novalidate>' +
     '<label class="field"><span>Email</span><input class="input" id="authEmail" type="email" inputmode="email" autocapitalize="off" autocomplete="username" value="' + esc(C.auth.email) + '" placeholder="name@example.com"></label>' +
     '<label class="field"><span>Password</span><input class="input" id="authPass" type="password" autocomplete="' + (up ? 'new-password' : 'current-password') + '" placeholder="' + (up ? 'At least 8 characters' : '') + '"></label>' +
-    '<button type="submit" class="btn primary"' + (C.auth.busy ? ' disabled' : '') + '>' + (C.auth.busy ? 'One moment…' : up ? 'Create Account' : 'Sign In') + '</button></form>';
+    '<button type="submit" class="btn primary"' + (C.auth.busy ? ' disabled' : '') + '>' + (C.auth.busy ? '<i class="spin"></i>One moment…' : up ? 'Create Account' : 'Sign In') + '</button></form>';
   h += '<button class="btn secondary" data-act="auth-mode">' + (up ? 'I Already Have an Account' : 'New to Tend? Create an Account') + '</button>';
   if (!up) h += '<button class="link" data-act="auth-forgot" style="align-self:center">Forgot your password?</button>';
   return h + '</div>';
@@ -383,9 +383,9 @@ function cloudSettings() {
   var me = C.user && C.user.id, owner = C.role === 'owner';
   var h = '<div class="section"><h2 style="font-size:19px">' + esc(C.house) + '</h2></div><div class="listcard">';
   h += C.members.map(function (m) {
-    var you = m.user_id === me, armed = ui.armed === 'rm-' + m.user_id;
+    var you = m.user_id === me;
     return '<div class="lrow"><span class="col" style="min-width:0"><span class="t">' + esc(m.name || (m.email || '').split('@')[0]) + (you ? ' <span class="cyou">You</span>' : '') + '</span><span class="s ellip">' + esc(m.email || '') + (m.role === 'owner' ? ' · Owner' : '') + '</span></span>' +
-      (owner && !you ? '<button class="link' + (armed ? ' cdanger' : '') + '" data-act="member-rm" data-uid="' + esc(m.user_id) + '">' + (armed ? 'Tap to Remove' : 'Remove') + '</button>' : '') + '</div>';
+      (owner && !you ? '<button class="link" data-act="member-rm" data-uid="' + esc(m.user_id) + '">Remove</button>' : '') + '</div>';
   }).join('');
   if (owner) h += C.invites.map(function (v) {
     return '<div class="lrow"><span class="col"><span class="t">Invite link</span><span class="s">Not used yet · expires ' + esc(fmt(new Date(v.expires_at))) + '</span></span><button class="link" data-act="invite-cancel" data-code="' + esc(v.code) + '">Cancel</button></div>';
@@ -400,8 +400,8 @@ function cloudSettings() {
   h += '<p class="note" style="text-align:left;padding:8px 20px 0">' + (!C.online ? 'Offline. ' + (pend ? pend + (pend === 1 ? ' change' : ' changes') + ' will sync when you’re back online.' : 'Your list will update when you’re back online.')
     : pend ? 'Syncing ' + pend + (pend === 1 ? ' change' : ' changes') + '…' : 'Everything is synced' + (C.lastSync ? ' · ' + new Date(C.lastSync).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '') + '.') + '</p>';
   h += '<div class="stack" style="margin-top:6px">' +
-    (!owner ? '<button class="btn secondary" data-act="house-leave"' + (ui.armed === 'leave' ? ' style="background:var(--fill);color:#fff"' : '') + '>' + (ui.armed === 'leave' ? 'Tap Again to Leave' : 'Leave Household') + '</button>' : '') +
-    '<button class="btn secondary" data-act="sign-out"' + (ui.armed === 'signout' ? ' style="background:var(--fill);color:#fff"' : '') + '>' + (ui.armed === 'signout' ? (pend ? 'Tap Again: ' + pend + ' Unsynced Changes Will Be Lost' : 'Tap Again to Sign Out') : 'Sign Out') + '</button></div>';
+    (!owner ? '<button class="btn secondary" data-act="house-leave">Leave Household</button>' : '') +
+    '<button class="btn secondary" data-act="sign-out">Sign Out</button></div>';
   return h;
 }
 
@@ -449,19 +449,16 @@ function cloudAct(a, el) {
       return true;
     case 'member-rm':
       var uid = el.getAttribute('data-uid');
-      if (ui.armed !== 'rm-' + uid) { ui.armed = 'rm-' + uid; keepRender(); return true; }
       ui.armed = null;
       C.sb.rpc('remove_member', { hid: C.hid, uid: uid }).then(function (r) { if (r.error) throw r.error; return loadMembers(); }).then(function () { keepRender(); toast('Removed from the household.'); }, function (e) { warn(cloudMsg(e)); });
       return true;
     case 'house-leave':
-      if (ui.armed !== 'leave') { ui.armed = 'leave'; keepRender(); return true; }
       ui.armed = null;
       C.sb.rpc('remove_member', { hid: C.hid, uid: C.user.id }).then(function (r) {
         if (r.error) throw r.error; var hid = C.hid; try { localStorage.removeItem('tend.data.h.' + hid); } catch (e) {} cset('sync.' + hid, null); dropHousehold(); ui.stack = []; ui.screen = 'home'; render();
       }).catch(function (e) { warn(cloudMsg(e)); });
       return true;
     case 'sign-out':
-      if (ui.screen === 'settings' && ui.armed !== 'signout') { ui.armed = 'signout'; keepRender(); return true; }
       ui.armed = null; signOut(); return true;
   }
   return false;

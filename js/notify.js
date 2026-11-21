@@ -115,7 +115,7 @@ function notifySettings() {
   if (N.state !== 'on') {
     return h + note('Get one short heads-up a day on this phone: what’s overdue, due today and coming up this week.') +
       (N.msg ? '<p class="cerr" style="margin:0 16px 8px">' + esc(N.msg) + '</p>' : '') +
-      '<div class="stack"><button class="btn primary" data-act="notify-on"' + (N.busy || N.state === 'unknown' ? ' disabled' : '') + '>' + ic('bell', 18) + (N.busy ? 'One moment…' : 'Turn On Daily Heads-Up') + '</button></div>';
+      '<div class="stack"><button class="btn primary" data-act="notify-on"' + (N.busy || N.state === 'unknown' ? ' disabled' : '') + '>' + (N.busy ? '<i class="spin"></i>One moment…' : ic('bell', 18) + 'Turn On Daily Heads-Up') + '</button></div>';
   }
   h += note('A daily heads-up comes to this phone. Choose when:');
   h += '<div class="listcard" role="radiogroup">' + NOTIFY_HOURS.map(function (x) {
