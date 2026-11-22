@@ -807,6 +807,7 @@ function itemForm(b) {
   return f;
 }
 function saveItem() {
+  if (!ui.form) return;
   readForm('itemForm'); var f = ui.form;
   f.name = (f.name || '').trim();
   var type = ITEM_TYPES[f.type] ? f.type : 'Other', fields = {};
@@ -820,7 +821,7 @@ function saveItem() {
   if (auto && (!f.name || (GENERIC_NAME.test(f.name) && f.name === f.origName))) f.name = auto;
   if (!f.name) { warn(type === 'Pet' ? 'Give your pet a name.' : 'Give it a name, or fill in a few details.'); return; }
   var b = f.id ? itemById(f.id) : null;
-  if (!b) { b = { id: newId('b'), contacts: [] }; db.items.push(b); }
+  if (!b) { b = { id: newId('b'), contacts: [] }; db.items.push(b); f.id = b.id; }
   var oldName = b.name;
   if (oldName && oldName !== f.name) db.tasks.forEach(function (t) { if (t.item === b.id && t.who === oldName) t.who = f.name; });
   b.type = type; b.name = f.name; b.fields = fields; b.notes = (f.notes || '').trim(); b.contacts = (f.contacts || []).filter(function (id) { return db.contacts.some(function (c) { return c.id === id; }); });

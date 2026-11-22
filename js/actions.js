@@ -178,10 +178,21 @@ document.addEventListener('keydown', function (e) {
 });
 document.addEventListener('touchstart', function () {}, { passive: true });
 function showModal() { document.getElementById('modal').innerHTML = modalHtml(); }
+/* One tap saves once. A second tap on Save (or Add, or Done) while the first is still being handled,
+   or a moment after, is ignored, so a slow phone can never make two copies. */
+var SAVE_ACTS = ['save-task', 'save-contact', 'save-item', 'save-prefs', 'save-profile', 'st-apply', 'complete-save', 'house-create', 'invite'];
+var saveLock = {};
+var formTok = typeof WeakMap === 'function' ? new WeakMap() : null, tokN = 0;
+function saveOnce(key) {
+  // the lock belongs to the form being saved, so finishing one form and starting the next is never held up
+  if (ui.form && formTok) { if (!formTok.has(ui.form)) formTok.set(ui.form, ++tokN); key += ':' + formTok.get(ui.form); }
+  var now = Date.now(); if (now < (saveLock[key] || 0)) return false; saveLock[key] = now + 1500; return true;
+}
 document.addEventListener('click', function (e) {
   var el = e.target.closest('[data-act]'); if (!el) return;
   var a = el.getAttribute('data-act'), T = today();
   if (a === 'noop') return;
+  if (SAVE_ACTS.indexOf(a) >= 0 && !saveOnce(a.replace(/^save-/, ''))) return;
   if (a === 'confirm-cancel') { closeConfirm(); return; }
   if (a === 'confirm-ok') {
     var cf = ui.confirm; ui.confirm = null; showModal(); if (!cf) return;
@@ -338,6 +349,7 @@ document.addEventListener('click', function (e) {
 });
 document.addEventListener('submit', function (e) {
   e.preventDefault();
+  if (['taskForm', 'contactForm', 'itemForm', 'profileForm', 'prefsForm'].indexOf(e.target.id) >= 0 && !saveOnce(e.target.id.replace(/Form$/, ''))) return;
   if (C.on && cloudSubmit(e.target.id)) return;
   if (e.target.id === 'profileForm') { saveProfile(); return; }
   if (e.target.id === 'taskForm') saveTask(); else if (e.target.id === 'contactForm') saveContact(); else if (e.target.id === 'itemForm') saveItem();
@@ -370,6 +382,7 @@ document.addEventListener('input', function (e) {
   }
 });
 function saveTask() {
+  if (!ui.form) return;
   readForm('taskForm'); var f = ui.form;
   f.name = (f.name || '').trim();
   if (!f.name) { warn('Give the task a name.'); return; }
@@ -390,7 +403,7 @@ function saveTask() {
   rec.amount = f.cat === 'Bills & Finance' && amt > 0 ? Math.round(amt * 100) / 100 : null; rec.autopay = f.cat === 'Bills & Finance' && !!f.autopay;
   var t;
   if (f.id) { t = db.tasks.find(function (x) { return x.id === f.id; }); }
-  if (!t) { t = { id: newId('t'), history: [], snooze: null, last: null }; db.tasks.push(t); }
+  if (!t) { t = { id: newId('t'), history: [], snooze: null, last: null }; db.tasks.push(t); f.id = t.id; } // saving the same form again updates, never copies
   Object.assign(t, rec);
   var newLast = f.last || null;
   if (newLast !== t.last) {
@@ -403,6 +416,7 @@ function saveTask() {
   toast('Saved.');
 }
 function saveContact() {
+  if (!ui.form) return;
   readForm('contactForm'); var f = ui.form;
   f.name = (f.name || '').trim();
   if (!f.name) { warn('Give the contact a name.'); return; }
@@ -410,7 +424,7 @@ function saveContact() {
   if (f.role === '__other') f.role = (f.roleOther || '').trim();
   var c;
   if (f.id) c = db.contacts.find(function (x) { return x.id === f.id; });
-  if (!c) { c = { id: newId('c') }; db.contacts.push(c); }
+  if (!c) { c = { id: newId('c') }; db.contacts.push(c); f.id = c.id; }
   ['name', 'role', 'phone', 'text', 'email', 'street', 'city', 'state', 'zip', 'web', 'login', 'notes'].forEach(function (k) { c[k] = (f[k] || '').trim(); });
   c.address = joinAddr(c.street, c.city, c.state, c.zip);
   c.phone = fmtPhone(c.phone); c.text = fmtPhone(c.text); if (c.text === c.phone) c.text = '';

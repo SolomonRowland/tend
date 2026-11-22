@@ -256,7 +256,7 @@ function back() {
 /* A short message that floats above the tab bar, wherever the person has scrolled to.
    warn() is the same for problems: a different look, and read out right away by VoiceOver. */
 function toast(msg) { render(); showToast(msg); }
-function warn(msg) { render(); showToast(msg, null, true); }
+function warn(msg) { saveLock = {}; render(); showToast(msg, null, true); } // a save that didn't go through can be tried again right away
 
 /* ---------- icons ---------- */
 var I = {

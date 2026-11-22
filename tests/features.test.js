@@ -163,6 +163,21 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => go('task', { taskId: db.tasks[0].id }, true)); await A.click('[data-act=edit-task]');
   await A.evaluate(() => { view.scrollTop = 900; }); await sleep(300);
   check('Save stays on screen in a long form', await A.evaluate(() => { const r = document.querySelector('[data-act=save-task]').getBoundingClientRect(); return view.scrollTop > 300 && r.top >= 0 && r.bottom < 120; }));
+  // ---- one tap saves once, even if Save is tapped again while the phone is busy ----
+  const before = await A.evaluate(() => db.tasks.length);
+  await A.evaluate(() => { ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); }); await A.click('[data-act=new-task]');
+  await A.fill('input[name=name]', 'Double tap test');
+  await A.evaluate(() => { const b = document.querySelector('[data-act=save-task]'); b.click(); b.click(); });
+  await A.evaluate(() => { const busy = Date.now() + 400; while (Date.now() < busy) {} }); // a slow phone
+  await A.evaluate(() => document.querySelector('[data-act=edit-task], [data-act=save-task]') && document.querySelector('[data-act=save-task]') && document.querySelector('[data-act=save-task]').click());
+  check('a double-tapped Save makes one task', await A.evaluate(n => db.tasks.length === n + 1 && db.tasks.filter(t => t.name === 'Double tap test').length === 1, before));
+  await A.evaluate(() => go('contacts', { cq: '' })); await A.click('[data-act=new-contact]'); await A.fill('input[name=name]', 'Double tap contact');
+  await A.evaluate(() => { const f = document.getElementById('contactForm'); f.requestSubmit(); f.requestSubmit(); document.querySelector('[data-act=save-contact]') && document.querySelector('[data-act=save-contact]').click(); });
+  check('a double-tapped contact Save makes one contact', await A.evaluate(() => db.contacts.filter(c => c.name === 'Double tap contact').length === 1));
+  await sleep(1600);
+  await A.evaluate(() => go('list', { filter: 'all', cat: '', q: '' })); await A.click('[data-act=new-task]'); await A.click('[data-act=save-task]');
+  await A.fill('input[name=name]', 'Fixed right away'); await A.click('[data-act=save-task]');
+  check('after a "give it a name" message, Save works again right away', await A.evaluate(() => db.tasks.some(t => t.name === 'Fixed right away')));
   const lt = await A.evaluate(() => db.tasks.find(t => t.history.length && t.freq !== 'One-time').id);
   await A.evaluate(id => { ui.form = null; go('task', { taskId: id }, true); }, lt); await A.click('[data-act=edit-task]');
   await A.fill('input[name=last]', ''); await A.click('[data-act=save-task]');
