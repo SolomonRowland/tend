@@ -120,8 +120,9 @@ function recentlyDone() {
 }
 function kidAge(t, due) {
   var b = parse(t.first); if (!b || !due) return 'Well-child visit';
-  var mo = Math.round((due - b) / 86400000 / 30.4375);
-  if (mo < 1) return 'Newborn visit';
+  var days = Math.round((due - b) / 86400000), mo = Math.round(days / 30.4375);
+  if (days < 10) return 'Newborn visit';
+  if (mo < 1) return '2-week visit';
   if (mo < 24) return mo + '-month visit';
   if (mo < 36 && mo % 12) return mo + '-month visit';
   return Math.round(mo / 12) + '-year visit';

@@ -163,6 +163,10 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => go('task', { taskId: db.tasks[0].id }, true)); await A.click('[data-act=edit-task]');
   await A.evaluate(() => { view.scrollTop = 900; }); await sleep(300);
   check('Save stays on screen in a long form', await A.evaluate(() => { const r = document.querySelector('[data-act=save-task]').getBoundingClientRect(); return view.scrollTop > 300 && r.top >= 0 && r.bottom < 120; }));
+  const lt = await A.evaluate(() => db.tasks.find(t => t.history.length && t.freq !== 'One-time').id);
+  await A.evaluate(id => { ui.form = null; go('task', { taskId: id }, true); }, lt); await A.click('[data-act=edit-task]');
+  await A.fill('input[name=last]', ''); await A.click('[data-act=save-task]');
+  check('clearing Last Completed points to History instead of silently not sticking', await A.evaluate(id => ui.screen === 'edit-task' && /History/.test(document.getElementById('toast').innerText) && db.tasks.find(t => t.id === id).last, lt));
   await A.evaluate(() => { ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); }); await A.fill('#q', 'zzzzqq');
   check('an empty search says so', await A.evaluate(() => /No Matches/.test(document.querySelector('.empty').innerText)));
   await A.evaluate(() => { ui.q = ''; go('home'); });

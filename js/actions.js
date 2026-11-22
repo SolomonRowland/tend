@@ -123,7 +123,8 @@ function restoreFrom(text) {
   if (!d || !Array.isArray(d.tasks)) { warn('That file isn\u2019t a Tend file.'); return; }
   var had = !!db;
   if (d.profile && !profileDone() && profileDone(d.profile)) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(d.profile)); } catch (e) {} }
-  db = normalize(d);
+  var nd; try { nd = normalize(d); } catch (e) { warn('That file couldn\u2019t be read. Nothing was changed.'); return; }
+  db = nd;
   syncUser();
   save(); ui.stack = []; ui.screen = 'home';
   render(); view.scrollTop = 0;
@@ -374,6 +375,8 @@ function saveTask() {
   if (!f.name) { warn('Give the task a name.'); return; }
   if (f.first && !parse(f.first)) f.first = '';
   if (f.last && f.last > iso(today())) { warn('Last completed can\u2019t be in the future.'); return; }
+  var was = f.id && db.tasks.find(function (x) { return x.id === f.id; });
+  if (!f.last && was && was.history.length) { warn('To clear Last Completed, remove its entry under History on the task.'); return; }
   var early = parseInt(f.early, 10); early = isNaN(early) ? 0 : Math.max(0, Math.min(365, early));
   if (f.who === '__other') f.who = (f.whoOther || '').trim();
   var hol = f.cat === 'Celebrations' && HOLIDAYS[f.holiday] ? f.holiday : '';

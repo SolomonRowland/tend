@@ -10,7 +10,9 @@ var FREQS = [['Weekly',0,7],['Every 2 weeks',0,14],['Monthly',1,0],['Every 2 mon
   ['Every 6 months',6,0],['Yearly',12,0],['Every 2 years',24,0],['Every 3 years',36,0],['Every 4 years',48,0],['Every 5 years',60,0],
   ['Every 10 years',120,0],['Well-child (by age)',0,0],['One-time',0,0]];
 var FREQ = {}; FREQS.forEach(function (f) { FREQ[f[0]] = { mo: f[1], dy: f[2] }; });
-var MILESTONES = [0,0.5,1,3,6,9,12,15,18,24,30,36,48,60,72,84,96,108,120,132,144,156,168,180,192,204,216];
+/* the pediatric checkup schedule (AAP Bright Futures), in months of age: newborn (3-5 days), 2 weeks, 1, 2, 4, 6, 9, 12, 15, 18, 24, 30 months, then yearly to 18 */
+var MILESTONES = [0,0.5,1,2,4,6,9,12,15,18,24,30,36,48,60,72,84,96,108,120,132,144,156,168,180,192,204,216];
+function visitDate(first, m) { return m === 0 ? addDays(first, 4) : m === 0.5 ? addDays(first, 14) : addMonths(first, m); }
 var WHERE_GROUPS = [
   ['People', ['Family', 'Adults', 'Kids', 'Pets']], // plus everyone in the household (added from the list itself)
   ['Inside', ['Whole house', 'Kitchen', 'Bathrooms', 'Kitchen & baths', 'Bedrooms', 'All beds', 'Living areas', 'Laundry', 'Laundry / Kitchen', 'Basement', 'Attic', 'HVAC', 'Utility', 'Home office', 'Home']],
@@ -36,6 +38,8 @@ var MONTHS = ['January','February','March','April','May','June','July','August',
 var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 /* ---------- dates (all local, date-only) ---------- */
+/* a date-only string in one standard shape (2026-03-04), or null if it isn't a real date */
+function isoOf(s) { var d = parse(s); return d ? iso(d) : null; }
 function parse(s) { if (!s) return null; var p = String(s).split('-'); var d = new Date(+p[0], +p[1] - 1, +p[2]); return isNaN(d) ? null : d; }
 function iso(d) { var m = d.getMonth() + 1, x = d.getDate(); return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (x < 10 ? '0' : '') + x; }
 function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
@@ -67,12 +71,13 @@ function normSteps(list) {
     .map(function (s) { return { t: s.t.trim().slice(0, 200), d: !!s.d }; }).slice(0, 40);
 }
 function normalize(d) {
-  var out = blank();
+  var out = blank(); d = d && typeof d === 'object' ? d : {};
+  var list = function (x) { return (Array.isArray(x) ? x : []).filter(function (y) { return y && typeof y === 'object' && !Array.isArray(y); }); };
   out.user = d.user || '';
   out.members = Array.isArray(d.members) ? d.members.filter(Boolean).map(String).slice(0, 12) : [];
   out.lastBackup = d.lastBackup || null; out.noBday = !!d.noBday;
   var n = 1;
-  out.contacts = (d.contacts || []).map(function (c) {
+  out.contacts = list(d.contacts).map(function (c) {
     var street = c.street || '', city = c.city || '', state = c.state || '', zip = c.zip || '';
     if (!street && !city && !state && !zip && c.address) {
       var m = /^\s*(?:(.*?),\s*)?([^,]+?),\s*([A-Za-z]{2})\.?\s*(\d{5}(?:-\d{4})?)?\s*$/.exec(c.address);
@@ -82,25 +87,25 @@ function normalize(d) {
     return { id: String(c.id || ('c' + n++)), name: String(c.name || 'Untitled'), role: role, phone: c.phone || '', text: c.text || '', email: c.email || '', login: c.login || '', street: street, city: city, state: state, zip: zip, address: joinAddr(street, city, state, zip), web: c.web || '', notes: c.notes || '' };
   });
   var cids = {}; out.contacts.forEach(function (c) { cids[c.id] = 1; });
-  out.items = (Array.isArray(d.items) ? d.items : []).filter(Boolean).map(function (b) {
+  out.items = list(d.items).map(function (b) {
     var f = {}, src = b.fields && typeof b.fields === 'object' ? b.fields : {};
     Object.keys(src).forEach(function (k) { if (src[k] != null && String(src[k]).trim() !== '') f[k] = String(src[k]); });
     return { id: String(b.id || ('b' + n++)), type: ITEM_TYPES[b.type] ? b.type : 'Other', name: String(b.name || b.type || 'Untitled'), fields: f, notes: b.notes || '', contacts: (Array.isArray(b.contacts) ? b.contacts : []).map(String).filter(function (x, i, a) { return cids[x] && a.indexOf(x) === i; }), photos: normPhotos(b.photos) };
   });
   var bids = {}; out.items.forEach(function (b) { bids[b.id] = 1; });
   var oldBills = Array.isArray(d.budget) ? d.budget.filter(Boolean) : [];
-  out.tasks = (d.tasks || []).map(function (t) {
+  out.tasks = list(d.tasks).map(function (t) {
     var hist = Array.isArray(t.history) ? t.history.filter(function (h) { return h && parse(h.date); }).map(function (h) {
-      var e = { date: h.date, by: h.by || '', note: h.note || '' };
+      var e = { date: isoOf(h.date), by: String(h.by || ''), note: String(h.note || '') };
       if (typeof h.at === 'string' && /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(h.at)) e.at = h.at; // exact moment it was ticked off, for "Recently done"
       return e;
     }) : [];
     hist.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     return {
       id: String(t.id || ('t' + n++)), name: String(t.name || 'Untitled'), cat: CATS.indexOf(t.cat) >= 0 ? t.cat : t.cat === 'Finance & Insurance' ? 'Bills & Finance' : 'Misc', who: t.who || '',
-      freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: parse(t.first) ? t.first : null, last: parse(t.last) ? t.last : (hist[0] ? hist[0].date : null),
+      freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: isoOf(t.first), last: isoOf(t.last) || (hist[0] ? hist[0].date : null),
       early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '', how: typeof t.how === 'string' ? t.how.slice(0, 4000) : '', steps: normSteps(t.steps),
-      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: parse(t.snooze) ? t.snooze : null, history: hist, photos: normPhotos(t.photos), owner: typeof t.owner === 'string' ? t.owner.slice(0, 40) : ''
+      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: isoOf(t.snooze), history: hist, photos: normPhotos(t.photos), owner: typeof t.owner === 'string' ? t.owner.slice(0, 40) : ''
     };
   });
   var max = 0;
@@ -109,7 +114,7 @@ function normalize(d) {
   /* bills used to be kept separately; each becomes (or joins) a task in Bills & Finance */
   oldBills.forEach(function (e) {
     var amt = Math.round((parseFloat(e.amount) || 0) * 100) / 100; if (!(amt > 0)) return;
-    var at = (d.tasks || []).findIndex(function (x) { return x && x.budget === e.id; }), t = at >= 0 ? out.tasks[at] : null;
+    var at = list(d.tasks).findIndex(function (x) { return x.budget === e.id; }), t = at >= 0 ? out.tasks[at] : null;
     if (t) { if (!t.amount) t.amount = amt; t.autopay = t.autopay || !!e.autopay; t.cat = 'Bills & Finance'; return; }
     out.tasks.push({ id: 't' + out.nextId++, name: String(e.name || 'Bill'), cat: 'Bills & Finance', who: '', freq: FREQ[e.freq] ? e.freq : 'Monthly', fixed: true, first: parse(e.next) ? e.next : null, last: null,
       early: 5, active: true, notes: e.notes || '', holiday: '', auto: '', contact: e.payee && cids[e.payee] ? e.payee : null, item: e.item && bids[e.item] ? e.item : null, amount: amt, autopay: !!e.autopay, snooze: null, history: [] });
@@ -156,15 +161,17 @@ function nextAnniv(dob, from) {
 function nextDue(t) {
   if (!t.active) return null;
   var first = parse(t.first), last = parse(t.last), f = FREQ[t.freq];
+  if (t.freq === 'One-time' && last) return null; // done once is done, even on a holiday
   if (t.holiday && HOLIDAYS[t.holiday]) return nextHoliday(t.holiday, last ? addDays(last, t.early + 1) : (first || today()));
-  if (t.freq === 'One-time') return last ? null : first;
+  if (t.freq === 'One-time') return first;
   if (t.freq === 'Well-child (by age)') {
     if (!first) return null;
-    if (!last) return addDays(first, 4);
-    var x = (last - first) / 86400000 / 30.4375; x = x + Math.max(0.25, x * 0.05);
-    var idx = -1; for (var i = 0; i < MILESTONES.length; i++) if (MILESTONES[i] <= x) idx = i;
-    var km = MILESTONES[idx + 1]; if (km == null) return null;
-    return km === 0.5 ? addDays(first, 14) : addMonths(first, km);
+    var dates = MILESTONES.map(function (m) { return visitDate(first, m); }), i;
+    // never done: the visit that's due now (or just missed), so an older child doesn't start at the newborn visit
+    if (!last) { var from = addDays(today(), -30); for (i = 0; i < dates.length; i++) if (dates[i] >= from) return dates[i]; return null; }
+    // done: the visit it was closest to counts as done, even if it was early or late, and the next one is due
+    var best = 0; for (i = 1; i < dates.length; i++) if (Math.abs(dates[i] - last) < Math.abs(dates[best] - last)) best = i;
+    return dates[best + 1] || null;
   }
   if (!last) return first;
   if (f.dy) return addDays(last, f.dy);
