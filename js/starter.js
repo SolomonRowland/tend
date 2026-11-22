@@ -213,7 +213,7 @@ function entEditor(kind) {
   list.forEach(function (v, i) {
     var del = list.length > 1 ? '<button type="button" class="entx" data-act="st-del" data-kind="' + kind + '" data-i="' + i + '" aria-label="Remove">' + ic('x', 16) + '</button>' : '';
     if (kind === 'kid' || kind === 'bday') h += '<div class="ent"><input class="input" data-st="' + kind + '" data-i="' + i + '" data-f="n" value="' + esc(v.n) + '" placeholder="' + (kind === 'bday' ? 'e.g. Mom\u2019s birthday' : 'Name') + '"><input class="input" type="date" data-st="' + kind + '" data-i="' + i + '" data-f="b" value="' + esc(v.b) + '" aria-label="Date"' + (kind === 'kid' ? ' max="' + iso(today()) + '"' : '') + '>' + del + '</div>';
-    else h += '<div class="ent"><input class="input" data-st="' + kind + '" data-i="' + i + '" value="' + esc(v) + '" placeholder="' + (kind === 'car' ? 'Year and model, e.g. 2017 Tahoe' : 'Name') + '">' + del + '</div>';
+    else h += '<div class="ent"><input class="input" data-st="' + kind + '" data-i="' + i + '" value="' + esc(v) + '" placeholder="' + (kind === 'car' ? 'Year and model, e.g. 2020 Honda CR-V' : 'Name') + '">' + del + '</div>';
   });
   if (list.length < 8) h += '<button type="button" class="link" style="align-self:flex-start" data-act="st-add" data-kind="' + kind + '">+ Add ' + (kind === 'car' ? 'a Vehicle' : kind === 'pet' ? 'a Pet' : kind === 'bday' ? 'Another' : 'a Child') + '</button>';
   return h + '</div>';

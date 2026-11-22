@@ -28,7 +28,7 @@ async function swipe(p, sel, dx, dy) {
     await ctx.addInitScript(MOCK);
     await ctx.addInitScript(([f, x]) => {
       localStorage.setItem('tend.swipeHint', '1');
-      if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: f, last: 'Rowland', phone: '(630) 555-0100', email: f + '@x.com', dob: '1990-03-14', prefsSet: true }));
+      if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: f, last: 'Lee', phone: '(555) 555-0100', email: f + '@x.com', dob: '1990-03-14', prefsSet: true }));
       if (x && !localStorage.getItem('tend.data.v1')) localStorage.setItem('tend.data.v1', x);
     }, [first, extra || null]);
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(first + ': ' + e.message)); return p;
@@ -178,6 +178,19 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => go('list', { filter: 'all', cat: '', q: '' })); await A.click('[data-act=new-task]'); await A.click('[data-act=save-task]');
   await A.fill('input[name=name]', 'Fixed right away'); await A.click('[data-act=save-task]');
   check('after a "give it a name" message, Save works again right away', await A.evaluate(() => db.tasks.some(t => t.name === 'Fixed right away')));
+  // ---- contacts: person or business ----
+  await A.evaluate(() => { ui.form = null; go('contacts', { cq: '' }); }); await A.click('[data-act=new-contact]');
+  check('a new contact starts as a business with hours', await A.evaluate(() => !!document.querySelector('input[name=hWkO]') && !!document.querySelector('input[name=web]')));
+  await A.click('[data-act=contact-kind][data-k=person]');
+  check('a person has no website, login or hours boxes', await A.evaluate(() => !document.querySelector('input[name=web]') && !document.querySelector('input[name=login]') && !document.querySelector('input[name=hWkO]')));
+  await A.fill('input[name=name]', 'Pat Neighbor'); await A.click('[data-act=contact-kind][data-k=business]');
+  check('switching back keeps what was typed', await A.evaluate(() => document.querySelector('input[name=name]').value === 'Pat Neighbor'));
+  await A.fill('input[name=name]', 'Corner Hardware'); await A.fill('input[name=hWkO]', '00:00'); await A.fill('input[name=hWkC]', '23:59'); await A.fill('input[name=hSaO]', '09:00');
+  await A.click('[data-act=save-contact]');
+  check('half-filled hours ask for the other time', await A.evaluate(() => ui.screen === 'edit-contact' && /Saturday/.test(document.getElementById('toast').innerText)));
+  await A.fill('input[name=hSaC]', '13:00'); await A.fill('input[name=after]', '5555550199'); await A.fill('input[name=askFor]', 'Chris'); await A.click('[data-act=save-contact]');
+  check('a business saves its hours and shows open now', await A.evaluate(() => { const c = db.contacts.find(x => x.name === 'Corner Hardware'); return c && c.kind === 'business' && c.hours.sat === '09:00-13:00' && c.after === '(555) 555-0199' && ui.screen === 'contact' && /Mon–Fri/.test(view.innerText) && !!document.querySelector('a[href^="tel:+15555550199"]') && /Ask For/.test(view.innerText); }));
+  check('Kelly gets the hours too', await waitFor(B, () => { const c = db.contacts.find(x => x.name === 'Corner Hardware'); return c && c.hours.wk === '00:00-23:59' && c.askFor === 'Chris'; }));
   const lt = await A.evaluate(() => db.tasks.find(t => t.history.length && t.freq !== 'One-time').id);
   await A.evaluate(id => { ui.form = null; go('task', { taskId: id }, true); }, lt); await A.click('[data-act=edit-task]');
   await A.fill('input[name=last]', ''); await A.click('[data-act=save-task]');

@@ -10,7 +10,7 @@ const APP = 'http://localhost:8766/';
   for (const w of [320, 390, 430]) {
     const ctx = await b.newContext({ viewport: { width: w, height: 800 }, isMobile: true, hasTouch: true });
     await ctx.addInitScript(MOCK);
-    await ctx.addInitScript(() => { if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: 'Solomon', last: 'Rowland', phone: '(630) 555-0100', email: 'a@b.co', dob: '1990-03-14', prefsSet: true })); });
+    await ctx.addInitScript(() => { if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: 'Solomon', last: 'Lee', phone: '(555) 555-0100', email: 'a@b.co', dob: '1990-03-14', prefsSet: true })); });
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(w + ': ' + e.message));
     p.on('console', m => { if (m.type() === 'error' && !/EventSource|net::ERR/.test(m.text())) errs.push(w + ' console: ' + m.text()); });
     await p.goto(APP); await p.waitForSelector('#authForm');

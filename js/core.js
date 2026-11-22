@@ -83,8 +83,8 @@ function normalize(d) {
       var m = /^\s*(?:(.*?),\s*)?([^,]+?),\s*([A-Za-z]{2})\.?\s*(\d{5}(?:-\d{4})?)?\s*$/.exec(c.address);
       if (m && STATES.indexOf(m[3].toUpperCase()) >= 0) { street = m[1] || ''; city = m[2]; state = m[3].toUpperCase(); zip = m[4] || ''; } else street = c.address;
     }
-    var role = ROLE_FIX[c.role] || c.role || '';
-    return { id: String(c.id || ('c' + n++)), name: String(c.name || 'Untitled'), role: role, phone: c.phone || '', text: c.text || '', email: c.email || '', login: c.login || '', street: street, city: city, state: state, zip: zip, address: joinAddr(street, city, state, zip), web: c.web || '', notes: c.notes || '' };
+    var role = ROLE_FIX[c.role] || c.role || '', hr = c.hours && typeof c.hours === 'object' ? c.hours : {};
+    return { kind: c.kind === 'person' || c.kind === 'business' ? c.kind : guessKind(role), hours: { wk: hoursOf(hr.wk), sat: hoursOf(hr.sat), sun: hoursOf(hr.sun) }, hoursNote: String(c.hoursNote || '').slice(0, 300), askFor: String(c.askFor || '').slice(0, 120), after: String(c.after || ''), id: String(c.id || ('c' + n++)), name: String(c.name || 'Untitled'), role: role, phone: c.phone || '', text: c.text || '', email: c.email || '', login: c.login || '', street: street, city: city, state: state, zip: zip, address: joinAddr(street, city, state, zip), web: c.web || '', notes: c.notes || '' };
   });
   var cids = {}; out.contacts.forEach(function (c) { cids[c.id] = 1; });
   out.items = list(d.items).map(function (b) {
@@ -121,6 +121,12 @@ function normalize(d) {
   });
   return out;
 }
+/* a contact is a person (a friend, the babysitter) or a business (the dentist, the plumber).
+   Contacts saved before this existed are sorted by what they're used for. */
+var PERSON_ROLES = ['Family', 'Friend', 'Neighbor', 'Babysitter'];
+function guessKind(role) { return PERSON_ROLES.indexOf(role) >= 0 ? 'person' : 'business'; }
+/* opening hours for one day as "08:00-17:00", or '' for closed / not set */
+function hoursOf(v) { return typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.test(v) && v.slice(0, 5) !== v.slice(6) ? v : ''; }
 var ROLE_FIX = { "Kids' doctor": 'Pediatrician', 'Plates, stickers and licenses': 'Secretary of State / DMV', 'Furnace and A/C service (example)': 'Heating & cooling (HVAC)', 'Oil changes and tires (example)': 'Auto mechanic' };
 function fmtPhone(p) { var d = String(p || '').replace(/\D/g, ''); if (d.length === 11 && d[0] === '1') d = d.slice(1); return d.length === 10 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : String(p || '').trim(); }
 function joinAddr(street, city, state, zip) {

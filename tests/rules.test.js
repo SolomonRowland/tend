@@ -64,6 +64,29 @@ function check(name, cond, extra) { if (cond) { ok++; console.log('PASS', name);
   check('dates are stored in one standard shape', JSON.stringify(data.hist) === '["2026-01-05"]' && data.first === '2026-02-03' && data.snooze === null, data);
   check('an empty or unreadable file doesn\'t crash', data.nullOk);
 
+  // ---- contacts: person or business, opening hours ----
+  const ct = await p.evaluate(() => {
+    const d = normalize({ contacts: [{ id: 'c1', name: 'Grandma', role: 'Family' }, { id: 'c2', name: 'Dentist', role: 'Dentist', hours: { wk: '08:00-17:00', sat: 'junk', sun: '' } }, { id: 'c3', name: 'Diner', kind: 'business', hours: { wk: '18:00-02:00', sat: '18:00-02:00', sun: '' } }] });
+    const dent = d.contacts[1], diner = d.contacts[2];
+    const at = (y, m, dd, h, mi) => new Date(y, m, dd, h, mi);
+    return {
+      kinds: d.contacts.map(c => c.kind).join(','), sat: dent.hours.sat,
+      tueNoon: openState(dent, at(2026, 10, 24, 12, 0)).text, tueEve: openState(dent, at(2026, 10, 24, 18, 0)).text,
+      friEve: openState(dent, at(2026, 10, 27, 18, 0)).text, sunAm: openState(dent, at(2026, 10, 29, 7, 0)).text,
+      lateNight: openState(diner, at(2026, 10, 25, 1, 30)).text, sunLate: openState(diner, at(2026, 10, 29, 1, 0)).text,
+      none: openState(d.contacts[0]), clock: [clock('00:00'), clock('12:30'), clock('17:05')].join(' ')
+    };
+  });
+  check('old contacts are sorted into person or business by what they\'re for', ct.kinds === 'person,business,business', ct.kinds);
+  check('bad hours are dropped', ct.sat === '', ct.sat);
+  check('open during hours', ct.tueNoon === 'Open now · until 5 PM', ct.tueNoon);
+  check('closed in the evening says when it opens', ct.tueEve === 'Closed · opens 8 AM tomorrow', ct.tueEve);
+  check('Friday evening skips the closed weekend', ct.friEve === 'Closed · opens 8 AM Mon', ct.friEve);
+  check('early Sunday still points to Monday', ct.sunAm === 'Closed · opens 8 AM tomorrow', ct.sunAm);
+  check('open past midnight', ct.lateNight === 'Open now · until 2 AM', ct.lateNight);
+  check('Saturday-night hours carry into early Sunday', ct.sunLate === 'Open now · until 2 AM', ct.sunLate);
+  check('no hours, no open/closed note', ct.none === null);
+  check('times read naturally', ct.clock === '12 AM 12:30 PM 5:05 PM', ct.clock);
   console.log('errors', errs); console.log(ok, 'passed', bad, 'failed');
   await b.close(); process.exit(bad || errs.length ? 1 : 0);
 })();

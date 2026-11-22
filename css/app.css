@@ -353,3 +353,14 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:4p
 input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;appearance:none;display:none}
 .toprow .search,.toprow .selectwrap{flex:1 1 50%}
 .toprow .headselect{padding-left:10px;padding-right:30px;text-overflow:ellipsis}
+
+/* contact hours */
+.hours{display:flex;flex-direction:column;gap:8px}
+.hrow{display:grid;grid-template-columns:76px minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}
+.hrow>span{font-size:14px;font-weight:600}.hrow i{font-style:normal;color:var(--muted);font-size:13px}
+.hrow .input{min-width:0;padding:10px 8px}
+.openpill{background:rgba(255,255,255,.92);color:#7a2a2a}
+.openpill.on{color:#1d5a2a}
+.hrow{grid-template-columns:68px minmax(0,1fr) auto minmax(0,1fr);gap:6px}
+.hrow .input{padding:10px 6px;font-size:15px;text-align:center}
+.hrow .input::-webkit-calendar-picker-indicator{display:none}

@@ -246,13 +246,17 @@ function scrContact() {
   var c = db.contacts.find(function (x) { return x.id === ui.conId; });
   if (!c) { ui.screen = 'contacts'; return scrContacts(); }
   var h = '<header class="head" style="gap:12px">' + '<div class="headrow">' + backBtn() + '<button class="textbtn" data-act="edit-contact">Edit</button></div>' +
-    '<div style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:56px;height:56px;flex-basis:56px;font-size:19px">' + esc(initials(c.name)) + '</span><span class="col"><h1 style="font-size:24px">' + esc(c.name) + '</h1>' + (c.role ? '<span class="sub">' + esc(c.role) + '</span>' : '') + '</span></div></header>';
+    '<div style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:56px;height:56px;flex-basis:56px;font-size:19px">' + esc(initials(c.name)) + '</span><span class="col"><h1 style="font-size:24px">' + esc(c.name) + '</h1>' + (c.role ? '<span class="sub">' + esc(c.role) + '</span>' : '') + '</span></div>' +
+    (function () { var os = c.kind !== 'person' && openState(c); return os ? '<span class="pill openpill' + (os.open ? ' on' : '') + '">' + os.text + '</span>' : ''; })() + '</header>';
     var acts = contactActions(c, false);
   if (acts) h += '<div class="actions">' + acts + '</div>';
   var f = [];
   if (c.phone) f.push(['Call', c.phone]); if (c.text && c.text !== c.phone) f.push(['Text', c.text]); if (c.email) f.push(['Email', c.email]); if (c.address) f.push(['Address', c.address]);
+  if (c.askFor) f.unshift(['Ask For', c.askFor]);
+  if (c.kind !== 'person' && hasHours(c)) f.push(['Hours', hoursLines(c)]); else if (c.hoursNote) f.push(['Hours', c.hoursNote]);
+  if (c.after) f.push(['After Hours', c.after, 'tel']);
   if (c.web) f.push(['Website', c.web.replace(/^https?:\/\//, '')]); if (c.login) f.push(['Login', c.login]); if (c.notes) f.push(['Notes', c.notes]);
-  if (f.length) h += '<div class="listcard"' + (acts ? '' : ' style="margin-top:16px"') + '>' + f.map(function (x) { return '<div class="lrow" style="flex-direction:column;align-items:flex-start;gap:3px"><span class="s">' + x[0] + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(x[1]) + '</span></div>'; }).join('') + '</div>';
+  if (f.length) h += '<div class="listcard"' + (acts ? '' : ' style="margin-top:16px"') + '>' + f.map(function (x) { return '<div class="lrow" style="flex-direction:column;align-items:flex-start;gap:3px"><span class="s">' + x[0] + '</span>' + (x[2] === 'tel' ? '<a class="t" style="color:var(--rose)" href="tel:' + esc(telHref(x[1])) + '">' + esc(x[1]) + '</a>' : '<span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(x[1]) + '</span>') + '</div>'; }).join('') + '</div>';
   var rb = db.items.filter(function (b) { return b.contacts.indexOf(c.id) >= 0; });
   if (rb.length || db.items.length) h += '<div class="section"><h2 style="font-size:19px">Related Belongings</h2><button class="link" data-act="edit-contact">' + (rb.length ? 'Edit' : '+ Add') + '</button></div><div class="stack">' +
     (rb.length ? rb.map(function (b, i) { return itemRow(b, i % 2 === 1); }).join('') : '<p class="note" style="text-align:left;padding:4px">No related belongings yet.</p>') + '</div>';
@@ -398,14 +402,46 @@ function earlyOptions(cur) {
     return '<option value="' + d + '"' + (d === c ? ' selected' : '') + '>' + l + '</option>';
   }).join('');
 }
+/* the edit form keeps opening hours as six time boxes */
+function contactForm(c, items) {
+  var f = Object.assign({}, c, { items: items || [] }), h = c.hours || {};
+  [['wk', 'hWk'], ['sat', 'hSa'], ['sun', 'hSu']].forEach(function (d) { var v = h[d[0]] || ''; f[d[1] + 'O'] = v.slice(0, 5); f[d[1] + 'C'] = v.slice(6); });
+  return f;
+}
+/* "17:30" -> "5:30 PM" */
+function clock(t) { var hh = +t.slice(0, 2), mm = t.slice(3, 5); return ((hh + 11) % 12 + 1) + (mm === '00' ? '' : ':' + mm) + ' ' + (hh < 12 ? 'AM' : 'PM'); }
+function hoursFor(c, dow) { var h = c.hours || {}; return (dow === 0 ? h.sun : dow === 6 ? h.sat : h.wk) || ''; }
+function hasHours(c) { var h = c.hours || {}; return !!(h.wk || h.sat || h.sun); }
+/* Open now? Handles places that close after midnight. Returns null when no hours are saved. */
+function openState(c, now) {
+  if (!hasHours(c)) return null;
+  now = now || new Date();
+  var m = now.getHours() * 60 + now.getMinutes(), dow = now.getDay();
+  var mins = function (t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); };
+  var cur = hoursFor(c, dow), prev = hoursFor(c, (dow + 6) % 7);
+  if (cur) { var o = mins(cur), cl = mins(cur.slice(6)); if (cl > o ? m >= o && m < cl : m >= o) return { open: true, text: 'Open now \u00b7 until ' + clock(cur.slice(6)) }; }
+  if (prev) { var po = mins(prev), pc = mins(prev.slice(6)); if (pc < po && m < pc) return { open: true, text: 'Open now \u00b7 until ' + clock(prev.slice(6)) }; }
+  for (var k = 0; k < 8; k++) {
+    var d = (dow + k) % 7, hrs = hoursFor(c, d); if (!hrs) continue;
+    if (k === 0 && m >= mins(hrs)) continue;
+    return { open: false, text: 'Closed \u00b7 opens ' + clock(hrs.slice(0, 5)) + (k === 0 ? '' : k === 1 ? ' tomorrow' : ' ' + DAYS[d].slice(0, 3)) };
+  }
+  return { open: false, text: 'Closed' };
+}
+function hoursLines(c) {
+  var h = c.hours || {}, fmtH = function (v) { return v ? clock(v.slice(0, 5)) + ' \u2013 ' + clock(v.slice(6)) : 'Closed'; };
+  return ['Mon\u2013Fri  ' + fmtH(h.wk), 'Sat  ' + fmtH(h.sat), 'Sun  ' + fmtH(h.sun)].join('\n') + (c.hoursNote ? '\n' + c.hoursNote : '');
+}
 function scrEditContact() {
-  var f = ui.form, isNew = !f.id;
+  var f = ui.form, isNew = !f.id, biz = f.kind !== 'person';
   var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New Contact' : 'Edit Contact') + '</span><button class="textbtn" data-act="save-contact">Save</button></div></header>';
     h += '<form class="form" id="contactForm" autocomplete="off" novalidate>' +
-    '<label class="field"><span>Name</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="Person or business" required></label>' +
+    '<div class="seg" role="group" aria-label="Person or business">' + [['person', 'Person'], ['business', 'Business']].map(function (k) { return '<button type="button" data-act="contact-kind" data-k="' + k[0] + '" aria-pressed="' + (biz === (k[0] === 'business')) + '">' + k[1] + '</button>'; }).join('') + '</div>' +
+    '<label class="field"><span>' + (biz ? 'Business Name' : 'Name') + '</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="' + (biz ? 'e.g. Main Street Dental' : 'e.g. Jordan Smith') + '" required></label>' +
     '<label class="field"><span>Used For</span>' + groupedSelect('role', USE_GROUPS, f.role, 'Choose what they help with\u2026') + '<small>This shows under their name in your contacts.</small></label>' +
     (f.role === '__other' ? '<label class="field"><span>Type What They Help With</span><input class="input" name="roleOther" value="' + esc(f.roleOther || '') + '" placeholder="e.g. Piano teacher"></label>' : '') +
-    '<div class="two"><label class="field"><span>Call Phone</span><input class="input" type="tel" inputmode="tel" name="phone" value="' + esc(f.phone) + '" placeholder="(630) 555-0100"></label>' +
+    (biz ? '<label class="field"><span>Ask For</span><input class="input" name="askFor" value="' + esc(f.askFor || '') + '" placeholder="e.g. Dr. Patel, or your agent\u2019s name"><small>The person you usually deal with there.</small></label>' : '') +
+    '<div class="two"><label class="field"><span>Call Phone</span><input class="input" type="tel" inputmode="tel" name="phone" value="' + esc(f.phone) + '" placeholder="(555) 555-0100"></label>' +
     '<label class="field"><span>Text Phone</span><input class="input" type="tel" inputmode="tel" name="text" value="' + esc(f.text) + '" placeholder="Same as call"></label></div>' +
     '<small style="margin-top:-8px;font-size:12px;color:var(--muted)">Leave Text phone blank to text the call number.</small>' +
     '<label class="field"><span>Email</span><input class="input" type="email" inputmode="email" autocapitalize="off" name="email" value="' + esc(f.email) + '" placeholder="name@example.com"></label>' +
@@ -413,8 +449,13 @@ function scrEditContact() {
     '<label class="field"><span>City</span><input class="input" name="city" value="' + esc(f.city) + '" placeholder="City"></label>' +
     '<div class="two"><label class="field"><span>State</span><select class="input" name="state"><option value="">\u2014</option>' + STATES.map(function (s) { return opt(s, f.state); }).join('') + '</select></label>' +
     '<label class="field"><span>ZIP</span><input class="input" inputmode="numeric" name="zip" maxlength="10" value="' + esc(f.zip) + '" placeholder="ZIP"></label></div>' +
-    '<label class="field"><span>Website</span><input class="input" type="url" inputmode="url" autocapitalize="off" name="web" value="' + esc(f.web) + '" placeholder="www.example.com"></label>' +
-    '<label class="field"><span>Login (Username or Account #)</span><input class="input" autocapitalize="off" autocorrect="off" spellcheck="false" name="login" value="' + esc(f.login) + '" placeholder="e.g. rowland.family"><small>For patient portals and online accounts. Keep passwords in your iPhone\u2019s Passwords app, not here.</small></label>' +
+    (biz || f.web ? '<label class="field"><span>Website</span><input class="input" type="url" inputmode="url" autocapitalize="off" name="web" value="' + esc(f.web) + '" placeholder="www.example.com"></label>' : '') +
+    (biz || f.login ? '<label class="field"><span>Login (Username or Account #)</span><input class="input" autocapitalize="off" autocorrect="off" spellcheck="false" name="login" value="' + esc(f.login) + '" placeholder="e.g. jsmith or account 0012345"><small>For patient portals and online accounts. Keep passwords in your phone\u2019s password manager, not here.</small></label>' : '') +
+    (biz ? '<div class="field"><span>Hours</span><div class="hours">' + [['hWk', 'Mon\u2013Fri'], ['hSa', 'Saturday'], ['hSu', 'Sunday']].map(function (d) {
+      return '<div class="hrow"><span>' + d[1] + '</span><input class="input" type="time" name="' + d[0] + 'O" value="' + esc(f[d[0] + 'O'] || '') + '" aria-label="' + d[1] + ' opens"><i>to</i><input class="input" type="time" name="' + d[0] + 'C" value="' + esc(f[d[0] + 'C'] || '') + '" aria-label="' + d[1] + ' closes"></div>';
+    }).join('') + '</div><small>Leave a day blank if they\u2019re closed. Tend then shows whether they\u2019re open right now.</small></div>' +
+      '<label class="field"><span>Hours Note</span><input class="input" name="hoursNote" value="' + esc(f.hoursNote || '') + '" placeholder="e.g. Closed for lunch 12\u20131, Fridays until 3"></label>' +
+      '<label class="field"><span>After-Hours or Emergency Phone</span><input class="input" type="tel" inputmode="tel" name="after" value="' + esc(f.after || '') + '" placeholder="(555) 555-0199"></label>' : '') +
     relItemsField(f) +
     '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea></label>' +
     '<button type="submit" class="btn primary">Save</button>' +
@@ -511,7 +552,7 @@ function scrProfile(setup) {
     h += '<form class="form" id="profileForm" autocomplete="on" novalidate>' +
     '<div class="two"><label class="field"><span>First Name</span><input class="input" name="first" autocomplete="given-name" value="' + esc(f.first || '') + '" required></label>' +
     '<label class="field"><span>Last Name</span><input class="input" name="last" autocomplete="family-name" value="' + esc(f.last || '') + '" required></label></div>' +
-    '<label class="field"><span>Phone</span><input class="input" type="tel" inputmode="tel" autocomplete="tel" name="phone" value="' + esc(f.phone || '') + '" placeholder="(630) 555-0100" required></label>' +
+    '<label class="field"><span>Phone</span><input class="input" type="tel" inputmode="tel" autocomplete="tel" name="phone" value="' + esc(f.phone || '') + '" placeholder="(555) 555-0100" required></label>' +
     '<label class="field"><span>Email</span><input class="input" type="email" inputmode="email" autocapitalize="off" autocomplete="email" name="email" value="' + esc(f.email || '') + '" placeholder="name@example.com" required></label>' +
     '<label class="field"><span>Date of Birth</span><input class="input" type="date" name="dob" autocomplete="bday" max="' + iso(today()) + '" value="' + esc(f.dob || '') + '" required><small>Tend adds a yearly reminder to celebrate your birthday.</small></label>' +
     '<p class="note" style="text-align:left;padding:0 2px">All fields are required.</p>' +
@@ -570,7 +611,6 @@ function scrSettings() {
     '<button class="btn danger' + (ui.armed === 'wipe' ? ' armed' : '') + '" data-act="wipe">' + (ui.armed === 'wipe' ? 'Tap Again to Erase Everything' : 'Erase All Data and Start Over') + '</button></div>';
   h += '<div class="section"><h2 style="font-size:19px">About</h2></div><div class="listcard"><div class="lrow"><span class="s">Tasks</span><span class="t">' + db.tasks.length + '</span></div><div class="lrow"><span class="s">Contacts</span><span class="t">' + db.contacts.length + '</span></div><div class="lrow"><span class="s">Belongings</span><span class="t">' + db.items.length + '</span></div><div class="lrow"><span class="s">Saved on Phone</span><span class="t" style="color:' + (storageOk ? 'var(--green)' : 'var(--red)') + '">' + (storageOk ? 'Yes' : 'Problem: back up now') + '</span></div></div>';
   if (!C.on) h += '<div class="section"><h2 style="font-size:19px">Testing</h2></div><p class="note" style="text-align:left;padding:0 20px 8px">For trying Tend out. Each of these replaces your whole list.</p><div class="stack">' +
-    '<button class="btn secondary" data-act="mylist"' + (ui.armed === 'mylist' ? ' style="background:var(--fill);color:#fff"' : '') + '>' + (ui.armed === 'mylist' ? 'Tap Again: Replaces Your Current List' : 'Load Our Household List') + '</button>' +
     '<button class="btn secondary" data-act="example"' + (ui.armed === 'example' ? ' style="background:var(--fill);color:#fff"' : '') + '>' + (ui.armed === 'example' ? 'Tap Again: Replaces Your Current List' : 'Load Example Data') + '</button>' +
     '</div>';
   return h + '<div class="pad-b"></div>';
@@ -583,10 +623,10 @@ function scrWelcome() {
   if (C.on) return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Fill Your Household List</h1><p>Whatever you add here is shared with everyone in ' + esc(C.house || 'your household') + '.</p>' +
     (oldTendCount() ? '<p class="cnote"><strong>Your list from the original Tend is on this phone</strong> (' + oldTendCount() + ' tasks). Bring it over to share it with your household.</p><button class="btn primary" data-act="bring-old">' + ic('upload', 18) + 'Bring Over My Tend List</button>'
       : '<p class="cnote"><strong>Moving from another phone?</strong> In Tend on that phone, open Settings and tap Save a Backup File. Then load that file here.</p>') +
-    '<button class="btn ' + (oldTendCount() ? 'secondary' : 'primary') + '" data-act="start-starter">' + ic('plus', 18) + 'Pick from Suggested Tasks</button><button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Load a Tend Backup File</button><button class="btn secondary" data-act="mylist">Load Our Household List</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button><button class="btn secondary" data-act="example">Try It with Example Data</button></div>';
+    '<button class="btn ' + (oldTendCount() ? 'secondary' : 'primary') + '" data-act="start-starter">' + ic('plus', 18) + 'Pick from Suggested Tasks</button><button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Load a Tend Backup File</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button><button class="btn secondary" data-act="example">Try It with Example Data</button></div>';
   return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Welcome to Tend</h1><p>Your household\u2019s recurring tasks, kids\u2019 visits and the people you call for them, all in one place on this phone.</p>' +
-    '<p>New here? Tell Tend what you tend to and pick from tasks people often forget. Or load your household list. You can change it any time in Settings.</p>' +
-    '<button class="btn primary" data-act="start-starter">What Do You Tend To?</button><button class="btn secondary" data-act="mylist">Load Our Household List</button><button class="btn secondary" data-act="example">Try It with Example Data</button><button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Load My Tend File</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button>' +
+    '<p>New here? Tell Tend what you tend to and pick from tasks people often forget. Or load a backup file. You can change it any time in Settings.</p>' +
+    '<button class="btn primary" data-act="start-starter">What Do You Tend To?</button><button class="btn secondary" data-act="example">Try It with Example Data</button><button class="btn secondary" data-act="restore">' + ic('upload', 18) + 'Load My Tend File</button><button class="btn secondary" data-act="start-empty">Start with an Empty List</button>' +
     (storageOk ? '' : '<p style="color:var(--red)">This browser is blocking storage, so nothing will be saved. Add Tend to your Home Screen and open it from there.</p>') + '</div>';
 }
 
@@ -616,7 +656,7 @@ if (window.matchMedia) { var mq = window.matchMedia('(prefers-color-scheme: dark
 
 /* ---------- belongings ---------- */
 var ITEM_TYPES = {
-  Vehicle: { icon: 'car', ph: 'e.g. 2017 Tahoe', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [['year', 'Year', 'num'], ['make', 'Make'], ['model', 'Model'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate Number', 'code'], ['plateExp', 'Plates Expire', 'date'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['tires', 'Tire Size', 'code'], ['oil', 'Oil Type', 'code'], ['bought', 'Purchased', 'date']] },
+  Vehicle: { icon: 'car', ph: 'e.g. 2020 Honda CR-V', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [['year', 'Year', 'num'], ['make', 'Make'], ['model', 'Model'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate Number', 'code'], ['plateExp', 'Plates Expire', 'date'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['tires', 'Tire Size', 'code'], ['oil', 'Oil Type', 'code'], ['bought', 'Purchased', 'date']] },
   Home: { icon: 'home', ph: 'e.g. Home', key: ['furnaceFilter', 'fridgeFilter', 'shutoff', 'policy'], fields: [['address', 'Address'], ['built', 'Year Built', 'num'], ['furnaceFilter', 'Furnace Filter Size', 'code'], ['fridgeFilter', 'Fridge Water Filter #', 'code'], ['waterHeater', 'Water Heater Installed (Year)', 'num'], ['roof', 'Roof Replaced (Year)', 'num'], ['shutoff', 'Main Water Shutoff Location'], ['paint', 'Paint Colors', 'long'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code']] },
   Appliance: { icon: 'plug', ph: 'e.g. Dishwasher', key: ['model', 'serial', 'part', 'warranty'], fields: [['kind', 'Appliance', 'sel', ['Dishwasher', 'Refrigerator', 'Freezer', 'Range / oven', 'Cooktop', 'Microwave', 'Range hood', 'Garbage disposal', 'Washer', 'Dryer', 'Water heater', 'Furnace', 'Air conditioner', 'Heat pump', 'Water softener', 'Sump pump', 'Dehumidifier', 'Humidifier', 'Garage door opener', 'Generator', 'Grill', 'Lawn mower', 'Snow blower', 'Other']], ['brand', 'Brand'], ['model', 'Model Number', 'code'], ['serial', 'Serial Number', 'code'], ['where', 'Where It Is'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date'], ['part', 'Filter / Part Number', 'code'], ['store', 'Bought From']] },
   Pet: { icon: 'paw', ph: 'e.g. Max', key: ['chip', 'tag', 'tagExp'], fields: [['species', 'Animal', 'sel', ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Guinea pig / hamster', 'Reptile', 'Horse', 'Other']], ['breed', 'Breed'], ['born', 'Birthday', 'date'], ['chip', 'Microchip Number', 'code'], ['tag', 'License / Rabies Tag #', 'code'], ['tagExp', 'Tag Expires', 'date'], ['food', 'Food & Amount'], ['meds', 'Medicines']] },

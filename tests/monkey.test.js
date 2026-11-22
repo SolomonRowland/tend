@@ -17,7 +17,7 @@ function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 10139
     const R = rng(seed), pick = a => a[Math.floor(R() * a.length)];
     const ctx = await b.newContext({ viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true });
     await ctx.addInitScript(MOCK);
-    await ctx.addInitScript(() => { localStorage.setItem('tend.swipeHint', '1'); if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: 'Sam', last: 'Lee', phone: '(630) 555-0100', email: 'a@b.co', dob: '1990-03-14', prefsSet: true })); });
+    await ctx.addInitScript(() => { localStorage.setItem('tend.swipeHint', '1'); if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', JSON.stringify({ first: 'Sam', last: 'Lee', phone: '(555) 555-0100', email: 'a@b.co', dob: '1990-03-14', prefsSet: true })); });
     const p = await ctx.newPage(); let last = '';
     p.on('pageerror', e => errs.push('seed ' + seed + ' after ' + last + ': ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 4).join('\n')));
     p.on('console', m => { if (m.type() === 'error' && !/EventSource|net::ERR|Failed to load resource/.test(m.text())) errs.push('seed ' + seed + ' console after ' + last + ': ' + m.text()); });

@@ -143,7 +143,6 @@ var CONFIRM = {
   'del-item': ['Delete This Belonging?', 'Its saved details are removed. Related tasks stay.', 'Delete'],
   'del-hist': ['Remove This Completion?', 'Tend will recalculate the next due date.', 'Remove'],
   wipe: ['Erase All Data?', 'Every task, contact and belonging on this phone will be erased. Save a backup first if you might want it back.', 'Erase Everything'],
-  mylist: ['Load Your Household List?', 'This replaces everything currently on this phone with your household list.', 'Replace'],
   example: ['Load Example Data?', 'This replaces everything currently on this phone with example data.', 'Replace'],
   restore: ['Restore from a Backup?', 'The backup file replaces the list for everyone in your household.', 'Choose File', 1],
   'sign-out': ['Sign Out?', 'Your household\u2019s list stays safe online. Sign back in any time.', 'Sign Out', 1],
@@ -155,7 +154,7 @@ var ARMED_AS = { 'sign-out': 'signout', 'house-leave': 'leave' };
 function armKey(a, c) { return a === 'del-hist' ? 'hist' + c.idx : a === 'member-rm' ? 'rm-' + c.uid : ARMED_AS[a] || a; }
 function needsConfirm(a) {
   if (!CONFIRM[a]) return false;
-  if (a === 'example' || a === 'mylist') return !!(db && db.tasks.length);
+  if (a === 'example') return !!(db && db.tasks.length);
   if (a === 'restore') return !!(C.on && db && db.tasks.length);
   if (a === 'sign-out') return C.on && ui.screen === 'settings' && !!db;
   if (a === 'house-leave' || a === 'member-rm') return C.on;
@@ -213,7 +212,7 @@ document.addEventListener('click', function (e) {
   if (C.on && cloudAct(a, el)) return;
   if (photoAct(a, el)) return;
   if (C.on && notifyAct(a, el)) return;
-  if (['del-hist', 'del-task', 'del-contact', 'del-item', 'example', 'wipe', 'mylist'].indexOf(a) < 0 && ui.armed) { ui.armed = null; }
+  if (['del-hist', 'del-task', 'del-contact', 'del-item', 'example', 'wipe'].indexOf(a) < 0 && ui.armed) { ui.armed = null; }
   switch (a) {
     case 'tab-home': go('home'); break;
     case 'tab-tasks': go('list', { filter: 'all', cat: '', q: '' }); break;
@@ -316,8 +315,9 @@ document.addEventListener('click', function (e) {
       var dt = db.tasks.find(function (x) { return x.id === ui.form.id; }); if (dt && dt.auto === 'birthday') db.noBday = true; if (dt) deletePhotos(dt.photos);
       db.tasks = db.tasks.filter(function (x) { return x.id !== ui.form.id; }); save(); ui.form = null; go('list', { filter: 'all', cat: '', q: '' }); toast('Task deleted.'); break;
     case 'edit-contact':
-      var ec = db.contacts.find(function (x) { return x.id === ui.conId; }); go('edit-contact', { form: Object.assign({}, ec, { items: db.items.filter(function (b) { return b.contacts.indexOf(ec.id) >= 0; }).map(function (b) { return b.id; }) }) }, true); break;
-    case 'new-contact': go('edit-contact', { form: { id: null, name: '', role: '', phone: '', text: '', email: '', street: '', city: '', state: usualState(), zip: '', web: '', login: '', notes: '', items: [] } }, true); break;
+      var ec = db.contacts.find(function (x) { return x.id === ui.conId; }); go('edit-contact', { form: contactForm(ec, db.items.filter(function (b) { return b.contacts.indexOf(ec.id) >= 0; }).map(function (b) { return b.id; })) }, true); break;
+    case 'new-contact': go('edit-contact', { form: contactForm({ kind: 'business', name: '', role: '', phone: '', text: '', email: '', street: '', city: '', state: usualState(), zip: '', web: '', login: '', notes: '', hours: {}, hoursNote: '', askFor: '', after: '' }, []) }, true); break;
+    case 'contact-kind': readForm('contactForm'); ui.form.kind = el.getAttribute('data-k'); keepRender(); break;
     case 'save-contact': saveContact(); break;
     case 'del-contact':
       if (ui.armed !== 'del-contact') { readForm('contactForm'); ui.armed = 'del-contact'; render(); break; }
@@ -337,9 +337,6 @@ document.addEventListener('click', function (e) {
     case 'example':
       if (db && db.tasks.length && ui.armed !== 'example') { ui.armed = 'example'; render(); break; }
       ui.armed = null; loadExample(); break;
-    case 'mylist':
-      if (db && db.tasks.length && ui.armed !== 'mylist') { ui.armed = 'mylist'; render(); break; }
-      ui.armed = null; loadMyList(); break;
     case 'wipe':
       if (ui.armed !== 'wipe') { ui.armed = 'wipe'; render(); break; }
       if (C.on && C.hid) { db = blank(); syncUser(); save(); ui.armed = null; ui.stack = []; go('home'); toast('Household list erased for everyone.'); break; }
@@ -422,10 +419,18 @@ function saveContact() {
   if (!f.name) { warn('Give the contact a name.'); return; }
   if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { warn('That email doesn\u2019t look right.'); return; }
   if (f.role === '__other') f.role = (f.roleOther || '').trim();
+  var hours = {}, half = '';
+  [['wk', 'hWk'], ['sat', 'hSa'], ['sun', 'hSu']].forEach(function (d) {
+    var o = f[d[1] + 'O'] || '', cl = f[d[1] + 'C'] || '';
+    if ((o && !cl) || (cl && !o)) half = d[0];
+    hours[d[0]] = o && cl ? hoursOf(o + '-' + cl) : '';
+  });
+  if (f.kind === 'business' && half) { warn('Add both the opening and closing time for ' + { wk: 'Mon\u2013Fri', sat: 'Saturday', sun: 'Sunday' }[half] + ', or leave both blank.'); return; }
   var c;
   if (f.id) c = db.contacts.find(function (x) { return x.id === f.id; });
   if (!c) { c = { id: newId('c') }; db.contacts.push(c); f.id = c.id; }
-  ['name', 'role', 'phone', 'text', 'email', 'street', 'city', 'state', 'zip', 'web', 'login', 'notes'].forEach(function (k) { c[k] = (f[k] || '').trim(); });
+  ['name', 'role', 'phone', 'text', 'email', 'street', 'city', 'state', 'zip', 'web', 'login', 'notes', 'hoursNote', 'askFor', 'after'].forEach(function (k) { c[k] = String(f[k] || '').trim(); });
+  c.kind = f.kind === 'person' ? 'person' : 'business'; c.hours = hours; c.after = fmtPhone(c.after);
   c.address = joinAddr(c.street, c.city, c.state, c.zip);
   c.phone = fmtPhone(c.phone); c.text = fmtPhone(c.text); if (c.text === c.phone) c.text = '';
   if (c.web && !/^https?:\/\//i.test(c.web)) c.web = 'https://' + c.web;
