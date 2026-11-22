@@ -122,12 +122,15 @@ function loadMembers() {
   return C.sb.from('members').select('user_id, email, name, role, joined_at').eq('household_id', hid).order('joined_at').then(function (r) {
     if (r.error) throw r.error; if (hid !== C.hid) return;
     C.members = r.data || [];
-    var me = C.members.find(function (x) { return x.user_id === C.user.id; }), pf = getProfile().first;
-    if (me && pf && me.name !== pf) { me.name = pf; C.sb.from('members').update({ name: pf }).eq('household_id', hid).eq('user_id', C.user.id).then(function () {}); }
-    // The shared list of names (for "Whose job" and birthdays) follows who is actually in the household,
+    // each person is listed under their first and last name, kept in step with their profile
+    var me = C.members.find(function (x) { return x.user_id === C.user.id; }), pn = fullName(getProfile());
+    if (me && pn && me.name !== pn) { me.name = pn; C.sb.from('members').update({ name: pn }).eq('household_id', hid).eq('user_id', C.user.id).then(function () {}); }
+    cset('people.' + hid, JSON.stringify(C.members.map(function (x) { return { id: x.user_id, name: x.name || '' }; })));
+    // The shared list of first names (for "who" and birthdays) follows who is actually in the household,
     // so people who left drop off. Every phone reads the same table, so they all agree.
-    var names = []; C.members.forEach(function (x) { if (x.name && names.indexOf(x.name) < 0) names.push(x.name); });
+    var names = []; C.members.forEach(function (x) { var fn = firstWord(x.name); if (fn && names.indexOf(fn) < 0) names.push(fn); });
     if (db && names.length && stable(names) !== stable(db.members)) { db.members = names; save(); }
+    if (db && adoptOwners()) save();
     if (C.role !== 'owner') return;
     return C.sb.from('invites').select('code, expires_at').eq('household_id', hid).order('created_at').then(function (q) {
       if (q.error) return; C.invites = q.data || [];
@@ -153,7 +156,7 @@ function scheduleSnapshot(d) {
   d.tasks.forEach(function (t) {
     if (!t.active) return;
     var due = nextDue(t); if (!due) return;
-    out.push([t.id, t.name, iso(due), iso(addDays(due, -t.early)), t.snooze || null, t.owner || '']);
+    out.push([t.id, t.name, iso(due), iso(addDays(due, -t.early)), t.snooze || null, t.owner && (personById(t.owner) || !isAccountId(t.owner)) ? ownerName(t) : '']); // the digest matches this against members.name; a person who left: everyone hears it
   });
   out.sort(function (a, b) { return a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : a[0] < b[0] ? -1 : 1; });
   return { tasks: out };
@@ -279,6 +282,8 @@ function applyRows(rows) {
   saveLocal(); saveSync();
   if (pendingCount()) schedulePush();
   refreshView();
+  // someone joined, left or renamed: fetch the household's people again (for "Whose job")
+  if (changed['meta:settings'] && C.user) loadMembers().then(function () { refreshView(); }, function () {});
 }
 function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
 function subscribe() {

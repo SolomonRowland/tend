@@ -393,7 +393,8 @@ function saveTask() {
   if (hol) { f.freq = 'Yearly'; f.fixed = true; if (!f.first) f.first = iso(today()); }
   var rec = { name: f.name, cat: f.cat, who: (f.who || '').trim(), freq: f.freq, fixed: !!f.fixed, holiday: hol, first: f.first || null, early: early, notes: (f.notes || '').trim(), contact: f.contact || null, item: itemById(f.item) ? f.item : null, active: !!f.active };
   var amt = parseFloat(String(f.amount == null ? '' : f.amount).replace(/[^\d.]/g, ''));
-  rec.owner = f.owner && people().indexOf(f.owner) >= 0 ? f.owner : '';
+  var was0 = f.id && db.tasks.find(function (x) { return x.id === f.id; });
+  rec.owner = f.owner && (personById(f.owner) || (was0 && was0.owner === f.owner)) ? f.owner : '';
   rec.how = String(f.how || '').trim().slice(0, 4000);
   var oldSteps = {}; ((f.id && (db.tasks.find(function (x) { return x.id === f.id; }) || {}).steps) || []).forEach(function (s) { oldSteps[s.t] = s.d; });
   rec.steps = normSteps(String(f.stepsText || '').split('\n').map(function (line) { var tx = line.replace(/^\s*([-*•]|\d+[.)])\s*/, '').trim(); return { t: tx, d: !!oldSteps[tx] }; }));

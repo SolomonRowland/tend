@@ -20,6 +20,10 @@ const shared = { tasks: [['a', 'Clean gutters', '2026-11-01', '2026-10-25', null
 eq('Kelly hears her jobs plus shared ones', buildDigest(shared, T, 'Kelly'), { title: '1 thing is overdue', body: 'Overdue: Clean gutters. Due today: Pay electric.', count: 2 });
 eq('Solomon does not hear Kelly\'s jobs', buildDigest(shared, T, 'Solomon'), { title: '1 thing due today', body: 'Due today: Pay electric. Coming up: Rotate tires.', count: 2 });
 eq('older schedules without owners still work', buildDigest({ tasks: [['b', 'Pay electric', T, '2026-11-12', null]] }, T, 'Kelly').count, 1);
+const full = { tasks: [['a', 'Clean gutters', '2026-11-01', '2026-10-25', null, 'Sam Park'], ['b', 'Pay electric', T, '2026-11-12', null, ''], ['c', 'Rotate tires', '2026-11-24', '2026-11-17', null, 'Sam Lee']] };
+eq('two people named Sam each hear only their own jobs', [buildDigest(full, T, 'Sam Lee').body, buildDigest(full, T, 'Sam Park').body], ['Due today: Pay electric. Coming up: Rotate tires.', 'Overdue: Clean gutters. Due today: Pay electric.']);
+eq('older first-name rows still reach the right person', buildDigest(shared, T, 'Kelly Lee').count, 2);
+eq('rows can name an account id too', buildDigest({ tasks: [['a', 'Clean gutters', '2026-11-01', '2026-10-25', null, 'uid-1']] }, T, 'Kelly Lee', 'uid-1').count, 1);
 eq('local time in Chicago', localToday('America/Chicago', new Date('2026-11-19T14:05:00Z')), { date: '2026-11-19', hour: 8 });
 eq('local date rolls at midnight', localToday('America/Chicago', new Date('2026-11-20T05:30:00Z')), { date: '2026-11-19', hour: 23 });
 console.log(ok, 'passed', bad, 'failed'); process.exit(bad ? 1 : 0);

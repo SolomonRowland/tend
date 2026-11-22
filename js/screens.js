@@ -22,10 +22,34 @@ function hideToast() {
   if (!el.innerHTML) return; el.className = 'out'; setTimeout(function () { if (el.className === 'out') { el.innerHTML = ''; el.className = ''; } }, 260);
 }
 /* "Whose job is it?": a task can belong to one person in the household, or to anyone ('') */
-function people() { return C.on ? db.members.slice() : []; }
+/* A task's owner is the person's account id, so a name change or two people sharing a first name can't mix them up.
+   Tasks assigned before this kept a first name; adoptOwners() moves them over once the household's people are known. */
+function fullName(p) { return [String(p.first || '').trim(), String(p.last || '').trim()].filter(Boolean).join(' '); }
+function firstWord(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
+function people() {
+  if (!C.on || !C.hid) return [];
+  var list = C.members && C.members.length ? C.members.map(function (x) { return { id: x.user_id, name: x.name || '' }; }) : null;
+  if (!list) { try { list = JSON.parse(cget('people.' + C.hid) || '[]'); } catch (e) { list = []; } }
+  return Array.isArray(list) ? list.filter(function (x) { return x && x.id; }) : [];
+}
+function personById(id) { return people().find(function (x) { return x.id === id; }) || null; }
+function myId() { return C.user ? C.user.id : ''; }
 function assignable() { return people().length > 1; }
-function isMine(t) { return !t.owner || t.owner === db.user; }
-function ownerTag(t) { return t.owner && assignable() ? (t.owner === db.user ? 'You' : t.owner) : ''; }
+function isMine(t) { return !t.owner || t.owner === myId() || t.owner === db.user; }
+function isAccountId(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '')); }
+/* someone who has left the household shows as that; an old first-name assignment shows the name */
+function ownerName(t) { var p = personById(t.owner); return p ? (p.name || 'Someone') : isAccountId(t.owner) ? 'Former member' : t.owner; }
+function ownerTag(t) { return t.owner && assignable() ? (isMine(t) ? 'You' : ownerName(t)) : ''; }
+function adoptOwners() {
+  var ps = people(), changed = false; if (ps.length < 1) return false;
+  db.tasks.forEach(function (t) {
+    if (!t.owner || ps.some(function (p) { return p.id === t.owner; })) return;
+    var m = ps.filter(function (p) { return p.name === t.owner; });
+    if (!m.length) m = ps.filter(function (p) { return firstWord(p.name) === t.owner; });
+    if (m.length === 1) { t.owner = m[0].id; changed = true; }
+  });
+  return changed;
+}
 function canTick(r) { return r.t.active && r.i.status !== 'done'; }
 function tick(r) { return '<button class="tick" data-act="quick-done" data-id="' + esc(r.t.id) + '" aria-label="Mark ' + esc(r.t.name) + ' done today"><i>' + ic('check', 14, 3) + '</i></button>'; }
 function billTag(t) { return t.amount ? money(t.amount) + (t.autopay ? ' autopay' : '') : ''; }
@@ -277,7 +301,7 @@ function scrTask() {
   if (!t) { ui.screen = 'list'; return scrList(); }
   var i = info(t), con = t.contact ? db.contacts.find(function (c) { return c.id === t.contact; }) : null, kid = t.freq === 'Well-child (by age)';
   var h = '<header class="head" style="gap:10px;padding-bottom:24px"><div class="headrow">' + backBtn() + '<button class="textbtn" data-act="edit-task">Edit</button></div>' +
-    '<span class="eyebrow">' + esc(t.cat) + (t.who ? ' \u00b7 ' + esc(t.who) : '') + (ownerTag(t) ? ' \u00b7 ' + (t.owner === db.user ? 'Your job' : esc(t.owner) + '\u2019s job') : '') + '</span><h1>' + esc(t.name) + '</h1><span class="pill" style="color:' + i.color + '">' + esc(i.long) + '</span></header>';
+    '<span class="eyebrow">' + esc(t.cat) + (t.who ? ' \u00b7 ' + esc(t.who) : '') + (ownerTag(t) ? ' \u00b7 ' + (isMine(t) ? 'Your job' : esc(ownerName(t)) + '\u2019s job') : '') + '</span><h1>' + esc(t.name) + '</h1><span class="pill" style="color:' + i.color + '">' + esc(i.long) + '</span></header>';
     h += '<div class="grid2">' +
     '<div class="tile"><span class="k">Next Due</span><span class="v">' + (i.due ? fmt(i.due, true) : '\u2014') + '</span></div>' +
     '<div class="tile"><span class="k">Can Start On</span><span class="v" style="color:var(--rose)">' + (i.start ? fmt(i.start, true) : '\u2014') + '</span></div>' +
@@ -374,7 +398,7 @@ function scrEditTask() {
     '<div class="two"><label class="field"><span>Category</span><select class="input" name="cat" data-rerender="1">' + CATS.map(function (c) { return opt(c, f.cat); }).join('') + '</select></label>' +
     '<label class="field"><span>' + (kid ? 'Child' : 'Applies To') + '</span>' + groupedSelect('who', whereGroups(), f.who, 'Choose\u2026') + '</label></div>' +
     (assignable() ? '<label class="field"><span>Whose Job</span><select class="input" name="owner">' + opt('', f.owner || '', 'Anyone in the household') +
-      people().map(function (p) { return opt(p, f.owner || '', p === db.user ? p + ' (you)' : p); }).join('') + '</select><small>Their daily heads-up includes it. Everyone still sees it.</small></label>' : '') +
+      people().map(function (p) { return opt(p.id, f.owner || '', (p.name || 'Someone') + (p.id === myId() ? ' (you)' : '')); }).join('') + (f.owner && !personById(f.owner) ? opt(f.owner, f.owner) : '') + '</select><small>Their daily heads-up includes it. Everyone still sees it.</small></label>' : '') +
     (f.who === '__other' ? '<label class="field"><span>Type the ' + (kid ? 'Child\u2019s Name' : 'Place or Person') + '</span><input class="input" name="whoOther" value="' + esc(f.whoOther || '') + '" placeholder="' + (kid ? 'Name' : 'e.g. Shed') + '"></label>' : '') +
     (f.cat === 'Celebrations' ? '<label class="field"><span>Holiday</span><select class="input" name="holiday" data-rerender="1"><option value="">None (use the date below)</option>' + Object.keys(HOLIDAYS).map(function (k) { return opt(k, f.holiday || '', HOLIDAYS[k][0]); }).join('') + '</select><small>For holidays that move each year. Tend finds the right date every year.</small></label>' : '') +
     (f.cat === 'Bills & Finance' ? '<div class="two"><label class="field"><span>Amount</span><input class="input" name="amount" inputmode="decimal" value="' + esc(f.amount == null ? '' : String(f.amount)) + '" placeholder="Optional"></label>' +

@@ -97,15 +97,21 @@ async function swipe(p, sel, dx, dy) {
   const jid = await A.evaluate(() => db.tasks.find(t => t.active && !t.auto && info(t).due).id);
   await A.evaluate(id => go('task', { taskId: id }, true), jid); await A.click('[data-act=edit-task]');
   check('Whose Job field offered', !!(await A.$('select[name=owner]')));
-  await A.selectOption('select[name=owner]', 'Kelly'); await A.screenshot({ path: D + '/feat-3-whose-job.png' });
+  const kid = await B.evaluate(() => C.user.id);
+  check('people are listed by first and last name', await A.evaluate(() => [...document.querySelectorAll('select[name=owner] option')].map(o => o.textContent).join('|') === 'Anyone in the household|Solomon Lee (you)|Kelly Lee'));
+  await A.selectOption('select[name=owner]', { label: 'Kelly Lee' }); await A.screenshot({ path: D + '/feat-3-whose-job.png' });
   await A.click('.headrow [data-act=save-task]');
-  check('assigned to Kelly', await A.evaluate(id => db.tasks.find(x => x.id === id).owner === 'Kelly', jid));
-  check('Kelly sees it is hers', await waitFor(B, id => db.tasks.find(x => x.id === id).owner === 'Kelly', jid));
-  check('detail says whose job', /Kelly’s job/.test(await A.textContent('.head .eyebrow')));
+  check('assigned to Kelly by her account, not her name', await A.evaluate(([id, k]) => db.tasks.find(x => x.id === id).owner === k, [jid, kid]));
+  check('Kelly sees it is hers', await waitFor(B, id => isMine(db.tasks.find(x => x.id === id)) && db.tasks.find(x => x.id === id).owner === C.user.id, jid));
+  check('detail says whose job', /Kelly Lee’s job/.test(await A.textContent('.head .eyebrow')));
   await B.evaluate(id => go('task', { taskId: id }, true), jid);
   check('Kelly\'s phone says it\'s hers', /Your job/.test(await B.textContent('.head .eyebrow')));
   const sched = await A.evaluate(() => C.sb.from('records').select('data').eq('kind', 'meta').eq('id', 'schedule').then(r => r.data[0].data));
-  check('the server knows whose job it is', sched.tasks.some(r => r[0] === jid && r[5] === 'Kelly'));
+  check('the server knows whose job it is', sched.tasks.some(r => r[0] === jid && r[5] === 'Kelly Lee'));
+  // a task assigned before owners were accounts (by first name) moves over by itself
+  await A.evaluate(() => { const t = db.tasks.find(x => x.active && !x.owner && !x.auto); t.owner = 'Kelly'; window.__legacy = t.id; save(); loadMembers(); });
+  check('older first-name assignments move over to the account', await waitFor(A, k => db.tasks.find(x => x.id === window.__legacy).owner === k, kid));
+  await A.evaluate(() => { db.tasks.find(x => x.id === window.__legacy).owner = ''; save(); });
   await A.evaluate(() => go('list', { filter: 'all', cat: '', q: '' }));
   const allN = await A.evaluate(() => document.querySelectorAll('#results [data-act=task]').length);
   await A.click('[data-act=mine]');

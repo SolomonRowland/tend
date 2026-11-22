@@ -27,11 +27,11 @@ function listNames(names, max) {
   return shown.join(', ') + (more > 0 ? ' and ' + more + ' more' : '');
 }
 // schedule.tasks rows: [id, name, due, opens, snoozedUntil, owner]
-// owner is '' for anyone in the household, or a member's first name. Each person hears
-// about their own tasks plus the shared ones.
-function buildDigest(schedule, today, me) {
+// owner is '' for anyone in the household, or the member's name as listed in members.name
+// (older lists: a first name, or an account id). Each person hears about their own tasks plus the shared ones.
+function buildDigest(schedule, today, me, uid) {
   const rows = ((schedule && Array.isArray(schedule.tasks)) ? schedule.tasks : [])
-    .filter((r) => !r[5] || !me || r[5] === me);
+    .filter((r) => !r[5] || (!me && !uid) || r[5] === me || (uid && r[5] === uid) || (me && r[5] === me.split(' ')[0]));
   const week = addDaysIso(today, 7), overdue = [], dueToday = [], soon = [];
   rows.forEach((r) => {
     const name = r[1], due = r[2], opens = r[3], snooze = r[4];
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       const { data: rec } = await sb.from('records').select('data').eq('household_id', s.household_id).eq('kind', 'meta').eq('id', 'schedule').eq('deleted', false).maybeSingle();
       schedules.set(s.household_id, rec ? rec.data : null);
     }
-    let msg = buildDigest(schedules.get(s.household_id), t.date, mem.name || '');
+    let msg = buildDigest(schedules.get(s.household_id), t.date, mem.name || '', s.user_id);
     if (onlyUser) msg = msg ? { ...msg, title: 'Test: ' + msg.title } : { title: 'Test from Tend', body: 'Notifications are working. Nothing is due this week.', count: 0 };
     if (!msg) continue;
     try {
