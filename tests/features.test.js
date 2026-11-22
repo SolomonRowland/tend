@@ -189,7 +189,7 @@ async function swipe(p, sel, dx, dy) {
   await A.click('[data-act=save-contact]');
   check('half-filled hours ask for the other time', await A.evaluate(() => ui.screen === 'edit-contact' && /Saturday/.test(document.getElementById('toast').innerText)));
   await A.fill('input[name=hSaC]', '13:00'); await A.fill('input[name=after]', '5555550199'); await A.fill('input[name=askFor]', 'Chris'); await A.click('[data-act=save-contact]');
-  check('a business saves its hours and shows open now', await A.evaluate(() => { const c = db.contacts.find(x => x.name === 'Corner Hardware'); return c && c.kind === 'business' && c.hours.sat === '09:00-13:00' && c.after === '(555) 555-0199' && ui.screen === 'contact' && /Mon–Fri/.test(view.innerText) && !!document.querySelector('a[href^="tel:+15555550199"]') && /Ask For/.test(view.innerText); }));
+  check('a business saves its hours and shows open now', await A.evaluate(() => { const c = db.contacts.find(x => x.name === 'Corner Hardware'); return c && c.kind === 'business' && c.hours.sat === '09:00-13:00' && c.after === '(555) 555-0199' && ui.screen === 'contact' && /Mon–Fri/.test(view.innerText) && !!document.querySelector('a[href^="tel:+15555550199"]') && /Contact\nChris/.test(view.innerText); }));
   check('Kelly gets the hours too', await waitFor(B, () => { const c = db.contacts.find(x => x.name === 'Corner Hardware'); return c && c.hours.wk === '00:00-23:59' && c.askFor === 'Chris'; }));
   const lt = await A.evaluate(() => db.tasks.find(t => t.history.length && t.freq !== 'One-time').id);
   await A.evaluate(id => { ui.form = null; go('task', { taskId: id }, true); }, lt); await A.click('[data-act=edit-task]');

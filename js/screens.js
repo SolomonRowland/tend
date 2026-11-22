@@ -252,7 +252,7 @@ function scrContact() {
   if (acts) h += '<div class="actions">' + acts + '</div>';
   var f = [];
   if (c.phone) f.push(['Call', c.phone]); if (c.text && c.text !== c.phone) f.push(['Text', c.text]); if (c.email) f.push(['Email', c.email]); if (c.address) f.push(['Address', c.address]);
-  if (c.askFor) f.unshift(['Ask For', c.askFor]);
+  if (c.askFor) f.unshift(['Contact', c.askFor]);
   if (c.kind !== 'person' && hasHours(c)) f.push(['Hours', hoursLines(c)]); else if (c.hoursNote) f.push(['Hours', c.hoursNote]);
   if (c.after) f.push(['After Hours', c.after, 'tel']);
   if (c.web) f.push(['Website', c.web.replace(/^https?:\/\//, '')]); if (c.login) f.push(['Login', c.login]); if (c.notes) f.push(['Notes', c.notes]);
@@ -440,7 +440,7 @@ function scrEditContact() {
     '<label class="field"><span>' + (biz ? 'Business Name' : 'Name') + '</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="' + (biz ? 'e.g. Main Street Dental' : 'e.g. Jordan Smith') + '" required></label>' +
     '<label class="field"><span>Used For</span>' + groupedSelect('role', USE_GROUPS, f.role, 'Choose what they help with\u2026') + '<small>This shows under their name in your contacts.</small></label>' +
     (f.role === '__other' ? '<label class="field"><span>Type What They Help With</span><input class="input" name="roleOther" value="' + esc(f.roleOther || '') + '" placeholder="e.g. Piano teacher"></label>' : '') +
-    (biz ? '<label class="field"><span>Ask For</span><input class="input" name="askFor" value="' + esc(f.askFor || '') + '" placeholder="e.g. Dr. Patel, or your agent\u2019s name"><small>The person you usually deal with there.</small></label>' : '') +
+    (biz ? '<label class="field"><span>Contact</span><input class="input" name="askFor" value="' + esc(f.askFor || '') + '" placeholder="e.g. Dr. Patel, or your agent\u2019s name"><small>The person you usually deal with there.</small></label>' : '') +
     '<div class="two"><label class="field"><span>Call Phone</span><input class="input" type="tel" inputmode="tel" name="phone" value="' + esc(f.phone) + '" placeholder="(555) 555-0100"></label>' +
     '<label class="field"><span>Text Phone</span><input class="input" type="tel" inputmode="tel" name="text" value="' + esc(f.text) + '" placeholder="Same as call"></label></div>' +
     '<small style="margin-top:-8px;font-size:12px;color:var(--muted)">Leave Text phone blank to text the call number.</small>' +
