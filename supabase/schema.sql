@@ -57,6 +57,30 @@ drop trigger if exists records_touch on public.records;
 create trigger records_touch before insert or update on public.records
   for each row execute function public.touch_record();
 
+-- Sensible size limits, so one bad save or a runaway phone can't fill the database.
+-- (NOT VALID: rows already saved are left alone; only new saves are checked.)
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'records_size') then
+    alter table public.records add constraint records_size check (pg_column_size(data) < 262144 and length(id) <= 100) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'households_name_len') then
+    alter table public.households add constraint households_name_len check (length(name) <= 80) not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'members_name_len') then
+    alter table public.members add constraint members_name_len check (length(name) <= 120) not valid;
+  end if;
+end $$;
+create or replace function public.records_cap() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from public.records where household_id = new.household_id) >= 20000 then
+    raise exception 'This household has reached the 20,000 item limit';
+  end if;
+  return new;
+end $$;
+drop trigger if exists records_cap on public.records;
+create trigger records_cap before insert on public.records for each row execute function public.records_cap();
+
 -- ---------- helpers ----------
 create or replace function public.is_member(hid uuid) returns boolean
 language sql stable security definer set search_path = public as $$
@@ -140,7 +164,7 @@ alter table public.records enable row level security;
 drop policy if exists households_read on public.households;
 create policy households_read on public.households for select to authenticated using (public.is_member(id));
 drop policy if exists households_rename on public.households;
-create policy households_rename on public.households for update to authenticated using (public.is_member(id)) with check (public.is_member(id));
+create policy households_rename on public.households for update to authenticated using (public.is_owner(id)) with check (public.is_owner(id));
 
 drop policy if exists members_read on public.members;
 create policy members_read on public.members for select to authenticated using (public.is_member(household_id));

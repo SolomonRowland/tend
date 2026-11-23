@@ -32,6 +32,9 @@ function cloudMsg(e) {
   if (/password should be|weak password|at least/i.test(m)) return 'Use a password with at least 8 characters.';
   if (/email not confirmed/i.test(m)) return 'Confirm your email first, then sign in.';
   if (/failed to fetch|network|load failed|fetch/i.test(m)) return 'Can’t reach Tend right now. Check your connection and try again.';
+  if (/email rate limit|over_email_send_rate_limit/i.test(m)) return 'Tend can’t send more sign-up emails right now. Try again in an hour.';
+  if (/address not authorized|email_address_not_authorized/i.test(m)) return 'Tend can’t send email to that address yet. Ask the person who invited you to check the email settings.';
+  if (/too large|records_size|item limit/i.test(m)) return 'That’s too much to save in one item. Try shortening the notes.';
   if (/rate limit|too many/i.test(m)) return 'Too many tries. Wait a minute and try again.';
   return m.replace(/^.*?:\s*/, '') || 'Something went wrong. Try again.';
 }
@@ -420,7 +423,7 @@ function cloudSubmit(id) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { C.err = 'That email doesn’t look right.'; render(); return true; }
     if (pw.length < (C.auth.mode === 'up' ? 8 : 1)) { C.err = C.auth.mode === 'up' ? 'Use a password with at least 8 characters.' : 'Enter your password.'; render(); return true; }
     C.auth.busy = true; render();
-    var p = C.auth.mode === 'up' ? C.sb.auth.signUp({ email: em, password: pw }) : C.sb.auth.signInWithPassword({ email: em, password: pw });
+    var p = C.auth.mode === 'up' ? C.sb.auth.signUp({ email: em, password: pw, options: { emailRedirectTo: location.origin + location.pathname + (C.joinCode ? '?join=' + C.joinCode : '') } }) : C.sb.auth.signInWithPassword({ email: em, password: pw });
     p.then(function (r) {
       C.auth.busy = false;
       if (r.error) throw r.error;

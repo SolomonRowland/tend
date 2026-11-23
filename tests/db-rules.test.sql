@@ -36,6 +36,11 @@ begin
   perform t_expect(t_fails('update members set role = ''owner'' where user_id = auth.uid()'), 'member cannot make themself owner');
   perform t_expect(t_fails(format('select remove_member(%L, ''11111111-1111-1111-1111-111111111111'')', hid)), 'member cannot remove the owner');
   perform t_expect(t_fails('delete from records'), 'nobody hard-deletes records');
+  update households set name = 'Mine now' where id = hid;
+  perform t_expect((select name from households where id = hid) = 'Rowland Home', 'only the owner renames the household');
+  perform t_expect(t_fails(format('insert into records (household_id, kind, id, data) values (%L, ''task'', ''big'', (select jsonb_build_object(''n'', string_agg(md5(i::text), '''')) from generate_series(1, 20000) i))', hid)), 'an oversized save is refused');
+  insert into records (household_id, kind, id, data) values (hid, 'task', 'ok2', jsonb_build_object('notes', repeat('a', 5000)));
+  perform t_expect(true, 'a normal long note still saves');
 
   perform t_as('33333333-3333-3333-3333-333333333333', 'stranger@x.com');
   select count(*) into n from records; perform t_expect(n = 0, 'stranger sees no records');
