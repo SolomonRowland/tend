@@ -142,6 +142,10 @@ function loadMembers() {
   });
 }
 
+/* Where links in emails and invites point. Inside the iPhone app the page's own address
+   (capacitor://localhost) means nothing to anyone else, so links go to the website. */
+function appUrl() { return location.protocol === 'capacitor:' ? 'https://solomonrowland.github.io/tend/' : location.origin + location.pathname; }
+
 /* ---------- sync ---------- */
 function recMap(d) {
   var m = {}; if (!d) return m;
@@ -326,7 +330,7 @@ function joinWith(code, auto) {
 function makeInvite() {
   C.sb.rpc('create_invite', { hid: C.hid }).then(function (r) {
     if (r.error) throw r.error;
-    C.inviteLink = location.origin + location.pathname + '?join=' + r.data;
+    C.inviteLink = appUrl() + '?join=' + r.data;
     loadMembers().then(function () { keepRender(); });
     var text = 'Join our household on Tend so we share one list of what needs doing. Open this link, create an account, and you’re in:';
     if (navigator.share) navigator.share({ title: 'Join our Tend household', text: text, url: C.inviteLink }).catch(function () {});
@@ -423,7 +427,7 @@ function cloudSubmit(id) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { C.err = 'That email doesn’t look right.'; render(); return true; }
     if (pw.length < (C.auth.mode === 'up' ? 8 : 1)) { C.err = C.auth.mode === 'up' ? 'Use a password with at least 8 characters.' : 'Enter your password.'; render(); return true; }
     C.auth.busy = true; render();
-    var p = C.auth.mode === 'up' ? C.sb.auth.signUp({ email: em, password: pw, options: { emailRedirectTo: location.origin + location.pathname + (C.joinCode ? '?join=' + C.joinCode : '') } }) : C.sb.auth.signInWithPassword({ email: em, password: pw });
+    var p = C.auth.mode === 'up' ? C.sb.auth.signUp({ email: em, password: pw, options: { emailRedirectTo: appUrl() + (C.joinCode ? '?join=' + C.joinCode : '') } }) : C.sb.auth.signInWithPassword({ email: em, password: pw });
     p.then(function (r) {
       C.auth.busy = false;
       if (r.error) throw r.error;
@@ -447,7 +451,7 @@ function cloudAct(a, el) {
       var fe = document.getElementById('authEmail'), em = fe ? fe.value.trim() : '';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { C.err = 'Type your email above first.'; render(); return true; }
       C.auth.email = em;
-      C.sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname }).then(function (r) { if (r.error) throw r.error; C.err = ''; C.auth.msg = 'If that email has an account, a reset link is on its way.'; render(); }).catch(function (e) { C.err = cloudMsg(e); render(); });
+      C.sb.auth.resetPasswordForEmail(em, { redirectTo: appUrl() }).then(function (r) { if (r.error) throw r.error; C.err = ''; C.auth.msg = 'If that email has an account, a reset link is on its way.'; render(); }).catch(function (e) { C.err = cloudMsg(e); render(); });
       return true;
     case 'cloud-retry': C.pullErr = ''; render(); pull(); return true;
     case 'house-create': createHousehold(); return true;

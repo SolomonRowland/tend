@@ -10,6 +10,7 @@ psql -q -v ON_ERROR_STOP=1 -f db-setup.sql >/dev/null 2>&1
 psql -q -v ON_ERROR_STOP=1 -f ../supabase/schema.sql 2>&1 | grep -v -e NOTICE -e 'wal_level' -e HINT || true
 psql -q -v ON_ERROR_STOP=1 -f ../supabase/schema.sql >/dev/null 2>&1   # must be safe to run twice
 psql -q -v ON_ERROR_STOP=1 -f db-rules.test.sql
+(cd ../app && node build.js >/dev/null)   # the iPhone app's copy of the site, for app.test.js
 node mock-server.js > mock-server.log 2>&1 & MOCK=$!
 (cd .. && python3 -m http.server 8766 --bind 127.0.0.1 >/dev/null 2>&1) & WEB=$!
 trap 'kill $MOCK $WEB 2>/dev/null || true' EXIT
