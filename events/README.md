@@ -2,6 +2,13 @@
 
 A phone-friendly web app for running a ministry's events, from the annual tent revival to a monthly board meeting.
 
+- **Live app:** https://solomonrowland.github.io/tent-and-table/
+- **Try the demo:** https://solomonrowland.github.io/tent-and-table/?demo
+- **Database:** run `supabase/schema.sql` in Supabase's SQL Editor (safe to run again).
+- **Sign-in links:** in Supabase [URL Configuration](https://supabase.com/dashboard/project/vvfdhhbcvpgggfcusvqa/auth/url-configuration), the Site URL and a Redirect URL are both the live app link above, so confirmation, password-reset and Google sign-in links come back to the app.
+
+On a phone, open the live app and add it to your home screen (iPhone: Safari > Share > Add to Home Screen; Android: Chrome > ⋮ > Install app). The site is served by GitHub Pages from the `main` branch. `events/` only forwards old links and QR codes to the app.
+
 ## How It's Organized
 
 - **One login, one ministry.** A ministry account holds up to 10 logins. Each login (email) belongs to exactly one ministry; someone who serves with two ministries signs up for each with a different email. The database enforces this (`ed_members.user_id` is unique).
@@ -42,6 +49,6 @@ A phone-friendly web app for running a ministry's events, from the annual tent r
 - `data.js` is the data layer: `CloudDB` (Supabase) and `DemoDB` (browser storage, same API) plus the demo ministry.
 - `app.js` is the screens.
 - `supabase/functions/ed-notify/` sends the automatic texts and emails; `supabase/notify-schedule.sql` runs it every 15 minutes. See `supabase/NOTIFY.md`.
-- `supabase/schema.sql` sets up the database. Paste it into Supabase's SQL Editor and run it; it is safe to run again. Every table starts with `ed_`, so it can share the Tend Home project without touching Tend's data. Row-level security keeps each ministry's rows to its own members, and the public pages go through a few `security definer` functions.
-- `../home/supabase.js` is the Supabase client shared with Tend Home, and `qrcode.js` (MIT, Kazuhiko Arase) draws QR codes.
+- `supabase/schema.sql` sets up the database. Paste it into Supabase's SQL Editor and run it; it is safe to run again. Every table starts with `ed_`. Row-level security keeps each ministry's rows to its own members, and the public pages go through a few `security definer` functions.
+- `supabase.js` is the Supabase client, and `qrcode.js` (MIT, Kazuhiko Arase) draws QR codes.
 - Add `?demo` to the URL, or tap **Try The Demo** on the sign-in screen, to explore with sample data kept in the browser.
