@@ -151,7 +151,9 @@ async function swipe(p, sel, dx, dy) {
   check('Solomon\'s delete wins', await waitFor(A, id => !db.tasks.some(t => t.id === id) && pendingCount() === 0, did));
   check('and reaches Kelly', await waitFor(B, id => !db.tasks.some(t => t.id === id), did));
   // ---- polish: one way to confirm, Save within reach, helpful empty states ----
-  await A.evaluate(() => go('settings', {}, true)); await A.click('[data-act=sign-out]');
+  await A.evaluate(() => go('settings', {}, true));
+  check('Settings shows who can see the list', await A.evaluate(() => { const t = view.innerText; return /Who Can See This List/.test(t) && /2 people/.test(t) && /Solomon Lee/.test(t) && /Kelly Lee/.test(t) && /Owner/.test(t) && /Member/.test(t); }));
+  await A.click('[data-act=sign-out]');
   check('Sign Out asks in a dialog', await A.evaluate(() => !!document.querySelector('.sheet[role=alertdialog]') && /Sign Out\?/.test(document.querySelector('.sheet').innerText)));
   await A.keyboard.press('Escape');
   check('Escape cancels and stays signed in', await A.evaluate(() => !document.querySelector('.sheet') && !!C.user && ui.screen === 'settings'));

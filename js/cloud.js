@@ -386,14 +386,16 @@ function cloudSettings() {
   if (!C.on || !C.hid) return '';
   if (C.online && Date.now() - (C.membersAt || 0) > 10000) { C.membersAt = Date.now(); setTimeout(function () { loadMembers().then(function () { if (ui.screen === 'settings') keepRender(); }, function () {}); }, 0); }
   var me = C.user && C.user.id, owner = C.role === 'owner';
-  var h = '<div class="section"><h2 style="font-size:19px">' + esc(C.house) + '</h2></div><div class="listcard">';
+  var n = C.members.length;
+  var h = '<div class="section"><h2 style="font-size:19px">Who Can See This List</h2><span style="font-size:13px;color:var(--muted);font-weight:600">' + n + (n === 1 ? ' person' : ' people') + '</span></div>' +
+    '<p class="note" style="text-align:left;padding:0 20px 10px">Everyone in <strong>' + esc(C.house) + '</strong> sees and can change its tasks, contacts, belongings and photos. No one else can. Your profile and appearance settings stay on your phone.</p><div class="listcard">';
   h += C.members.map(function (m) {
     var you = m.user_id === me;
-    return '<div class="lrow"><span class="col" style="min-width:0"><span class="t">' + esc(m.name || (m.email || '').split('@')[0]) + (you ? ' <span class="cyou">You</span>' : '') + '</span><span class="s ellip">' + esc(m.email || '') + (m.role === 'owner' ? ' · Owner' : '') + '</span></span>' +
+    return '<div class="lrow"><span class="col" style="min-width:0"><span class="t">' + esc(m.name || (m.email || '').split('@')[0]) + (you ? ' <span class="cyou">You</span>' : '') + '</span><span class="s ellip">' + esc(m.email || '') + '</span><span class="s">' + (m.role === 'owner' ? 'Owner' : 'Member') + (m.joined_at ? ' · joined ' + esc(fmt(new Date(m.joined_at), true)) : '') + '</span></span>' +
       (owner && !you ? '<button class="link" data-act="member-rm" data-uid="' + esc(m.user_id) + '">Remove</button>' : '') + '</div>';
   }).join('');
   if (owner) h += C.invites.map(function (v) {
-    return '<div class="lrow"><span class="col"><span class="t">Invite link</span><span class="s">Not used yet · expires ' + esc(fmt(new Date(v.expires_at))) + '</span></span><button class="link" data-act="invite-cancel" data-code="' + esc(v.code) + '">Cancel</button></div>';
+    return '<div class="lrow"><span class="col"><span class="t">Invite link, not used yet</span><span class="s">Anyone with this link can join until ' + esc(fmt(new Date(v.expires_at))) + '</span></span><button class="link" data-act="invite-cancel" data-code="' + esc(v.code) + '">Cancel</button></div>';
   }).join('');
   h += '</div>';
   if (owner) {
