@@ -391,7 +391,7 @@ function cloudSettings() {
     '<p class="note" style="text-align:left;padding:0 20px 10px">Everyone in <strong>' + esc(C.house) + '</strong> sees and can change its tasks, contacts, belongings and photos. No one else can. Your profile and appearance settings stay on your phone.</p><div class="listcard">';
   h += C.members.map(function (m) {
     var you = m.user_id === me;
-    return '<div class="lrow"><span class="col" style="min-width:0"><span class="t">' + esc(m.name || (m.email || '').split('@')[0]) + (you ? ' <span class="cyou">You</span>' : '') + '</span><span class="s ellip">' + esc(m.email || '') + '</span><span class="s">' + (m.role === 'owner' ? 'Owner' : 'Member') + (m.joined_at ? ' · joined ' + esc(fmt(new Date(m.joined_at), true)) : '') + '</span></span>' +
+    return '<div class="lrow"><span class="col" style="min-width:0"><span class="t">' + esc(m.name || (m.email || '').split('@')[0]) + (you ? ' <span class="cyou">You</span>' : '') + '</span><span class="s" style="word-break:break-all">' + esc(m.email || '') + '</span><span class="s">' + (m.role === 'owner' ? 'Owner' : 'Member') + (m.joined_at ? ' · joined ' + esc(fmt(new Date(m.joined_at), true)) : '') + '</span></span>' +
       (owner && !you ? '<button class="link" data-act="member-rm" data-uid="' + esc(m.user_id) + '">Remove</button>' : '') + '</div>';
   }).join('');
   if (owner) h += C.invites.map(function (v) {
