@@ -72,6 +72,7 @@ function restoreSnap(snap) {
 function applyDone(t, dateIso, extra) {
   var ti = tieOf(t), b = itemById(t.item); extra = extra || {};
   if (ti && ti.renew && extra.tie) ti.b.fields[ti.key] = extra.tie;
+  if (t.freq === MANUAL && !(ti && ti.renew) && extra.next !== undefined && t.history[0] && t.history[0].date === dateIso) t.first = extra.next || null;
   var latest = t.history[0] && t.history[0].date === dateIso;
   if (ti && !ti.renew && (!ti.b.fields[ti.key] || ti.b.fields[ti.key] < dateIso)) ti.b.fields[ti.key] = dateIso;
   if (b && b.type === 'Vehicle' && extra.miles) {
@@ -79,7 +80,7 @@ function applyDone(t, dateIso, extra) {
     if (ti && ti.key === 'oilLast' && latest) b.fields.oilMiles = String(extra.miles);
   }
 }
-function needsSheet(t) { var ti = tieOf(t); return !!(ti && ti.renew); }
+function needsSheet(t) { var ti = tieOf(t); return !!(ti && ti.renew) || t.freq === MANUAL; }
 function keepRender() { var k = view.scrollTop; render(); view.scrollTop = k; }
 function markDone(dateIso, note, extra) {
   var t = db.tasks.find(function (x) { return x.id === ui.taskId; }); if (!t) return;
@@ -298,7 +299,7 @@ document.addEventListener('click', function (e) {
     case 'cal-today': ui.calY = T.getFullYear(); ui.calM = T.getMonth(); ui.calDay = iso(T); render(); break;
     case 'month': var m = new Date(ui.calY, ui.calM + (+el.getAttribute('data-step')), 1); ui.calY = m.getFullYear(); ui.calM = m.getMonth(); ui.calDay = iso(m); render(); break;
     case 'done': var dt0 = db.tasks.find(function (x) { return x.id === ui.taskId; }); if (dt0 && needsSheet(dt0)) { ui.completing = dt0.id; keepRender(); } else markDone(iso(T)); break;
-    case 'complete-open': ui.completing = ui.taskId; keepRender(); break;
+    case 'complete-open': ui.completing = ui.taskId; delete saveLock['complete-save:' + ui.taskId]; keepRender(); break; // a fresh sheet is a fresh save
     case 'complete-cancel': ui.completing = null; keepRender(); break;
     case 'complete-save':
       var dd = document.getElementById('doneDate'), dv = dd && dd.value;
@@ -311,6 +312,9 @@ document.addEventListener('click', function (e) {
         if (old && nt <= old) { warn('The new date should be after ' + fmt(parse(old), true) + '.'); break; }
         ex.tie = nt;
       }
+      var nx = (document.getElementById('doneNext') || {}).value;
+      if (nx && (!parse(nx) || nx <= dv)) { warn('Pick a next due date after the day you finished it.'); break; }
+      ex.next = nx || '';
       var mi0 = (document.getElementById('doneMiles') || {}).value;
       if (mi0 && !miles(mi0)) { warn('Mileage should be a number, like 45210.'); break; }
       ex.miles = miles(mi0);

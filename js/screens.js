@@ -293,6 +293,7 @@ function scheduleText(t) {
   if (t.holiday && HOLIDAYS[t.holiday]) return 'Every year on ' + HOLIDAYS[t.holiday][0] + '. The date moves each year and Tend works it out for you.';
   if (t.freq === 'Well-child (by age)') return 'By age: the next visit follows the pediatric schedule from the birth date (newborn, 2 weeks, 1, 2, 4, 6, 9, 12, 15, 18, 24, 30 months, then yearly).';
   if (t.freq === 'One-time') return 'One-time: once it\u2019s done, it\u2019s finished.';
+  if (t.freq === MANUAL) return 'No set schedule: when you mark it done, you pick the next due date.';
   if (FREQ[t.freq].dy) return 'Repeats ' + t.freq.toLowerCase() + ' from the day you finish it.';
   return t.fixed ? 'Fixed calendar date: stays on the same date every cycle, so finishing early won\u2019t shift it.' : 'From last done: the next due date counts forward from the day you finish it.';
 }
@@ -313,6 +314,7 @@ function scrTask() {
       var ct = tieOf(t), cb = itemById(t.item), veh = cb && cb.type === 'Vehicle';
       h += '<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:12px;border:2px solid var(--rose)"><label class="field"><span>Completed On</span><input class="input" type="date" id="doneDate" value="' + iso(today()) + '" max="' + iso(today()) + '"></label>' +
         (ct && ct.renew ? '<label class="field"><span>New ' + (ct.key === 'insRenew' ? 'Renewal' : 'Expiration') + ' Date</span><input class="input" type="date" id="doneTie" value="' + iso(renewGuess(t, ct)) + '"><small>Saved on ' + esc(ct.b.name) + (ct.b.fields[ct.key] ? '. It was ' + fmt(parse(ct.b.fields[ct.key]), true) : '') + '.</small></label>' : '') +
+        (t.freq === MANUAL && !(ct && ct.renew) ? '<label class="field"><span>Next Due Date</span><input class="input" type="date" id="doneNext" min="' + iso(addDays(today(), 1)) + '"><small>Optional. Leave it blank if you don\u2019t know yet, and add it later with Edit.</small></label>' : '') +
         (veh ? '<label class="field"><span>Mileage</span><input class="input" id="doneMiles" inputmode="numeric" maxlength="9" placeholder="Optional' + (cb.fields.miles ? ', last ' + miles(cb.fields.miles).toLocaleString() : '') + '"></label>' : '') +
         '<label class="field"><span>Note</span><input class="input" id="doneNote" maxlength="140" placeholder="Optional, e.g. $65 at the shop, used 5W-30"></label>' +
         '<div class="btns2"><button class="btn secondary" data-act="complete-cancel">Cancel</button><button class="btn primary" style="min-height:48px;font-size:15px;border-radius:14px" data-act="complete-save">' + ic('check', 18, 2.4) + 'Save</button></div></div>';
@@ -395,7 +397,7 @@ function whereGroups() {
 }
 function opt(v, cur, label) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label || v) + '</option>'; }
 function scrEditTask() {
-  var f = ui.form, isNew = !f.id, kid = f.freq === 'Well-child (by age)', simple = kid || f.freq === 'One-time' || (FREQ[f.freq] && FREQ[f.freq].dy);
+  var f = ui.form, isNew = !f.id, kid = f.freq === 'Well-child (by age)', simple = kid || f.freq === 'One-time' || f.freq === MANUAL || (FREQ[f.freq] && FREQ[f.freq].dy);
   var h = '<header class="head"><div class="headrow"><button class="textbtn" data-act="cancel">Cancel</button><span style="font-weight:700">' + (isNew ? 'New Task' : 'Edit Task') + '</span><button class="textbtn" data-act="save-task">Save</button></div></header>';
     h += '<form class="form" id="taskForm" autocomplete="off" novalidate>' +
     '<label class="field"><span>Task</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="e.g. Replace furnace filter" required></label>' +
@@ -409,7 +411,7 @@ function scrEditTask() {
       '<label class="field"><span>Paid By</span><select class="input" name="autopay">' + opt('', f.autopay ? '1' : '', 'Me, manually') + opt('1', f.autopay ? '1' : '', 'Autopay') + '</select></label></div>' : '') +
     '<label class="field"><span>How Often</span><select class="input" name="freq" data-rerender="1">' + FREQS.map(function (x) { return opt(x[0], f.freq); }).join('') + '</select></label>' +
     (simple ? '' : '<label class="field"><span>Schedule</span><select class="input" name="fixed">' + opt('0', f.fixed ? '1' : '0', 'From last done') + opt('1', f.fixed ? '1' : '0', 'Fixed calendar date') + '</select><small>From last done counts from when you finish it. Fixed date stays on the calendar (like a plate renewal).</small></label>') +
-    '<div class="two"><label class="field"><span>' + (kid ? 'Birth Date' : (f.freq === 'One-time' ? 'Due Date' : 'First Due Date')) + '</span><input class="input" type="date" name="first" value="' + esc(f.first || '') + '"></label>' +
+    '<div class="two"><label class="field"><span>' + (kid ? 'Birth Date' : (f.freq === 'One-time' || f.freq === MANUAL ? 'Due Date' : 'First Due Date')) + '</span><input class="input" type="date" name="first" value="' + esc(f.first || '') + '"></label>' +
     '<label class="field"><span>Last Completed</span><input class="input" type="date" name="last" value="' + esc(f.last || '') + '"></label></div>' +
     '<label class="field"><span>Can Start Early</span><select class="input" name="early">' + earlyOptions(f.early) + '</select><small>How long before the deadline it can be done. Choose \u201COn the due date only\u201D if there\u2019s no window.</small></label>' +
     '<label class="field"><span>Contact</span><select class="input" name="contact"><option value="">None</option>' + db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (c) { return opt(c.id, f.contact || '', c.name); }).join('') + '</select></label>' +
@@ -695,6 +697,8 @@ var ITEM_TYPES = {
 };
 var ITEM_ORDER = ['Vehicle', 'Home', 'Appliance', 'Pet', 'Document', 'Thing', 'Other'];
 var ITEM_PLURAL = { Vehicle: 'Vehicles', Home: 'Homes', Appliance: 'Appliances', Pet: 'Pets', Document: 'Documents', Other: 'Other' };
+/* only ID numbers people paste into forms get a Copy button */
+var COPY_KEYS = { vin: 1, plate: 1, policy: 1, serial: 1, model: 1, chip: 1, tag: 1, number: 1, ident: 1, part: 1 };
 var EXPIRY_KEYS = { plateExp: 1, warranty: 1, tagExp: 1, expires: 1, insRenew: 1 };
 /* dates a task can keep up to date: an expiration it renews, or the last time something was done */
 var LAST_KEYS = { oilLast: 1, rotateLast: 1 };
@@ -769,7 +773,7 @@ function fieldRows(b, keys, withTie) {
     var extra = !withTie || !d ? '' : tied ? '<button class="link" style="align-self:flex-start;font-size:13px;padding:2px 0" data-act="task" data-id="' + esc(tied.id) + '">' + (EXPIRY_KEYS[x[0]] ? 'Renewal task: ' : 'Updated by: ') + esc(tied.name) + '</button>'
       : EXPIRY_KEYS[x[0]] && x[0] !== 'warranty' ? '<button class="link" style="align-self:flex-start;font-size:13px;padding:2px 0" data-act="tie-new" data-k="' + x[0] + '">' + ic('bell', 13) + ' Remind me to renew</button>' : '';
     return '<div class="lrow"><span class="col"><span class="s">' + esc(x[1]) + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(d ? fmt(d, true) : amt > 0 ? money(amt) : shown) + '</span>' + (d && EXPIRY_KEYS[x[0]] ? expiryNote(d) : '') + extra + '</span>' +
-      (d ? '' : '<button class="copy" data-act="copy" data-v="' + esc(v) + '" aria-label="Copy ' + esc(x[1]) + '">' + ic('copy', 15) + '<span>Copy</span></button>') + '</div>';
+      (d || !COPY_KEYS[x[0]] ? '' : '<button class="copy" data-act="copy" data-v="' + esc(v) + '" aria-label="Copy ' + esc(x[1]) + '">' + ic('copy', 15) + '<span>Copy</span></button>') + '</div>';
   }).join('');
 }
 function keyRows(b) {

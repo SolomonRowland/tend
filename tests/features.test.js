@@ -208,7 +208,7 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => { ui.q = ''; go('home'); });
   // ---- a task tied to a date on a belonging ----
   await A.evaluate(() => { ui.form = null; go('edit-item', { form: itemForm(null) }, true); });
-  await A.fill('input[name=name]', 'Tahoe'); await A.fill('input[name=f_plateExp]', '2026-12-15'); await A.fill('input[name=f_miles]', '45,000');
+  await A.fill('input[name=name]', 'Tahoe'); await A.fill('input[name=f_year]', '2017'); await A.fill('input[name=f_plate]', '874086'); await A.fill('input[name=f_plateExp]', '2026-12-15'); await A.fill('input[name=f_miles]', '45,000');
   await A.fill('textarea[name=f_history]', '2024-05 rear bumper, fixed at Sample Auto Care'); await A.click('[data-act=save-item]');
   check('a vehicle saves mileage and accident history', await A.evaluate(() => { const b = db.items.find(x => x.name === 'Tahoe'); return b && b.fields.miles === '45000' && /45,000 mi/.test(view.innerText) && /Accidents & Repairs\n2024-05 rear bumper/.test(view.innerText); }));
   await A.click('[data-act=tie-new][data-k=plateExp]');
@@ -235,6 +235,18 @@ async function swipe(p, sel, dx, dy) {
   check('the vehicle lists everything done for it, newest first', await A.evaluate(() => { const txt = view.innerText, i = txt.indexOf('History'); return i > 0 && /Oil change/.test(txt.slice(i)) && /46,000 mi/.test(txt.slice(i)) && /\b2026\b/.test(txt.slice(i)); }));
   await A.evaluate(() => { const b = document.querySelectorAll('.listcard button[data-act=task]'); b[b.length - 1].click(); });
   check('a history entry opens its task', await A.evaluate(() => ui.screen === 'task' && /Oil change/.test(view.innerText)));
+  // ---- no set schedule: pick the next date each time ----
+  await A.evaluate(() => { ui.form = null; go('edit-task', { form: { id: null, name: 'Renew State Farm Policy', cat: 'Bills & Finance', who: '', freq: MANUAL, fixed: false, first: iso(addDays(today(), 3)), last: '', early: '14', notes: '', how: '', stepsText: '', contact: '', item: '', active: true, owner: '' } }, true); });
+  await A.click('[data-act=save-task]');
+  check('a manual task is due on the date given', await A.evaluate(() => { const t = db.tasks.find(x => x.name === 'Renew State Farm Policy'); return info(t).status === 'due' && iso(nextDue(t)) === iso(addDays(today(), 3)); }));
+  await A.click('[data-act=complete-open]');
+  check('Done asks for the next due date', await A.evaluate(() => !!document.getElementById('doneNext')));
+  await A.evaluate(() => { document.getElementById('doneNext').value = iso(addMonths(today(), 7)); }); await A.click('[data-act=complete-save]');
+  check('the next due date is the one picked', await A.evaluate(() => { const t = db.tasks.find(x => x.name === 'Renew State Farm Policy'); return iso(nextDue(t)) === iso(addMonths(today(), 7)) && t.last === iso(today()); }));
+  await A.click('[data-act=undo-toast]'); await A.click('[data-act=complete-open]'); await A.click('[data-act=complete-save]');
+  check('left blank, it waits for a date instead of being due again', await A.evaluate(() => info(db.tasks.find(x => x.name === 'Renew State Farm Policy')).status === 'nodate'));
+  await A.evaluate(id => go('item', { itemId: id }, true), bid);
+  check('only ID numbers get a Copy button', await A.evaluate(() => { const c = [...document.querySelectorAll('[data-act=copy]')].map(b => b.getAttribute('aria-label')); return c.length >= 1 && c.every(l => /VIN|Plate Number|Policy/.test(l)) && !c.some(l => /Year|Make|Mileage/.test(l)); }));
   console.log('errors', errs); console.log(ok, 'passed', bad, 'failed');
   await b.close(); process.exit(bad || errs.length ? 1 : 0);
 })();

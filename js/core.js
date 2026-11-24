@@ -8,7 +8,8 @@ var KEY = 'tend.data.v1';
 var CATS = ['Home','Cleaning','Yard & Pool','Vehicle','Health','Personal','Bills & Finance','Tech & Digital','Pets','Celebrations','Misc'];
 var FREQS = [['Weekly',0,7],['Every 2 weeks',0,14],['Monthly',1,0],['Every 2 months',2,0],['Every 3 months',3,0],['Every 4 months',4,0],
   ['Every 6 months',6,0],['Yearly',12,0],['Every 2 years',24,0],['Every 3 years',36,0],['Every 4 years',48,0],['Every 5 years',60,0],
-  ['Every 10 years',120,0],['Well-child (by age)',0,0],['One-time',0,0]];
+  ['Every 10 years',120,0],['Manual (set each time)',0,0],['Well-child (by age)',0,0],['One-time',0,0]];
+var MANUAL = 'Manual (set each time)';
 var FREQ = {}; FREQS.forEach(function (f) { FREQ[f[0]] = { mo: f[1], dy: f[2] }; });
 /* the pediatric checkup schedule (AAP Bright Futures), in months of age: newborn (3-5 days), 2 weeks, 1, 2, 4, 6, 9, 12, 15, 18, 24, 30 months, then yearly to 18 */
 var MILESTONES = [0,0.5,1,2,4,6,9,12,15,18,24,30,36,48,60,72,84,96,108,120,132,144,156,168,180,192,204,216];
@@ -172,6 +173,7 @@ function nextDue(t) {
   if (tie && tie.renew && parse(tie.b.fields[tie.key])) return parse(tie.b.fields[tie.key]);
   if (t.holiday && HOLIDAYS[t.holiday]) return nextHoliday(t.holiday, last ? addDays(last, t.early + 1) : (first || today()));
   if (t.freq === 'One-time') return first;
+  if (t.freq === MANUAL) return first && (!last || first > last) ? first : null; // the next date is picked each time it's done
   if (t.freq === 'Well-child (by age)') {
     if (!first) return null;
     var dates = MILESTONES.map(function (m) { return visitDate(first, m); }), i;

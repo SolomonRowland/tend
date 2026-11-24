@@ -36,7 +36,7 @@ function check(name, cond, extra) { if (cond) { ok++; console.log('PASS', name);
   const sched = await p.evaluate(() => {
     let s = 11; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     const bad = []; const realToday = today;
-    const freqs = FREQS.map(f => f[0]).filter(f => f !== 'Well-child (by age)');
+    const freqs = FREQS.map(f => f[0]).filter(f => f !== 'Well-child (by age)' && f !== MANUAL);
     for (let n = 0; n < 8000; n++) {
       const T = new Date(2024 + Math.floor(R() * 4), Math.floor(R() * 12), 1 + Math.floor(R() * 31));
       window.today = () => new Date(T.getFullYear(), T.getMonth(), T.getDate());
