@@ -29,9 +29,10 @@ function render() {
 function quickDone(qid, qrow) {
   var T = today(), qt = db.tasks.find(function (x) { return x.id === qid; });
   if (!qt || !qrow || qrow.classList.contains('doing')) return;
+  if (needsSheet(qt)) { go('task', { taskId: qid }, true); ui.completing = qid; keepRender(); return; } // it needs the new expiration date
   var qb = snapshot(qid);
   qt.history.unshift({ date: iso(T), by: db.user, at: new Date().toISOString() }); qt.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-  qt.last = qt.history[0].date; qt.snooze = null; (qt.steps || []).forEach(function (s) { s.d = false; }); save(); hideHint();
+  qt.last = qt.history[0].date; qt.snooze = null; (qt.steps || []).forEach(function (s) { s.d = false; }); applyDone(qt, iso(T)); save(); hideHint();
   var qn = nextDue(qt), qmsg = 'Done: ' + qt.name + '. ' + (qn ? 'Next due ' + fmt(qn, true) + '.' : qt.freq === 'One-time' ? 'All finished.' : '');
   qrow.classList.add('doing');
   var qs = qrow.querySelector('.open b'); if (qs) qs.textContent = 'Done';
@@ -54,19 +55,40 @@ function quickSnooze(id, row) {
 /* Undo keeps a copy of just the one task it changes, so a housemate's edits that sync in meanwhile are never rolled back */
 /* new contacts start in the state most of your contacts are in */
 function usualState() { var n = {}, best = ''; db.contacts.forEach(function (c) { if (c.state) { n[c.state] = (n[c.state] || 0) + 1; if (!best || n[c.state] > n[best]) best = c.state; } }); return best; }
-function snapshot(id) { var t = db.tasks.find(function (x) { return x.id === id; }); return t ? JSON.stringify(t) : null; }
+function snapshot(id) {
+  var t = db.tasks.find(function (x) { return x.id === id; }); if (!t) return null;
+  var b = itemById(t.item); // a task that updates its belonging when done: undo puts both back
+  return JSON.stringify(b ? { task: t, item: b } : t);
+}
 function restoreSnap(snap) {
-  if (!snap) return; var old = JSON.parse(snap), i = db.tasks.findIndex(function (x) { return x.id === old.id; });
+  if (!snap) return; var old = JSON.parse(snap), ob = null;
+  if (old.task) { ob = old.item; old = old.task; }
+  var i = db.tasks.findIndex(function (x) { return x.id === old.id; });
   if (i >= 0) db.tasks[i] = old; else db.tasks.push(old);
+  if (ob) { var j = db.items.findIndex(function (x) { return x.id === ob.id; }); if (j >= 0) db.items[j] = ob; }
   save();
 }
+/* finishing a task keeps its belonging up to date: a new expiration, the last-done date, the mileage */
+function applyDone(t, dateIso, extra) {
+  var ti = tieOf(t), b = itemById(t.item); extra = extra || {};
+  if (ti && ti.renew && extra.tie) ti.b.fields[ti.key] = extra.tie;
+  var latest = t.history[0] && t.history[0].date === dateIso;
+  if (ti && !ti.renew && (!ti.b.fields[ti.key] || ti.b.fields[ti.key] < dateIso)) ti.b.fields[ti.key] = dateIso;
+  if (b && b.type === 'Vehicle' && extra.miles) {
+    if (extra.miles > miles(b.fields.miles)) b.fields.miles = String(extra.miles);
+    if (ti && ti.key === 'oilLast' && latest) b.fields.oilMiles = String(extra.miles);
+  }
+}
+function needsSheet(t) { var ti = tieOf(t); return !!(ti && ti.renew); }
 function keepRender() { var k = view.scrollTop; render(); view.scrollTop = k; }
-function markDone(dateIso, note) {
+function markDone(dateIso, note, extra) {
   var t = db.tasks.find(function (x) { return x.id === ui.taskId; }); if (!t) return;
   var before = snapshot(t.id);
+  if (extra && extra.miles) note = (note ? note + ' \u00b7 ' : '') + extra.miles.toLocaleString() + ' mi';
   t.history.unshift({ date: dateIso, by: db.user, note: note || '', at: new Date().toISOString() });
   t.history.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
   t.last = t.history[0].date; t.snooze = null; (t.steps || []).forEach(function (s) { s.d = false; });
+  applyDone(t, dateIso, extra);
   save(); haptic(12);
   var n = nextDue(t);
   render(); showToast('Done' + (dateIso !== iso(today()) ? ' on ' + fmt(parse(dateIso)) : '') + '. ' + (n ? 'Next due ' + fmt(n, true) + '.' : t.freq === 'One-time' ? 'All finished.' : ''), before);
@@ -185,6 +207,7 @@ var formTok = typeof WeakMap === 'function' ? new WeakMap() : null, tokN = 0;
 function saveOnce(key) {
   // the lock belongs to the form being saved, so finishing one form and starting the next is never held up
   if (ui.form && formTok) { if (!formTok.has(ui.form)) formTok.set(ui.form, ++tokN); key += ':' + formTok.get(ui.form); }
+  else if (key === 'complete-save') key += ':' + ui.taskId; // finishing one task never holds up the next
   var now = Date.now(); if (now < (saveLock[key] || 0)) return false; saveLock[key] = now + 1500; return true;
 }
 document.addEventListener('click', function (e) {
@@ -220,6 +243,10 @@ document.addEventListener('click', function (e) {
     case 'tab-people': go(ui.dir === 'items' ? 'items' : 'contacts', { cq: '', bq: '' }); break;
     case 'dir': ui.dir = el.getAttribute('data-to') === 'items' ? 'items' : 'contacts'; go(ui.dir, { cq: '', bq: '' }); break;
     case 'item': go('item', { itemId: el.getAttribute('data-id') }, true); break;
+    case 'tie-new':
+      var tb = itemById(ui.itemId), tk = el.getAttribute('data-k'); if (!tb) break;
+      var tyears = tb.type === 'Document' ? ({ 'Passport': 'Every 10 years', 'Driver\u2019s license': 'Every 4 years', 'State ID': 'Every 4 years' }[tb.fields.kind] || 'Yearly') : 'Yearly';
+      go('edit-task', { form: { id: null, name: renewName(tb, tk), cat: { Vehicle: 'Vehicle', Home: 'Home', Appliance: 'Home', Pet: 'Pets', Document: 'Personal' }[tb.type] || 'Misc', who: tb.type === 'Vehicle' || tb.type === 'Pet' ? tb.name : '', freq: tyears, fixed: true, first: '', last: '', early: tb.type === 'Document' ? '60' : '30', notes: '', how: '', stepsText: '', contact: '', item: tb.id, tie: tk, active: true, owner: '' } }, true); break;
     case 'new-item': go('edit-item', { form: itemForm(null) }, true); break;
     case 'edit-item': var eb = itemById(ui.itemId); if (eb) go('edit-item', { form: itemForm(eb) }, true); break;
     case 'save-item': saveItem(); break;
@@ -269,14 +296,24 @@ document.addEventListener('click', function (e) {
     case 'day': ui.calDay = el.getAttribute('data-day'); render(); break;
     case 'cal-today': ui.calY = T.getFullYear(); ui.calM = T.getMonth(); ui.calDay = iso(T); render(); break;
     case 'month': var m = new Date(ui.calY, ui.calM + (+el.getAttribute('data-step')), 1); ui.calY = m.getFullYear(); ui.calM = m.getMonth(); ui.calDay = iso(m); render(); break;
-    case 'done': markDone(iso(T)); break;
+    case 'done': var dt0 = db.tasks.find(function (x) { return x.id === ui.taskId; }); if (dt0 && needsSheet(dt0)) { ui.completing = dt0.id; keepRender(); } else markDone(iso(T)); break;
     case 'complete-open': ui.completing = ui.taskId; keepRender(); break;
     case 'complete-cancel': ui.completing = null; keepRender(); break;
     case 'complete-save':
       var dd = document.getElementById('doneDate'), dv = dd && dd.value;
       if (!dv || !parse(dv)) { warn('Pick the date you finished it.'); break; }
       if (dv > iso(T)) { warn('Pick today or an earlier day.'); break; }
-      var dn = document.getElementById('doneNote'); ui.completing = null; markDone(dv, dn ? dn.value.trim() : ''); break;
+      var ctt = db.tasks.find(function (x) { return x.id === ui.taskId; }), cti = ctt && tieOf(ctt), ex = {};
+      if (cti && cti.renew) {
+        var nt = (document.getElementById('doneTie') || {}).value, old = cti.b.fields[cti.key] || '';
+        if (!nt || !parse(nt)) { warn('Enter the new ' + cti.label.toLowerCase() + ' date.'); break; }
+        if (old && nt <= old) { warn('The new date should be after ' + fmt(parse(old), true) + '.'); break; }
+        ex.tie = nt;
+      }
+      var mi0 = (document.getElementById('doneMiles') || {}).value;
+      if (mi0 && !miles(mi0)) { warn('Mileage should be a number, like 45210.'); break; }
+      ex.miles = miles(mi0);
+      var dn = document.getElementById('doneNote'); ui.completing = null; markDone(dv, dn ? dn.value.trim() : '', ex); break;
     case 'quick-done': quickDone(el.getAttribute('data-id'), el.closest('.row')); break;
     case 'undo-toast': if (showToast.undo) { restoreSnap(showToast.undo); hideToast(); keepRender(); showToast('Undone.'); } break;
     case 'hint-ok': hideHint(); keepRender(); break;
@@ -392,6 +429,7 @@ function saveTask() {
   var hol = f.cat === 'Celebrations' && HOLIDAYS[f.holiday] ? f.holiday : '';
   if (hol) { f.freq = 'Yearly'; f.fixed = true; if (!f.first) f.first = iso(today()); }
   var rec = { name: f.name, cat: f.cat, who: (f.who || '').trim(), freq: f.freq, fixed: !!f.fixed, holiday: hol, first: f.first || null, early: early, notes: (f.notes || '').trim(), contact: f.contact || null, item: itemById(f.item) ? f.item : null, active: !!f.active };
+  rec.tie = rec.item && tieChoices(itemById(rec.item)).some(function (x) { return x[0] === f.tie; }) ? f.tie : '';
   var amt = parseFloat(String(f.amount == null ? '' : f.amount).replace(/[^\d.]/g, ''));
   var was0 = f.id && db.tasks.find(function (x) { return x.id === f.id; });
   rec.owner = f.owner && (personById(f.owner) || (was0 && was0.owner === f.owner)) ? f.owner : '';

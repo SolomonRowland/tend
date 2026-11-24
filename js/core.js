@@ -105,7 +105,7 @@ function normalize(d) {
       id: String(t.id || ('t' + n++)), name: String(t.name || 'Untitled'), cat: CATS.indexOf(t.cat) >= 0 ? t.cat : t.cat === 'Finance & Insurance' ? 'Bills & Finance' : 'Misc', who: t.who || '',
       freq: FREQ[t.freq] ? t.freq : 'Yearly', fixed: !!t.fixed, first: isoOf(t.first), last: isoOf(t.last) || (hist[0] ? hist[0].date : null),
       early: Math.max(0, Math.min(365, parseInt(t.early, 10) || 0)), active: t.active !== false, notes: t.notes || '', how: typeof t.how === 'string' ? t.how.slice(0, 4000) : '', steps: normSteps(t.steps),
-      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: isoOf(t.snooze), history: hist, photos: normPhotos(t.photos), owner: typeof t.owner === 'string' ? t.owner.slice(0, 40) : ''
+      holiday: HOLIDAYS[t.holiday] ? t.holiday : '', auto: t.auto === 'birthday' ? 'birthday' : '', contact: t.contact && cids[t.contact] ? t.contact : null, item: t.item && bids[t.item] ? t.item : null, amount: parseFloat(t.amount) > 0 ? Math.round(parseFloat(t.amount) * 100) / 100 : null, autopay: !!t.autopay, snooze: isoOf(t.snooze), history: hist, photos: normPhotos(t.photos), owner: typeof t.owner === 'string' ? t.owner.slice(0, 40) : '', tie: t.item && bids[t.item] && typeof t.tie === 'string' ? t.tie.slice(0, 30) : ''
     };
   });
   var max = 0;
@@ -168,6 +168,8 @@ function nextDue(t) {
   if (!t.active) return null;
   var first = parse(t.first), last = parse(t.last), f = FREQ[t.freq];
   if (t.freq === 'One-time' && last) return null; // done once is done, even on a holiday
+  var tie = typeof tieOf === 'function' ? tieOf(t) : null; // tied to an expiration on a belonging: due on that date
+  if (tie && tie.renew && parse(tie.b.fields[tie.key])) return parse(tie.b.fields[tie.key]);
   if (t.holiday && HOLIDAYS[t.holiday]) return nextHoliday(t.holiday, last ? addDays(last, t.early + 1) : (first || today()));
   if (t.freq === 'One-time') return first;
   if (t.freq === 'Well-child (by age)') {

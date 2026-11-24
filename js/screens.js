@@ -310,7 +310,10 @@ function scrTask() {
   h += '<div class="stack">';
   if (t.active && i.status !== 'done') {
     if (ui.completing === t.id) {
+      var ct = tieOf(t), cb = itemById(t.item), veh = cb && cb.type === 'Vehicle';
       h += '<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:12px;border:2px solid var(--rose)"><label class="field"><span>Completed On</span><input class="input" type="date" id="doneDate" value="' + iso(today()) + '" max="' + iso(today()) + '"></label>' +
+        (ct && ct.renew ? '<label class="field"><span>New ' + (ct.key === 'insRenew' ? 'Renewal' : 'Expiration') + ' Date</span><input class="input" type="date" id="doneTie" value="' + iso(renewGuess(t, ct)) + '"><small>Saved on ' + esc(ct.b.name) + (ct.b.fields[ct.key] ? '. It was ' + fmt(parse(ct.b.fields[ct.key]), true) : '') + '.</small></label>' : '') +
+        (veh ? '<label class="field"><span>Mileage</span><input class="input" id="doneMiles" inputmode="numeric" maxlength="9" placeholder="Optional' + (cb.fields.miles ? ', last ' + miles(cb.fields.miles).toLocaleString() : '') + '"></label>' : '') +
         '<label class="field"><span>Note</span><input class="input" id="doneNote" maxlength="140" placeholder="Optional, e.g. $65 at the shop, used 5W-30"></label>' +
         '<div class="btns2"><button class="btn secondary" data-act="complete-cancel">Cancel</button><button class="btn primary" style="min-height:48px;font-size:15px;border-radius:14px" data-act="complete-save">' + ic('check', 18, 2.4) + 'Save</button></div></div>';
     } else {
@@ -335,7 +338,8 @@ function scrTask() {
     h += '<div class="card" style="margin:8px 16px 0;padding:12px 14px;display:flex;align-items:center;gap:12px"><span class="col"><span style="font-size:12.5px;color:var(--muted)">Amount</span><span style="font-family:var(--serif);font-size:24px;font-weight:700">' + money(t.amount) + '</span></span>' +
       '<span class="pill" style="margin-left:auto;background:var(--blush);color:var(--rose)">' + (t.autopay ? 'Autopay' : 'Pay manually') + '</span></div>';
   }
-  var bi = itemById(t.item);
+  var bi = itemById(t.item), tt = tieOf(t);
+  if (tt) h += '<p class="note" style="text-align:left;padding:8px 20px 0">' + ic('bell', 14) + ' ' + (tt.renew ? 'Due date follows ' + esc(tt.label) + ' on ' + esc(tt.b.name) + '. Marking it done saves the new date there.' : 'Marking it done updates ' + esc(tt.label) + ' on ' + esc(tt.b.name) + '.') + '</p>';
   if (bi) {
     var kr = keyRows(bi);
     h += '<div class="card" style="margin:8px 16px 0;padding:12px 14px 2px;display:flex;flex-direction:column;gap:4px"><span style="font-size:12.5px;color:var(--muted)">Belonging</span>' +
@@ -409,7 +413,7 @@ function scrEditTask() {
     '<label class="field"><span>Last Completed</span><input class="input" type="date" name="last" value="' + esc(f.last || '') + '"></label></div>' +
     '<label class="field"><span>Can Start Early</span><select class="input" name="early">' + earlyOptions(f.early) + '</select><small>How long before the deadline it can be done. Choose \u201COn the due date only\u201D if there\u2019s no window.</small></label>' +
     '<label class="field"><span>Contact</span><select class="input" name="contact"><option value="">None</option>' + db.contacts.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (c) { return opt(c.id, f.contact || '', c.name); }).join('') + '</select></label>' +
-    '<label class="field"><span>Belonging</span><select class="input" name="item" data-rerender="1">' + itemOptions(f.item) + '</select>' + itemCaption(f.item) + '</label>' +
+    '<label class="field"><span>Belonging</span><select class="input" name="item" data-rerender="1">' + itemOptions(f.item) + '</select>' + itemCaption(f.item) + '</label>' + tieField(f) +
     '<label class="field"><span>Notes</span><textarea class="input" name="notes" rows="3">' + esc(f.notes) + '</textarea></label>' +
     '<label class="field"><span>Steps</span><textarea class="input" name="stepsText" rows="4" placeholder="One step per line, e.g.\nAdd winterizing chlorine\nLower the water level\nPut on the cover">' + esc(f.stepsText || '') + '</textarea><small>A checklist you tick off each time. It clears when the task is marked done.</small></label>' +
     '<label class="field"><span>Instructions</span><textarea class="input" name="how" rows="5" maxlength="4000" placeholder="How to do it: parts, settings, where things are, links">' + esc(f.how || '') + '</textarea></label>' +
@@ -680,8 +684,8 @@ if (window.matchMedia) { var mq = window.matchMedia('(prefers-color-scheme: dark
 
 /* ---------- belongings ---------- */
 var ITEM_TYPES = {
-  Vehicle: { icon: 'car', ph: 'e.g. 2020 Honda CR-V', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [['year', 'Year', 'num'], ['make', 'Make'], ['model', 'Model'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate Number', 'code'], ['plateExp', 'Plates Expire', 'date'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['tires', 'Tire Size', 'code'], ['oil', 'Oil Type', 'code'], ['bought', 'Purchased', 'date']] },
-  Home: { icon: 'home', ph: 'e.g. Home', key: ['furnaceFilter', 'fridgeFilter', 'shutoff', 'policy'], fields: [['address', 'Address'], ['built', 'Year Built', 'num'], ['furnaceFilter', 'Furnace Filter Size', 'code'], ['fridgeFilter', 'Fridge Water Filter #', 'code'], ['waterHeater', 'Water Heater Installed (Year)', 'num'], ['roof', 'Roof Replaced (Year)', 'num'], ['shutoff', 'Main Water Shutoff Location'], ['paint', 'Paint Colors', 'long'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code']] },
+  Vehicle: { icon: 'car', ph: 'e.g. 2020 Honda CR-V', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [['year', 'Year', 'num'], ['make', 'Make'], ['model', 'Model'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate Number', 'code'], ['plateExp', 'Plates Expire', 'date'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['insRenew', 'Insurance Renews', 'date'], ['miles', 'Current Mileage', 'mi'], ['oilLast', 'Last Oil Change', 'date'], ['oilMiles', 'Oil Change Mileage', 'mi'], ['rotateLast', 'Last Tire Rotation', 'date'], ['tires', 'Tire Size', 'code'], ['oil', 'Oil Type', 'code'], ['bought', 'Purchased', 'date'], ['history', 'Accidents & Repairs', 'long']] },
+  Home: { icon: 'home', ph: 'e.g. Home', key: ['furnaceFilter', 'fridgeFilter', 'shutoff', 'policy'], fields: [['address', 'Address'], ['built', 'Year Built', 'num'], ['furnaceFilter', 'Furnace Filter Size', 'code'], ['fridgeFilter', 'Fridge Water Filter #', 'code'], ['waterHeater', 'Water Heater Installed (Year)', 'num'], ['roof', 'Roof Replaced (Year)', 'num'], ['shutoff', 'Main Water Shutoff Location'], ['paint', 'Paint Colors', 'long'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['insRenew', 'Policy Renews', 'date']] },
   Appliance: { icon: 'plug', ph: 'e.g. Dishwasher', key: ['model', 'serial', 'part', 'warranty'], fields: [['kind', 'Appliance', 'sel', ['Dishwasher', 'Refrigerator', 'Freezer', 'Range / oven', 'Cooktop', 'Microwave', 'Range hood', 'Garbage disposal', 'Washer', 'Dryer', 'Water heater', 'Furnace', 'Air conditioner', 'Heat pump', 'Water softener', 'Sump pump', 'Dehumidifier', 'Humidifier', 'Garage door opener', 'Generator', 'Grill', 'Lawn mower', 'Snow blower', 'Other']], ['brand', 'Brand'], ['model', 'Model Number', 'code'], ['serial', 'Serial Number', 'code'], ['where', 'Where It Is'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date'], ['part', 'Filter / Part Number', 'code'], ['store', 'Bought From']] },
   Pet: { icon: 'paw', ph: 'e.g. Max', key: ['chip', 'tag', 'tagExp'], fields: [['species', 'Animal', 'sel', ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Guinea pig / hamster', 'Reptile', 'Horse', 'Other']], ['breed', 'Breed'], ['born', 'Birthday', 'date'], ['chip', 'Microchip Number', 'code'], ['tag', 'License / Rabies Tag #', 'code'], ['tagExp', 'Tag Expires', 'date'], ['food', 'Food & Amount'], ['meds', 'Medicines']] },
   Document: { icon: 'doc', ph: 'e.g. Sam’s passport', key: ['number', 'expires'], fields: [['kind', 'Document', 'sel', ['Driver’s license', 'Passport', 'State ID', 'Birth certificate', 'Social Security card', 'Insurance card', 'Vehicle title', 'Deed', 'Will / trust', 'Other']], ['holder', 'Whose'], ['number', 'Number', 'code'], ['issued', 'Issued', 'date'], ['expires', 'Expires', 'date'], ['kept', 'Where It’s Kept']] },
@@ -691,7 +695,33 @@ var ITEM_TYPES = {
 };
 var ITEM_ORDER = ['Vehicle', 'Home', 'Appliance', 'Pet', 'Document', 'Thing', 'Other'];
 var ITEM_PLURAL = { Vehicle: 'Vehicles', Home: 'Homes', Appliance: 'Appliances', Pet: 'Pets', Document: 'Documents', Other: 'Other' };
-var EXPIRY_KEYS = { plateExp: 1, warranty: 1, tagExp: 1, expires: 1 };
+var EXPIRY_KEYS = { plateExp: 1, warranty: 1, tagExp: 1, expires: 1, insRenew: 1 };
+/* dates a task can keep up to date: an expiration it renews, or the last time something was done */
+var LAST_KEYS = { oilLast: 1, rotateLast: 1 };
+function tieOf(t) {
+  var b = t && t.tie ? itemById(t.item) : null; if (!b) return null;
+  var x = ITEM_TYPES[b.type].fields.find(function (y) { return y[0] === t.tie; });
+  if (!x || !(EXPIRY_KEYS[t.tie] || LAST_KEYS[t.tie])) return null;
+  return { b: b, key: t.tie, label: x[1], renew: !!EXPIRY_KEYS[t.tie] };
+}
+function tieChoices(b) { return b ? ITEM_TYPES[b.type].fields.filter(function (x) { return EXPIRY_KEYS[x[0]] || LAST_KEYS[x[0]]; }) : []; }
+/* a likely match from the task's name, for new tasks */
+function guessTie(name, b) {
+  var keys = tieChoices(b).map(function (x) { return x[0]; }), n = String(name || '').toLowerCase();
+  var rules = [[/registration|plates?\b|sticker/, 'plateExp'], [/insurance|policy/, 'insRenew'], [/oil/, 'oilLast'], [/rotat/, 'rotateLast'], [/rabies|tag|pet license/, 'tagExp'], [/warranty/, 'warranty'], [/renew|license|passport|expire/, 'expires']];
+  for (var i = 0; i < rules.length; i++) if (rules[i][0].test(n) && keys.indexOf(rules[i][1]) >= 0) return rules[i][1];
+  return '';
+}
+/* the suggested next expiration: the old one plus how often the task repeats (a year if it doesn't) */
+function renewGuess(t, ti) {
+  var old = parse(ti.b.fields[ti.key]) || today(), f = FREQ[t.freq] || {};
+  return f.dy ? addDays(old, f.dy) : addMonths(old, f.mo || 12);
+}
+function miles(v) { var n = parseInt(String(v || '').replace(/\D/g, ''), 10); return n > 0 ? n : 0; }
+function renewName(b, key) {
+  return key === 'plateExp' ? 'Renew ' + b.name + ' registration' : key === 'insRenew' ? 'Renew ' + b.name + ' insurance' : key === 'tagExp' ? 'Renew ' + b.name + '\u2019s license tag'
+    : key === 'warranty' ? b.name + ' warranty ends' : 'Renew ' + b.name;
+}
 function itemById(id) { return id ? db.items.find(function (b) { return b.id === id; }) || null : null; }
 function itemExpiry(b) {
   var best = null, T = today();
@@ -731,10 +761,14 @@ function itemRow(b, alt) {
   else if (n) right = '<span style="color:var(--rose);font-weight:600">' + n + (n === 1 ? ' task' : ' tasks') + '</span>';
   return '<button class="row' + (alt ? ' alt' : '') + '" data-act="item" data-id="' + esc(b.id) + '"><span class="badge">' + ic(ITEM_TYPES[b.type].icon, 20) + '</span><span class="col"><span class="name ellip">' + esc(b.name) + '</span><span class="meta ellip">' + esc(itemSub(b)) + '</span></span><span class="st">' + right + '</span></button>';
 }
-function fieldRows(b, keys) {
+function fieldRows(b, keys, withTie) {
   return ITEM_TYPES[b.type].fields.filter(function (x) { return b.fields[x[0]] && (!keys || keys.indexOf(x[0]) >= 0); }).map(function (x) {
     var v = b.fields[x[0]], d = x[2] === 'date' ? parse(v) : null, amt = x[2] === 'money' ? parseFloat(String(v).replace(/[^\d.]/g, '')) : NaN;
-    return '<div class="lrow"><span class="col"><span class="s">' + esc(x[1]) + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(d ? fmt(d, true) : amt > 0 ? money(amt) : v) + '</span>' + (d && EXPIRY_KEYS[x[0]] ? expiryNote(d) : '') + '</span>' +
+    var shown = x[2] === 'mi' && miles(v) ? miles(v).toLocaleString() + ' mi' : v;
+    var tied = d && withTie ? db.tasks.find(function (t) { return t.item === b.id && t.tie === x[0]; }) : null;
+    var extra = !withTie || !d ? '' : tied ? '<button class="link" style="align-self:flex-start;font-size:13px;padding:2px 0" data-act="task" data-id="' + esc(tied.id) + '">' + (EXPIRY_KEYS[x[0]] ? 'Renewal task: ' : 'Updated by: ') + esc(tied.name) + '</button>'
+      : EXPIRY_KEYS[x[0]] && x[0] !== 'warranty' ? '<button class="link" style="align-self:flex-start;font-size:13px;padding:2px 0" data-act="tie-new" data-k="' + x[0] + '">' + ic('bell', 13) + ' Remind me to renew</button>' : '';
+    return '<div class="lrow"><span class="col"><span class="s">' + esc(x[1]) + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(d ? fmt(d, true) : amt > 0 ? money(amt) : shown) + '</span>' + (d && EXPIRY_KEYS[x[0]] ? expiryNote(d) : '') + extra + '</span>' +
       (d ? '' : '<button class="copy" data-act="copy" data-v="' + esc(v) + '" aria-label="Copy ' + esc(x[1]) + '">' + ic('copy', 15) + '<span>Copy</span></button>') + '</div>';
   }).join('');
 }
@@ -785,7 +819,7 @@ function scrItem() {
   if (!b) { ui.screen = 'items'; return scrItems(); }
   var h = '<header class="head" style="gap:12px"><div class="headrow">' + backBtn() + '<button class="textbtn" data-act="edit-item">Edit</button></div>' +
     '<div style="display:flex;align-items:center;gap:14px"><span class="badge" style="width:56px;height:56px;flex-basis:56px;border-radius:16px">' + ic(ITEM_TYPES[b.type].icon, 28) + '</span><span class="col"><span class="eyebrow">' + esc(b.type) + '</span><h1 style="font-size:24px">' + esc(b.name) + '</h1></span></div></header>';
-    var rowsH = fieldRows(b);
+    var rowsH = fieldRows(b, null, true);
   h += '<div class="listcard" style="margin-top:16px">' + (rowsH || '<p class="note" style="text-align:left;margin:12px 0">No details saved yet. Tap Edit to add them.</p>') + '</div>';
   if (b.notes) h += '<div class="card" style="margin:10px 16px 0;padding:14px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;color:var(--muted)">Notes</span><span style="line-height:1.45;white-space:pre-wrap">' + esc(b.notes) + '</span></div>';
   h += photosCard('item', b);
@@ -796,6 +830,16 @@ function scrItem() {
   h += '<div class="section"><h2 style="font-size:19px">Related Tasks</h2><button class="link" data-act="new-task-item">+ Add Task</button></div><div class="stack">' +
     (linked.length ? linked.map(function (r) { return taskRow(r, false, 'contact'); }).join('') : '<p class="note" style="text-align:left;padding:4px">No related tasks yet. Open a task, tap Edit, and pick this under Belonging.</p>') + '</div>';
   return h + '<div class="pad-b"></div>';
+}
+function tieField(f) {
+  var b = itemById(f.item), ch = tieChoices(b); if (!ch.length) return '';
+  if (f.tie === undefined) f.tie = guessTie(f.name, b);
+  var cur = ch.some(function (x) { return x[0] === f.tie; }) ? f.tie : '', lab = cur ? ch.find(function (x) { return x[0] === cur; })[1] : '';
+  return '<label class="field"><span>When Done, Update</span><select class="input" name="tie" data-rerender="1">' + opt('', cur, 'Nothing') +
+    ch.map(function (x) { return opt(x[0], cur, b.name + ' \u203a ' + x[1]); }).join('') + '</select><small>' +
+    (!cur ? 'Pick a date on ' + esc(b.name) + ' that this task keeps up to date.'
+      : EXPIRY_KEYS[cur] ? 'Due on ' + esc(b.name) + '\u2019s ' + esc(lab) + ' date' + (b.fields[cur] ? ' (' + fmt(parse(b.fields[cur]), true) + ')' : '') + '. When you mark it done, Tend asks for the new date and saves it on ' + esc(b.name) + '.'
+      : 'Marking it done fills in ' + esc(lab) + ' on ' + esc(b.name) + '.') + '</small></label>';
 }
 function itemCaption(id) {
   var b = itemById(id);
@@ -829,13 +873,14 @@ function scrEditItem() {
     var nm = 'f_' + x[0], v = f[nm] || '', el;
     if (x[2] === 'date') el = '<input class="input" type="date" name="' + nm + '" value="' + esc(v) + '">';
     else if (x[2] === 'num') el = '<input class="input" inputmode="numeric" name="' + nm + '" value="' + esc(v) + '" maxlength="6">';
+    else if (x[2] === 'mi') el = '<input class="input" inputmode="numeric" name="' + nm + '" value="' + esc(v) + '" maxlength="9" placeholder="Miles">';
     else if (x[2] === 'money') el = '<input class="input" inputmode="decimal" name="' + nm + '" value="' + esc(v) + '" placeholder="$">';
     else if (x[2] === 'code') el = '<input class="input" autocapitalize="characters" autocorrect="off" spellcheck="false" name="' + nm + '" value="' + esc(v) + '">';
     else if (x[2] === 'long') el = '<textarea class="input" name="' + nm + '" rows="2">' + esc(v) + '</textarea>';
     else if (x[2] === 'sel') el = '<select class="input" name="' + nm + '"><option value="">Choose…</option>' + (v && x[3].indexOf(v) < 0 ? opt(v, v) : '') + x[3].map(function (o) { return opt(o, v); }).join('') + '</select>';
     else el = '<input class="input" name="' + nm + '" value="' + esc(v) + '">';
     var fld = '<label class="field"><span>' + esc(x[1]) + '</span>' + el + '</label>';
-    var small = x[2] === 'num' || x[2] === 'date' || x[2] === 'sel' || x[2] === 'money';
+    var small = x[2] === 'num' || x[2] === 'mi' || x[2] === 'date' || x[2] === 'sel' || x[2] === 'money';
     if (small && x[1].length < 22) { pair.push(fld); if (pair.length === 2) { h += '<div class="two">' + pair.join('') + '</div>'; pair = []; } }
     else { if (pair.length) { h += pair[0]; pair = []; } h += fld; }
   });
@@ -879,6 +924,7 @@ function saveItem() {
     var v = String(f['f_' + x[0]] || '').trim();
     if (x[0] === 'vin' || x[0] === 'plate') v = v.toUpperCase();
     if (x[2] === 'date' && v && !parse(v)) v = '';
+    if (x[2] === 'mi') v = miles(v) ? String(miles(v)) : '';
     if (v) fields[x[0]] = v;
   });
   var auto = autoName(type, fields);
