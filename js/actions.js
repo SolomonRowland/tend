@@ -243,6 +243,7 @@ document.addEventListener('click', function (e) {
     case 'tab-people': go(ui.dir === 'items' ? 'items' : 'contacts', { cq: '', bq: '' }); break;
     case 'dir': ui.dir = el.getAttribute('data-to') === 'items' ? 'items' : 'contacts'; go(ui.dir, { cq: '', bq: '' }); break;
     case 'item': go('item', { itemId: el.getAttribute('data-id') }, true); break;
+    case 'hist-all': ui.histAll = ui.itemId; keepRender(); break;
     case 'tie-new':
       var tb = itemById(ui.itemId), tk = el.getAttribute('data-k'); if (!tb) break;
       var tyears = tb.type === 'Document' ? ({ 'Passport': 'Every 10 years', 'Driver\u2019s license': 'Every 4 years', 'State ID': 'Every 4 years' }[tb.fields.kind] || 'Yearly') : 'Yearly';

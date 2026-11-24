@@ -232,6 +232,9 @@ async function swipe(p, sel, dx, dy) {
   check('marking the oil change done fills in the date and mileage', await A.evaluate(() => { const b = db.items.find(x => x.name === 'Tahoe'); return b.fields.oilLast === iso(today()) && b.fields.oilMiles === '46000' && b.fields.miles === '46000'; }));
   await A.evaluate(id => { go('item', { itemId: id }, true); }, bid);
   check('the vehicle shows its renewal task under the plate date', await A.evaluate(() => /Renewal task: Renew Tahoe registration/.test(view.innerText) && /Updated by: Oil change/.test(view.innerText)));
+  check('the vehicle lists everything done for it, newest first', await A.evaluate(() => { const txt = view.innerText, i = txt.indexOf('History'); return i > 0 && /Oil change/.test(txt.slice(i)) && /46,000 mi/.test(txt.slice(i)) && /\b2026\b/.test(txt.slice(i)); }));
+  await A.evaluate(() => { const b = document.querySelectorAll('.listcard button[data-act=task]'); b[b.length - 1].click(); });
+  check('a history entry opens its task', await A.evaluate(() => ui.screen === 'task' && /Oil change/.test(view.innerText)));
   console.log('errors', errs); console.log(ok, 'passed', bad, 'failed');
   await b.close(); process.exit(bad || errs.length ? 1 : 0);
 })();

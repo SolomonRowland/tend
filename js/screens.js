@@ -829,7 +829,26 @@ function scrItem() {
   var linked = rows().filter(function (r) { return r.t.item === b.id; });
   h += '<div class="section"><h2 style="font-size:19px">Related Tasks</h2><button class="link" data-act="new-task-item">+ Add Task</button></div><div class="stack">' +
     (linked.length ? linked.map(function (r) { return taskRow(r, false, 'contact'); }).join('') : '<p class="note" style="text-align:left;padding:4px">No related tasks yet. Open a task, tap Edit, and pick this under Belonging.</p>') + '</div>';
+  h += itemTimeline(b);
   return h + '<div class="pad-b"></div>';
+}
+/* everything done for a belonging, newest first, gathered from its tasks' history */
+function itemTimeline(b) {
+  var all = [];
+  db.tasks.forEach(function (t) { if (t.item === b.id) t.history.forEach(function (x) { all.push({ t: t, h: x }); }); });
+  if (!all.length) return '';
+  all.sort(function (x, y) { return x.h.date < y.h.date ? 1 : x.h.date > y.h.date ? -1 : x.t.name.localeCompare(y.t.name); });
+  var open = ui.histAll === b.id, shown = open ? all : all.slice(0, 8), year = '';
+  var h = '<div class="section"><h2 style="font-size:19px">History</h2><span class="meta" style="color:var(--muted)">' + all.length + (all.length === 1 ? ' entry' : ' entries') + '</span></div><div class="listcard">';
+  shown.forEach(function (x) {
+    var d = parse(x.h.date), y = String(d.getFullYear());
+    if (y !== year) { year = y; h += '<div class="lrow" style="min-height:0;padding:10px 0 2px;border:0"><span class="s" style="font-weight:700;letter-spacing:.04em">' + y + '</span></div>'; }
+    h += '<button class="lrow" style="width:100%;text-align:left" data-act="task" data-id="' + esc(x.t.id) + '"><span class="col"><span class="t">' + esc(x.t.name) + '</span>' +
+      '<span class="s">' + fmt(d, true) + (x.h.by ? ' \u00b7 ' + esc(x.h.by) : '') + '</span>' + (x.h.note ? '<span class="s" style="color:var(--ink)">' + esc(x.h.note) + '</span>' : '') + '</span><span style="color:var(--muted)">' + ic('next', 16) + '</span></button>';
+  });
+  h += '</div>';
+  if (all.length > shown.length) h += '<div class="stack" style="margin-top:8px"><button class="btn secondary" data-act="hist-all">Show All ' + all.length + '</button></div>';
+  return h;
 }
 function tieField(f) {
   var b = itemById(f.item), ch = tieChoices(b); if (!ch.length) return '';
