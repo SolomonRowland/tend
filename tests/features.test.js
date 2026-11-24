@@ -212,9 +212,9 @@ async function swipe(p, sel, dx, dy) {
   await A.fill('textarea[name=f_history]', '2024-05 rear bumper, fixed at Sample Auto Care'); await A.click('[data-act=save-item]');
   check('a vehicle saves mileage and accident history', await A.evaluate(() => { const b = db.items.find(x => x.name === 'Tahoe'); return b && b.fields.miles === '45000' && /45,000 mi/.test(view.innerText) && /Accidents & Repairs\n2024-05 rear bumper/.test(view.innerText); }));
   await A.click('[data-act=tie-new][data-k=plateExp]');
-  check('Remind me to renew starts a tied renewal task', await A.evaluate(() => ui.screen === 'edit-task' && document.querySelector('input[name=name]').value === 'Renew Tahoe registration' && document.querySelector('select[name=tie]').value === 'plateExp'));
+  check('Remind me to renew starts a tied renewal task', await A.evaluate(() => ui.screen === 'edit-task' && document.querySelector('input[name=name]').value === 'Renew Tahoe Registration' && document.querySelector('select[name=tie]').value === 'plateExp'));
   await A.click('[data-act=save-task]');
-  const rt = await A.evaluate(() => { const t = db.tasks.find(x => x.name === 'Renew Tahoe registration'); return { id: t.id, tie: t.tie, due: iso(nextDue(t)) }; });
+  const rt = await A.evaluate(() => { const t = db.tasks.find(x => x.name === 'Renew Tahoe Registration'); return { id: t.id, tie: t.tie, due: iso(nextDue(t)) }; });
   check('the renewal is due on the plate date', rt.tie === 'plateExp' && rt.due === '2026-12-15', rt);
   await A.click('[data-act=complete-open]');
   check('Done asks for the new plate date, a year on', await A.evaluate(() => document.getElementById('doneTie').value === '2027-12-15' && !!document.getElementById('doneMiles')));
@@ -231,7 +231,7 @@ async function swipe(p, sel, dx, dy) {
   await A.click('[data-act=save-task]'); await A.click('[data-act=complete-open]'); await A.fill('#doneMiles', '46000'); await A.click('[data-act=complete-save]');
   check('marking the oil change done fills in the date and mileage', await A.evaluate(() => { const b = db.items.find(x => x.name === 'Tahoe'); return b.fields.oilLast === iso(today()) && b.fields.oilMiles === '46000' && b.fields.miles === '46000'; }));
   await A.evaluate(id => { go('item', { itemId: id }, true); }, bid);
-  check('the vehicle shows its renewal task under the plate date', await A.evaluate(() => /Renewal task: Renew Tahoe registration/.test(view.innerText) && /Updated by: Oil change/.test(view.innerText)));
+  check('the vehicle shows its renewal task under the plate date', await A.evaluate(() => /Renewal task: Renew Tahoe Registration/.test(view.innerText) && /Updated by: Oil change/.test(view.innerText)));
   check('the vehicle lists everything done for it, newest first', await A.evaluate(() => { const txt = view.innerText, i = txt.indexOf('History'); return i > 0 && /Oil change/.test(txt.slice(i)) && /46,000 mi/.test(txt.slice(i)) && /\b2026\b/.test(txt.slice(i)); }));
   await A.evaluate(() => { const b = document.querySelectorAll('.listcard button[data-act=task]'); b[b.length - 1].click(); });
   check('a history entry opens its task', await A.evaluate(() => ui.screen === 'task' && /Oil change/.test(view.innerText)));

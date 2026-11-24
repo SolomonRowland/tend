@@ -526,7 +526,7 @@ function ensureBirthday() {
   var t = db.tasks.find(function (x) { return x.auto === 'birthday' && (!C.on || x.who === p.first); }), nb = nextAnniv(p.dob), changed = false;
   if (!t) {
     if (db.noBday) return false;
-    db.tasks.push({ id: newId('t'), name: C.on ? p.first + '\u2019s birthday' : 'My birthday', cat: 'Celebrations', who: p.first, freq: 'Yearly', fixed: true, holiday: '', auto: 'birthday', first: iso(nb), last: null, early: 7,
+    db.tasks.push({ id: newId('t'), name: C.on ? p.first + '\u2019s Birthday' : 'My Birthday', cat: 'Celebrations', who: p.first, freq: 'Yearly', fixed: true, holiday: '', auto: 'birthday', first: iso(nb), last: null, early: 7,
       active: true, notes: 'Added from your profile. Plan something you enjoy.', contact: null, item: null, snooze: null, history: [] });
     changed = true;
   } else {
@@ -719,8 +719,8 @@ function renewGuess(t, ti) {
 }
 function miles(v) { var n = parseInt(String(v || '').replace(/\D/g, ''), 10); return n > 0 ? n : 0; }
 function renewName(b, key) {
-  return key === 'plateExp' ? 'Renew ' + b.name + ' registration' : key === 'insRenew' ? 'Renew ' + b.name + ' insurance' : key === 'tagExp' ? 'Renew ' + b.name + '\u2019s license tag'
-    : key === 'warranty' ? b.name + ' warranty ends' : 'Renew ' + b.name;
+  return key === 'plateExp' ? 'Renew ' + b.name + ' Registration' : key === 'insRenew' ? 'Renew ' + b.name + ' Insurance' : key === 'tagExp' ? 'Renew ' + b.name + '\u2019s License Tag'
+    : key === 'warranty' ? b.name + ' Warranty Ends' : 'Renew ' + b.name;
 }
 function itemById(id) { return id ? db.items.find(function (b) { return b.id === id; }) || null : null; }
 function itemExpiry(b) {
