@@ -63,7 +63,7 @@ function load() {
 function save() {
   db.savedAt = new Date().toISOString();
   try { localStorage.setItem(KEY, JSON.stringify(db)); storageOk = true; }
-  catch (e) { storageOk = false; warn('Couldn\u2019t save on this phone. Save a backup now.'); }
+  catch (e) { storageOk = false; warn('Couldn\u2019t save on this device. Save a backup now.'); }
   if (C.on && C.hid) schedulePush();
 }
 /* a task's checklist: [{ t: 'Add chlorine', d: true }], ticked off each time and cleared when the task is done */

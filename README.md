@@ -7,13 +7,15 @@ It lives at https://solomonrowland.github.io/tend/ and installs to the iPhone Ho
 ## Files
 - `index.html` is the page. Styles are in `css/app.css`. On screens 1024px and wider the same screens get a desktop layout (sidebar, wider pages, two-column lists), set at the end of that file, so phone and desktop always have the same features.
 - `js/core.js`: lists, dates, storage and the scheduling rules.
-- `js/screens.js`: every screen and form.
+- `js/screens.js`: the home, task, calendar and contact screens and their forms.
+- `js/settings.js`: your profile, reminder choices, the Settings screen and color themes.
+- `js/belongings.js`: belongings (vehicles, homes, appliances, pets, documents), the dates tasks keep up to date on them, and their history.
 - `js/starter.js`: the "What Do You Tend To?" picker and its task library.
 - `js/photos.js`: photos on tasks and belongings.
 - `js/notify.js`: turning the daily heads-up on and off.
 - `js/actions.js`: drawing the screen and handling every tap.
 - `js/swipe.js`: swipe a task right to finish it, left to snooze it a week.
-- `js/data.js`: example data and the household list.
+- `js/data.js`: example data.
 - `js/cloud.js`: sign-in, household, invites and sync with Supabase.
 - `js/main.js`: start-up.
 - `vendor/supabase.js` is the Supabase client (v2.117.3), kept here so the app works offline.

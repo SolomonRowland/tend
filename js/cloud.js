@@ -305,7 +305,7 @@ function refreshView() {
     document.querySelector('.row.doing') || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
   if (busy) { C.stale = true; return; }
   C.stale = false;
-  if (ui.screen === 'task' && db && !db.tasks.some(function (t) { return t.id === ui.taskId; })) { ui.stack = []; go('home'); toast('That task was removed on another phone.'); return; }
+  if (ui.screen === 'task' && db && !db.tasks.some(function (t) { return t.id === ui.taskId; })) { ui.stack = []; go('home'); toast('That task was removed on another device.'); return; }
   keepRender();
 }
 
@@ -395,7 +395,7 @@ function cloudSettings() {
   var me = C.user && C.user.id, owner = C.role === 'owner';
   var n = C.members.length;
   var h = '<div class="section"><h2 style="font-size:19px">Who Can See This List</h2><span style="font-size:13px;color:var(--muted);font-weight:600">' + n + (n === 1 ? ' person' : ' people') + '</span></div>' +
-    '<p class="note" style="text-align:left;padding:0 20px 10px">Everyone in <strong>' + esc(C.house) + '</strong> sees and can change its tasks, contacts, belongings and photos. No one else can. Your profile and appearance settings stay on your phone.</p><div class="listcard">';
+    '<p class="note" style="text-align:left;padding:0 20px 10px">Everyone in <strong>' + esc(C.house) + '</strong> sees and can change its tasks, contacts, belongings and photos. No one else can. Your profile is kept with your account. Appearance settings stay on each device.</p><div class="listcard">';
   h += C.members.map(function (m) {
     var you = m.user_id === me;
     return '<div class="lrow"><span class="col" style="min-width:0"><span class="t">' + esc(m.name || (m.email || '').split('@')[0]) + (you ? ' <span class="cyou">You</span>' : '') + '</span><span class="s" style="word-break:break-all">' + esc(m.email || '') + '</span><span class="s">' + (m.role === 'owner' ? 'Owner' : 'Member') + (m.joined_at ? ' · joined ' + esc(fmt(new Date(m.joined_at), true)) : '') + '</span></span>' +

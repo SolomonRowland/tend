@@ -82,7 +82,7 @@ function notifyOff() {
   swReady().then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
     if (!sub) return;
     return C.sb.from('push_subs').delete().eq('endpoint', sub.endpoint).then(function () { return sub.unsubscribe(); });
-  }).then(function () { N.state = 'off'; N.busy = false; keepRender(); toast('Notifications are off on this phone.'); }, function (e) { N.busy = false; N.msg = cloudMsg(e); keepRender(); });
+  }).then(function () { N.state = 'off'; N.busy = false; keepRender(); toast('Notifications are off on this device.'); }, function (e) { N.busy = false; N.msg = cloudMsg(e); keepRender(); });
 }
 function notifyHour(h) {
   N.hour = h; keepRender();
@@ -113,11 +113,11 @@ function notifySettings() {
   }
   if (N.state === 'blocked') return h + '<div class="tip" style="margin:0 16px">Notifications are blocked for Tend. Turn them on in your phone’s Settings → Notifications → Tend, then come back here.</div>';
   if (N.state !== 'on') {
-    return h + note('Get one short heads-up a day on this phone: what’s overdue, due today and coming up this week.') +
+    return h + note('Get one short heads-up a day on this device: what’s overdue, due today and coming up this week.') +
       (N.msg ? '<p class="cerr" style="margin:0 16px 8px">' + esc(N.msg) + '</p>' : '') +
       '<div class="stack"><button class="btn primary" data-act="notify-on"' + (N.busy || N.state === 'unknown' ? ' disabled' : '') + '>' + (N.busy ? '<i class="spin"></i>One moment…' : ic('bell', 18) + 'Turn On Daily Heads-Up') + '</button></div>';
   }
-  h += note('A daily heads-up comes to this phone. Choose when:');
+  h += note('A daily heads-up comes to this device. Choose when:');
   h += '<div class="listcard" role="radiogroup">' + NOTIFY_HOURS.map(function (x) {
     var on = x[0] === N.hour;
     return '<button type="button" class="lrow" role="radio" aria-checked="' + on + '" data-act="notify-hour" data-v="' + x[0] + '"><span class="t">' + x[1] + '</span>' +
