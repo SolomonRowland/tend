@@ -365,3 +365,89 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
 .hrow .input{padding:10px 6px;font-size:15px;text-align:center}
 .hrow .input::-webkit-calendar-picker-indicator{display:none}
 .fsec{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--rose);margin:14px 0 -4px;padding-top:12px;border-top:1px solid var(--line)}
+
+/* ================= desktop: one layout for wide screens, same screens and buttons as the phone =================
+   render() puts .shell on <body> inside the app and data-screen="<screen>"; below 1024px none of this applies. */
+.brand,.deskonly,nav.tabs .brand,nav.tabs .deskonly{display:none}
+@media (min-width:1024px){
+  /* sign-in, welcome and first-time setup: a centered card */
+  body:not(.shell){background:var(--blush)}
+  body:not(.shell) #app{top:0;bottom:0;margin:auto;height:fit-content;max-height:calc(100dvh - 80px);max-width:520px;border-radius:24px;overflow:hidden;box-shadow:0 20px 60px var(--shadow),0 2px 8px var(--shadow)}
+  body:not(.shell) #view{min-height:0}
+  body:not(.shell) .welcome{min-height:0}
+  body:not(.shell) .welcome{padding-top:44px}
+
+  /* the app: sidebar on the left, pages on the right */
+  body.shell #app{max-width:none;flex-direction:row}
+  body.shell #app::before{display:none}
+  body.shell nav.tabs{order:-1;flex:0 0 244px;width:244px;display:flex;flex-direction:column;gap:2px;padding:22px 14px 18px;border-top:0;border-right:1px solid var(--line);overflow-y:auto}
+  body.shell nav.tabs[hidden]{display:flex!important;pointer-events:none;opacity:.45} /* editing: stays in place, but finish or cancel first */
+  body.shell nav.tabs .brand{display:flex;align-items:center;gap:11px;padding:2px 10px 24px;font-family:var(--serif);font-size:23px;font-weight:700;color:var(--ink)}
+  .brand img{width:34px;height:34px;border-radius:9px}
+  body.shell nav.tabs button{flex-direction:row;justify-content:flex-start;gap:13px;min-height:44px;padding:0 12px;border-radius:11px;font-size:15px;font-weight:600;color:var(--muted);transition:background .15s,color .15s}
+  body.shell nav.tabs button svg{width:20px;height:20px}
+  body.shell nav.tabs button:hover{background:var(--blush);color:var(--ink)}
+  body.shell nav.tabs button[aria-current="page"]:not([data-dim]),body.shell nav.tabs button[data-on]{background:var(--blush);color:var(--rose)}
+  body.shell nav.tabs button[data-dim]{color:var(--muted)}
+  body.shell nav.tabs button::before{display:none}
+  body.shell nav.tabs .deskonly{display:flex;margin-top:auto}
+
+  /* pages: a centered column with room to breathe */
+  body.shell #view{padding:28px 40px 48px}
+  body.shell #view>*{max-width:1120px;margin-left:auto!important;margin-right:auto!important}
+  body.shell:is([data-screen="task"],[data-screen="contact"],[data-screen="item"],[data-screen="settings"],[data-screen="profile"],[data-screen="prefs"],[data-screen^="edit-"],[data-screen^="starter"]) #view>*{max-width:780px}
+  body.shell .head{border-radius:22px;padding:26px 30px}
+  body.shell .head.round{padding-bottom:44px}
+  body.shell .head h1{font-size:32px}
+  body.shell .head:has(.textbtn[data-act^="save"]){position:sticky;top:-28px;z-index:4;padding:16px 22px;box-shadow:0 8px 24px var(--shadow)}
+  body.shell .stats{padding:0 24px;gap:14px}
+  body.shell .stat{padding:18px 18px}
+  body.shell .stat .n{font-size:36px}
+  body.shell .section{padding:28px 6px 10px}
+  body.shell .stack,body.shell .cats,body.shell .themes,body.shell .photos,body.shell .grid2,body.shell .roles{padding-left:0;padding-right:0}
+  body.shell .listcard,body.shell .ccard,body.shell .tip,body.shell .hint,body.shell .flash,body.shell .ents,body.shell .photoempty{margin-left:0;margin-right:0}
+  body.shell .tip,body.shell .photoempty{width:100%!important}
+  body.shell .form{padding:26px 30px 30px;margin-top:16px!important;background:var(--surface);border-radius:20px;box-shadow:0 1px 3px var(--shadow)}
+  body.shell .actions{padding:16px 0}
+
+  /* lists use the width: two columns of rows on the list pages */
+  body.shell:is([data-screen="home"],[data-screen="list"],[data-screen="contacts"],[data-screen="items"]) .stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;align-items:start}
+  body.shell:is([data-screen="home"],[data-screen="list"],[data-screen="contacts"],[data-screen="items"]) .stack>:not(.row):not(.swipe){grid-column:1/-1}
+  body.shell:is([data-screen="home"],[data-screen="list"],[data-screen="contacts"],[data-screen="items"]) .stack>.link{justify-self:start}
+  body.shell .row.alt{background:var(--surface);box-shadow:0 1px 3px var(--shadow)} /* stripes read as columns in a grid */
+  body.shell .grp{padding:16px 4px 2px}
+  body.shell .cats{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  body.shell .photos{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  body.shell .themes{gap:12px}
+
+  /* calendar: month on the left, the month's progress and the chosen day on the right */
+  body.shell[data-screen="calendar"] #view>.calmain,body.shell[data-screen="calendar"] #view>.calside{max-width:none}
+  body.shell[data-screen="calendar"] #view{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);column-gap:28px;align-content:start;max-width:none}
+  body.shell[data-screen="calendar"] #view>*{max-width:none;margin:0!important;width:100%}
+  body.shell[data-screen="calendar"] .pad-b{grid-column:1/-1}
+  body.shell .calmain{border-radius:22px;overflow:hidden;background:var(--surface);box-shadow:0 1px 3px var(--shadow);padding-bottom:14px}
+  body.shell .calmain .head{border-radius:0}
+  body.shell .cal{border-bottom:0;gap:6px;padding:12px 16px}
+  body.shell .day{height:68px;font-size:15px}
+  body.shell .legend{padding:6px 20px 0}
+  body.shell .calside .card{margin:0!important}
+  body.shell .calside .section{padding-top:22px}
+
+  /* floating bits sit in the page, not over the sidebar */
+  body.shell .fab{right:40px;bottom:32px}
+  body.shell #toast{left:auto;right:32px;bottom:28px;width:440px}
+  body.shell .stickybar{padding-bottom:20px}
+  .sheet{max-width:420px;padding:26px 24px 22px}
+}
+@media (min-width:1024px) and (hover:hover){
+  body.shell .row,body.shell .stat,body.shell .cat,body.shell .tile,body.shell .role,body.shell .themebtn{transition:box-shadow .15s,transform .15s}
+  body.shell .row:hover,body.shell .stat:hover,body.shell .cat:hover,body.shell .role:hover,body.shell .themebtn:hover{box-shadow:0 6px 18px var(--shadow)}
+  body.shell .stat:hover,body.shell .cat:hover{transform:translateY(-1px)}
+  body.shell .lrow:hover{background:linear-gradient(90deg,transparent,var(--blush) 8%,var(--blush) 92%,transparent)}
+  body.shell .day:not(.sel):hover{background:var(--blush)}
+  body.shell .btn:hover,body.shell .link:hover,body.shell .addbtn:hover,body.shell .textbtn:hover,body.shell .iconbtn:hover{filter:brightness(.96)}
+}
+@media (min-width:1440px){
+  body.shell nav.tabs{flex-basis:264px;width:264px}
+  body.shell #view{padding:32px 56px 56px}
+}

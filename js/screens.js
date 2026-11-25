@@ -221,17 +221,17 @@ function scrCal() {
     cells += '<button class="' + cls + '" data-act="day" data-day="' + k + '" aria-label="' + MONTHS[ui.calM] + ' ' + d + (L.length ? ', ' + L.length + (L.length === 1 ? ' deadline' : ' deadlines') : '') + '">' + d + '<i style="background:' + (worst ? worst.i.dot : 'transparent') + '"></i></button>';
   }
   var sel = parse(ui.calDay), items = byDay[ui.calDay] || [];
-  var h = '<header class="head" style="gap:14px"><div class="headrow"><button class="iconbtn" data-act="month" data-step="-1" aria-label="Previous month">' + ic('back', 20, 2.2) + '</button>' +
+  var h = '<div class="calmain"><header class="head" style="gap:14px"><div class="headrow"><button class="iconbtn" data-act="month" data-step="-1" aria-label="Previous month">' + ic('back', 20, 2.2) + '</button>' +
     '<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><h1 style="font-size:24px">' + MONTHS[ui.calM] + ' ' + ui.calY + '</h1><span class="sub" style="font-size:12.5px">' + count + (count === 1 ? ' deadline' : ' deadlines') + '</span></div>' +
     '<button class="iconbtn" data-act="month" data-step="1" aria-label="Next month">' + ic('next', 20, 2.2) + '</button></div>' +
     '<div class="dow"><span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span></div></header>';
   h += '<div class="cal">' + cells + '</div>';
   h += '<div class="legend"><span><i style="background:var(--dot-red)"></i>Overdue</span><span><i style="background:var(--dot-orange)"></i>Due</span><span><i style="background:var(--dot-green)"></i>Upcoming</span><span><i style="background:var(--dot-grey)"></i>Snoozed</span>' +
     (ui.calY !== T.getFullYear() || ui.calM !== T.getMonth() ? '<button class="link" style="min-height:30px;margin-left:auto;font-size:12.5px;padding:0 12px" data-act="cal-today">Today</button>' : '') + '</div>';
-  h += monthDonut(R);
+  h += '</div><div class="calside">' + monthDonut(R);
   h += '<div class="section"><h2 style="font-size:19px">' + (sel ? DAYS[sel.getDay()] + ', ' + fmt(sel, false) : '') + '</h2></div><div class="stack">';
   h += items.length ? items.map(function (r) { return taskRow(r, false); }).join('') : '<p class="note" style="text-align:left;padding:4px">No deadlines this day. Tap a day with a dot.</p>';
-  return h + '</div><div class="pad-b"></div>';
+  return h + '</div></div><div class="pad-b"></div>';
 }
 function contactMatches(c, q) {
   if (!q) return true;

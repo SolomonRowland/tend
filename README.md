@@ -5,7 +5,7 @@ A household maintenance app for the phone: recurring home, vehicle, health and f
 It lives at https://solomonrowland.github.io/tend/ and installs to the iPhone Home Screen (Safari › Share › Add to Home Screen). No personal data lives in this repository.
 
 ## Files
-- `index.html` is the page. Styles are in `css/app.css`.
+- `index.html` is the page. Styles are in `css/app.css`. On screens 1024px and wider the same screens get a desktop layout (sidebar, wider pages, two-column lists), set at the end of that file, so phone and desktop always have the same features.
 - `js/core.js`: lists, dates, storage and the scheduling rules.
 - `js/screens.js`: every screen and form.
 - `js/starter.js`: the "What Do You Tend To?" picker and its task library.
@@ -28,7 +28,7 @@ It lives at https://solomonrowland.github.io/tend/ and installs to the iPhone Ho
 - The publishable key in `js/cloud.js` is meant to be public. Row-level security keeps each household's data, photos and phones private.
 
 ## Tests
-Run `tests/run.sh` from the repository root. It needs Postgres, Node and Playwright. It covers the database rules, two phones syncing, photos, notifications, swiping, task assignment, moving over from the original Tend, every screen in every theme, the scheduling rules (including thousands of random tasks), damaged backup files, and a random-tap stress test that types, taps and swipes for a few thousand steps. It also checks the iPhone app's own daily heads-up. A GitHub Action runs it on each push.
+Run `tests/run.sh` from the repository root. It needs Postgres, Node and Playwright. It covers the database rules, two phones syncing, photos, notifications, swiping, task assignment, moving over from the original Tend, every screen in every theme, the scheduling rules (including thousands of random tasks), damaged backup files, and a random-tap stress test that types, taps and swipes for a few thousand steps. It also checks the desktop layout at three screen widths and the iPhone app's own daily heads-up. A GitHub Action runs it on each push.
 
 ## Earlier versions
 The first, phone-only Tend kept its list on the phone. On a phone that still has that list, a new household's welcome screen offers to bring it over. The shared version was briefly called Tend Home and lived at `/home/`; that address now forwards here.
