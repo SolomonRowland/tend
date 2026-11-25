@@ -78,7 +78,7 @@ function afterAuth() {
     C.authP = null; C.authUid = null; dropHousehold(); render(); return Promise.resolve();
   }
   if (C.authP && C.authUid === C.user.id) return C.authP;
-  C.authUid = C.user.id;
+  C.authUid = C.user.id; profileFromAccount();
   var p = C.authP = refreshHousehold().then(function () {
     if (!C.hid && C.joinCode) return joinWith(C.joinCode, true);
   }).catch(function (e) { setOnline(false, e); }).then(function () { render(); });
@@ -428,7 +428,7 @@ function cloudSubmit(id) {
       C.auth.busy = false;
       if (r.error) throw r.error;
       if (C.auth.mode === 'up' && !(r.data && r.data.session)) { C.auth.mode = 'in'; C.auth.msg = 'Check your email to confirm your account, then sign in here.'; render(); return; }
-      C.user = r.data.user; render(); afterAuth();
+      C.user = r.data.user; profileFromAccount(); render(); afterAuth();
     }).catch(function (e) { C.auth.busy = false; C.err = cloudMsg(e); render(); });
     return true;
   }

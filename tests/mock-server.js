@@ -4,7 +4,8 @@
 const http = require('http'), crypto = require('crypto');
 const { Pool } = require('pg');
 const pool = new Pool({ host: process.env.PGHOST || '127.0.0.1', user: process.env.PGUSER || 'postgres', password: process.env.PGPASSWORD || 'pg', database: process.env.PGDATABASE || 'tendtest' });
-const pw = {}; const tokens = {}; const subs = new Set(); const files = {}; const signed = {};
+const pw = {}; const meta = {}; // account details kept with the sign-in (user_metadata)
+const tokens = {}; const subs = new Set(); const files = {}; const signed = {};
 function send(res, code, obj) { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }); res.end(JSON.stringify(obj)); }
 const KEYS = { records: ['household_id', 'kind', 'id'], push_subs: ['endpoint'] };
 function ident(s) { if (!/^[a-z_][a-z0-9_]*$/.test(s)) throw new Error('bad ident ' + s); return s; }
@@ -67,8 +68,10 @@ http.createServer(async (req, res) => {
     if (req.url === '/signin') {
       const u = (await pool.query('select id, email from auth.users where email=$1', [b.email])).rows[0];
       if (!u || pw[b.email] !== b.password) return send(res, 200, { error: { message: 'Invalid login credentials' } });
+      u.user_metadata = meta[u.id] || {};
       const tk = crypto.randomUUID(); tokens[tk] = u.id; return send(res, 200, { data: { user: u, session: { access_token: tk, user: u } } });
     }
+    if (req.url === '/user') { if (!uid) return send(res, 200, { error: { message: 'Sign in first' } }); meta[uid] = Object.assign(meta[uid] || {}, b.data || {}); return send(res, 200, { data: { user: { id: uid, user_metadata: meta[uid] } } }); }
     if (req.url === '/storage/upload') {
       await asUser(uid, c => c.query('insert into storage.objects (bucket_id, name) values ($1, $2)', [b.bucket, b.path]));
       files[b.bucket + '/' + b.path] = Buffer.from(b.b64, 'base64'); return send(res, 200, { data: { path: b.path }, error: null });

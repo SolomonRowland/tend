@@ -29,7 +29,7 @@ window.TEND_CLOUD_FACTORY = function () {
       signInWithPassword: function (o) { return post('/signin', o).then(function (r) { if (r.data) { localStorage.setItem('sb-mock-auth-token', JSON.stringify(r.data.session)); emit('SIGNED_IN', r.data.session); } return r; }); },
       signOut: function () { localStorage.removeItem('sb-mock-auth-token'); emit('SIGNED_OUT', null); return Promise.resolve({}); },
       resetPasswordForEmail: function () { return Promise.resolve({}); },
-      updateUser: function () { return Promise.resolve({}); }
+      updateUser: function (o) { if (o && o.data) return post('/user', { data: o.data }).then(function (r) { var s = sess(); if (s && r.data) { s.user.user_metadata = r.data.user.user_metadata; localStorage.setItem('sb-mock-auth-token', JSON.stringify(s)); } return r; }); return Promise.resolve({}); }
     },
     from: function (t) { return new Q(t); },
     storage: {

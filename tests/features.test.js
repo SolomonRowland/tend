@@ -248,6 +248,21 @@ async function swipe(p, sel, dx, dy) {
   check('left blank, it waits for a date instead of being due again', await A.evaluate(() => info(db.tasks.find(x => x.name === 'Renew State Farm Policy')).status === 'nodate'));
   await A.evaluate(id => go('item', { itemId: id }, true), bid);
   check('only ID numbers get a Copy button', await A.evaluate(() => { const c = [...document.querySelectorAll('[data-act=copy]')].map(b => b.getAttribute('aria-label')); return c.length >= 1 && c.every(l => /VIN|Plate Number|Policy/.test(l)) && !c.some(l => /Year|Make|Mileage/.test(l)); }));
+  // ---- signing in somewhere new doesn't ask for your profile again ----
+  async function blank(seed) {
+    const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } }); await ctx.addInitScript(MOCK);
+    if (seed) await ctx.addInitScript(x => { if (!localStorage.getItem('tend.profile')) localStorage.setItem('tend.profile', x); }, seed);
+    const p = await ctx.newPage(); p.on('pageerror', e => errs.push('new computer: ' + e.message)); await p.goto(ROOT); await p.waitForSelector('#authForm'); return p;
+  }
+  const solId = await A.evaluate(() => C.user.id);
+  const D1 = await blank();
+  await D1.fill('#authEmail', 'sol@x.com'); await D1.fill('#authPass', 'password123'); await D1.click('#authForm button[type=submit]');
+  await waitFor(D1, () => window.db && C.hid && !document.querySelector('#profileForm') && ui.screen === 'home');
+  check('signing in on a new computer skips the profile questions', await D1.evaluate(() => !document.querySelector('#profileForm') && getProfile().first === 'Solomon' && getProfile().dob === '1990-03-14' && setupStep() === 0));
+  const D2 = await blank(JSON.stringify({ first: 'Solomon', last: 'Lee', phone: '(555) 555-0100', email: 'sol@x.com', dob: '1990-03-14', prefsSet: true, uid: solId }));
+  await D2.fill('#authEmail', 'kelly@x.com'); await D2.fill('#authPass', 'password456'); await D2.click('#authForm button[type=submit]');
+  await waitFor(D2, () => window.db && C.hid);
+  check('someone else signing in there gets their own profile, not the last person’s', await D2.evaluate(() => getProfile().first === 'Kelly'));
   console.log('errors', errs); console.log(ok, 'passed', bad, 'failed');
   await b.close(); process.exit(bad || errs.length ? 1 : 0);
 })();

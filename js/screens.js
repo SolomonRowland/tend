@@ -516,6 +516,28 @@ function readForm(id) {
 /* ---------- your profile (kept on this phone, separate from the task list) ---------- */
 var PROFILE_KEY = 'tend.profile';
 function getProfile() { try { var p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); if (p && typeof p === 'object') return p; } catch (e) {} return {}; }
+/* Your profile lives with your account too, so signing in on another phone or computer
+   doesn't ask for it again, and someone else signing in here doesn't get yours. */
+var PROFILE_FIELDS = ['first', 'last', 'phone', 'email', 'dob', 'remindDays', 'alertHour', 'cal', 'prefsSet'];
+function profileToAccount() {
+  if (!C.on || !C.user || !C.sb) return;
+  var p = getProfile(), out = {}; if (!profileDone(p)) return;
+  PROFILE_FIELDS.forEach(function (k) { if (p[k] != null) out[k] = p[k]; });
+  C.sb.auth.updateUser({ data: { tend_profile: out } }).then(function (r) { if (r && r.data && r.data.user) C.user.user_metadata = r.data.user.user_metadata; }, function () {});
+}
+function profileFromAccount() {
+  if (!C.user) return;
+  var p = getProfile(), saved = (C.user.user_metadata || {}).tend_profile, mine = p.uid === C.user.id;
+  if (saved && profileDone(saved) && (!mine || !profileDone(p))) {
+    var keep = mine ? p : {}; // theme and other phone-only choices stay; another person's details don't
+    PROFILE_FIELDS.forEach(function (k) { if (saved[k] != null) keep[k] = saved[k]; });
+    keep.uid = C.user.id; try { localStorage.setItem(PROFILE_KEY, JSON.stringify(keep)); } catch (e) {}
+    return;
+  }
+  if (!mine && p.uid) { try { localStorage.removeItem(PROFILE_KEY); } catch (e) {} return; } // someone else's profile on this phone
+  if (!p.uid && profileDone(p)) { p.uid = C.user.id; try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) {} }
+  if (profileDone(p) && !saved) profileToAccount(); // made before this was kept with the account
+}
 function profileDone(p) { p = p || getProfile(); return !!(p.first && p.last && p.phone && p.email && parse(p.dob)); }
 function syncUser() {
   var p = getProfile(); if (!db || !p.first) return;
@@ -569,9 +591,9 @@ function scrReminders(setup) {
 }
 function savePrefs() {
   var f = ui.form || remindPrefs(), p = getProfile(), setup = setupStep() === 2;
-  p.remindDays = +f.days; p.alertHour = +f.hour; p.cal = f.cal; p.prefsSet = true;
+  p.remindDays = +f.days; p.alertHour = +f.hour; p.cal = f.cal; p.prefsSet = true; if (C.user) p.uid = C.user.id;
   try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch (e) { warn('Couldn’t save on this phone.'); return; }
-  ui.form = null;
+  ui.form = null; profileToAccount();
   if (setup) { ui.stack = []; go('home'); toast('Welcome, ' + (p.first || '') + '! You’re all set.'); } else { ui.stack = []; go('settings'); toast('Reminder settings saved.'); }
 }
 function scrProfile(setup) {
@@ -601,8 +623,9 @@ function saveProfile() {
   f.phone = fmtPhone(f.phone);
   var old = getProfile(); ['remindDays', 'alertHour', 'cal', 'prefsSet', 'themeSet'].forEach(function (k) { if (old[k] != null) f[k] = old[k]; });
   var wasSetup = !profileDone();
+  if (C.user) f.uid = C.user.id;
   try { localStorage.setItem(PROFILE_KEY, JSON.stringify(f)); } catch (e) { warn('Couldn’t save on this phone.'); return; }
-  ui.form = null; syncUser(); ensureBirthday(); save();
+  ui.form = null; syncUser(); ensureBirthday(); save(); profileToAccount();
   if (C.on && C.hid) loadMembers().then(function () { if (ui.screen === 'settings') keepRender(); }, function () {});
   if (wasSetup) { ui.stack = []; go('home'); }
   else { ui.stack = []; go('settings'); toast('Profile saved.'); }
