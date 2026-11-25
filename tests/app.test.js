@@ -71,7 +71,7 @@ const list = p => p.evaluate(() => [...window.__ln.values()].sort((a, b) => a.id
   const q = await ctx.newPage(); q.on('pageerror', e => errs.push(e.message));
   await q.addInitScript(() => { window.__perm = 'denied'; });
   await q.goto(APP); await q.fill('#authEmail', 'app@x.com'); await q.fill('#authPass', 'password123');
-  if ((await q.textContent('#authForm button[type=submit]')) !== 'Sign In') await q.click('[data-act=auth-mode]');
+  if ((await q.textContent('#authForm button[type=submit]')) !== 'Sign In') await q.click('[data-act=auth-mode][data-m=in]');
   await q.fill('#authEmail', 'app@x.com'); await q.fill('#authPass', 'password123'); await q.click('#authForm button[type=submit]');
   await waitFor(q, () => window.db && db.tasks.length > 10);
   await q.evaluate(() => go('settings', {}, true));

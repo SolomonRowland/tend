@@ -43,7 +43,7 @@ const FAKE_PUSH = () => {
   const H = await phone('Solomon', true);
   await H.goto(APP); await H.fill('#authEmail', 'sol@x.com'); await H.fill('#authPass', 'password123');
   await H.click('[data-act=auth-mode]').catch(() => {}); if (await H.$('#authPass')) { await H.fill('#authEmail', 'sol@x.com'); await H.fill('#authPass', 'password123'); }
-  if ((await H.textContent('#authForm button[type=submit]')) !== 'Sign In') await H.click('[data-act=auth-mode]');
+  if ((await H.textContent('#authForm button[type=submit]')) !== 'Sign In') await H.click('[data-act=auth-mode][data-m=in]');
   await H.fill('#authEmail', 'sol@x.com'); await H.fill('#authPass', 'password123'); await H.click('#authForm button[type=submit]');
   check('home-screen app loads household', await waitFor(H, () => window.db && db.tasks.length > 10));
   await H.evaluate(() => go('settings', {}, true));

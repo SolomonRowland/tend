@@ -256,6 +256,14 @@ async function swipe(p, sel, dx, dy) {
   }
   const solId = await A.evaluate(() => C.user.id);
   const D1 = await blank();
+  await D1.fill('#authPass', 'password123');
+  check('sign-in shows which of the two you\u2019re doing', await D1.evaluate(() => { const b = [...document.querySelectorAll('#authForm .authseg button')]; return b.length === 2 && b[0].textContent === 'Create Account' && b[1].textContent === 'Sign In' && b[1].getAttribute('aria-pressed') === 'true' && document.querySelector('#authForm button[type=submit]').textContent === 'Sign In'; }));
+  await D1.click('.passeye');
+  check('the password can be shown', await D1.evaluate(() => document.getElementById('authPass').type === 'text' && document.querySelector('.passeye').textContent === 'Hide'));
+  await D1.click('[data-act=auth-mode][data-m=up]');
+  check('switching to Create keeps what was typed', await D1.evaluate(() => document.getElementById('authPass').value === 'password123' && document.getElementById('authPass').type === 'text' && document.querySelector('#authForm button[type=submit]').textContent === 'Create Account'));
+  await D1.click('[data-act=auth-mode][data-m=in]'); await D1.click('.passeye');
+  check('and it hides again', await D1.evaluate(() => document.getElementById('authPass').type === 'password'));
   await D1.fill('#authEmail', 'sol@x.com'); await D1.fill('#authPass', 'password123'); await D1.click('#authForm button[type=submit]');
   await waitFor(D1, () => window.db && C.hid && !document.querySelector('#profileForm') && ui.screen === 'home');
   check('signing in on a new computer skips the profile questions', await D1.evaluate(() => !document.querySelector('#profileForm') && getProfile().first === 'Solomon' && getProfile().dob === '1990-03-14' && setupStep() === 0));

@@ -357,6 +357,10 @@ function cloudScreen() {
   return '';
 }
 function authErr() { return C.err ? '<p class="cerr" role="alert">' + esc(C.err) + '</p>' : ''; }
+/* a password field with a Show / Hide button inside it */
+function passBox(id, auto, ph) {
+  return '<span class="passbox"><input class="input" id="' + id + '" type="password" autocomplete="' + auto + '" placeholder="' + esc(ph || '') + '"><button type="button" class="passeye" data-act="pass-show" data-for="' + id + '" aria-pressed="false" aria-label="Show password">Show</button></span>';
+}
 function scrSignIn() {
   var up = C.auth.mode === 'up';
   var h = '<div class="welcome"><img src="icon-192.png" alt=""><h1>' + (up ? 'Create Your Account' : 'Welcome to Tend') + '</h1>';
@@ -366,15 +370,15 @@ function scrSignIn() {
   h += authErr();
   h += '<form id="authForm" class="stack" style="padding:0;gap:14px" novalidate>' +
     '<label class="field"><span>Email</span><input class="input" id="authEmail" type="email" inputmode="email" autocapitalize="off" autocomplete="username" value="' + esc(C.auth.email) + '" placeholder="name@example.com"></label>' +
-    '<label class="field"><span>Password</span><input class="input" id="authPass" type="password" autocomplete="' + (up ? 'new-password' : 'current-password') + '" placeholder="' + (up ? 'At least 8 characters' : '') + '"></label>' +
+    '<label class="field"><span>Password</span>' + passBox('authPass', up ? 'new-password' : 'current-password', up ? 'At least 8 characters' : '') + '</label>' +
+    '<div class="authseg" role="group" aria-label="What would you like to do?"><button type="button" data-act="auth-mode" data-m="up" aria-pressed="' + up + '">Create Account</button><button type="button" data-act="auth-mode" data-m="in" aria-pressed="' + !up + '">Sign In</button></div>' +
     '<button type="submit" class="btn primary"' + (C.auth.busy ? ' disabled' : '') + '>' + (C.auth.busy ? '<i class="spin"></i>One moment…' : up ? 'Create Account' : 'Sign In') + '</button></form>';
-  h += '<button class="btn secondary" data-act="auth-mode">' + (up ? 'I Already Have an Account' : 'New to Tend? Create an Account') + '</button>';
   if (!up) h += '<button class="link" data-act="auth-forgot" style="align-self:center">Forgot your password?</button>';
   return h + '</div>';
 }
 function scrNewPassword() {
   return '<div class="welcome"><img src="icon-192.png" alt=""><h1>Set a New Password</h1>' + authErr() +
-    '<form id="newPassForm" class="stack" style="padding:0;gap:14px" novalidate><label class="field"><span>New Password</span><input class="input" id="newPass" type="password" autocomplete="new-password" placeholder="At least 8 characters"></label>' +
+    '<form id="newPassForm" class="stack" style="padding:0;gap:14px" novalidate><label class="field"><span>New Password</span>' + passBox('newPass', 'new-password', 'At least 8 characters') + '</label>' +
     '<button type="submit" class="btn primary">Save Password</button></form></div>';
 }
 function scrHousehold() {
@@ -446,7 +450,15 @@ function cloudSubmit(id) {
 }
 function cloudAct(a, el) {
   switch (a) {
-    case 'auth-mode': C.auth.mode = C.auth.mode === 'up' ? 'in' : 'up'; C.err = ''; C.auth.msg = ''; var ee = document.getElementById('authEmail'); if (ee) C.auth.email = ee.value.trim(); render(); return true;
+    case 'auth-mode':
+      var want = el.getAttribute('data-m'), ee = document.getElementById('authEmail'), pe = document.getElementById('authPass'), typed = pe ? pe.value : '', shown = pe && pe.type === 'text';
+      C.auth.mode = want === 'up' || want === 'in' ? want : C.auth.mode === 'up' ? 'in' : 'up'; C.err = ''; C.auth.msg = ''; if (ee) C.auth.email = ee.value.trim(); render();
+      pe = document.getElementById('authPass'); if (pe) { pe.value = typed; if (shown) { var eb = document.querySelector('.passeye'); if (eb) eb.click(); } } // switching keeps what was typed
+      return true;
+    case 'pass-show':
+      var pi = document.getElementById(el.getAttribute('data-for')); if (!pi) return true;
+      var on = pi.type === 'password'; pi.type = on ? 'text' : 'password'; el.textContent = on ? 'Hide' : 'Show'; el.setAttribute('aria-pressed', String(on)); el.setAttribute('aria-label', on ? 'Hide password' : 'Show password'); pi.focus();
+      return true;
     case 'auth-forgot':
       var fe = document.getElementById('authEmail'), em = fe ? fe.value.trim() : '';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { C.err = 'Type your email above first.'; render(); return true; }

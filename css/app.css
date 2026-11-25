@@ -452,3 +452,8 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
   body.shell #view{padding:32px 56px 56px}
 }
 .tielink{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 12px;margin-top:6px;text-align:left}
+.passbox{position:relative;display:block}.passbox .input{width:100%;padding-right:74px}
+.passeye{position:absolute;right:6px;top:50%;transform:translateY(-50%);min-height:36px;padding:0 12px;border-radius:10px;font-size:13.5px;font-weight:700;color:var(--rose);background:var(--blush)}
+.authseg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:var(--blush)}
+.authseg button{min-height:40px;border-radius:10px;font-size:14.5px;font-weight:700;color:var(--muted)}
+.authseg button[aria-pressed="true"]{background:var(--surface);color:var(--rose);box-shadow:0 1px 4px var(--shadow)}
