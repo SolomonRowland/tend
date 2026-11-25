@@ -364,3 +364,4 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
 .hrow{grid-template-columns:68px minmax(0,1fr) auto minmax(0,1fr);gap:6px}
 .hrow .input{padding:10px 6px;font-size:15px;text-align:center}
 .hrow .input::-webkit-calendar-picker-indicator{display:none}
+.fsec{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--rose);margin:14px 0 -4px;padding-top:12px;border-top:1px solid var(--line)}

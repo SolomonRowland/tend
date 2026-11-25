@@ -686,7 +686,13 @@ if (window.matchMedia) { var mq = window.matchMedia('(prefers-color-scheme: dark
 
 /* ---------- belongings ---------- */
 var ITEM_TYPES = {
-  Vehicle: { icon: 'car', ph: 'e.g. 2020 Honda CR-V', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [['year', 'Year', 'num'], ['make', 'Make'], ['model', 'Model'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate Number', 'code'], ['plateExp', 'Plates Expire', 'date'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['insRenew', 'Insurance Renews', 'date'], ['miles', 'Current Mileage', 'mi'], ['oilLast', 'Last Oil Change', 'date'], ['oilMiles', 'Oil Change Mileage', 'mi'], ['rotateLast', 'Last Tire Rotation', 'date'], ['tires', 'Tire Size', 'code'], ['oil', 'Oil Type', 'code'], ['bought', 'Purchased', 'date'], ['history', 'Accidents & Repairs', 'long']] },
+  Vehicle: { icon: 'car', ph: 'e.g. Silverado', key: ['plate', 'plateExp', 'vin', 'policy'], fields: [
+    ['h', 'Basics'], ['desc', 'Vehicle', 'text', 'e.g. 2026 Chevy Silverado LTZ'], ['color', 'Color'], ['vin', 'VIN', 'code'], ['plate', 'Plate Number', 'code'], ['plateExp', 'Plates Expire', 'date'], ['inspect', 'Inspection / Emissions Due', 'date'],
+    ['h', 'Insurance'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['insRenew', 'Insurance Renews', 'date'], ['roadside', 'Roadside Assistance Phone', 'text', 'e.g. (800) 555-0100'],
+    ['h', 'Maintenance'], ['miles', 'Current Mileage', 'mi'], ['oilLast', 'Last Oil Change', 'date'], ['oilMiles', 'Oil Change Mileage', 'mi'], ['oil', 'Oil Type', 'code', 'e.g. 0W-20 full synthetic, 8 qt'], ['oilFilter', 'Oil Filter', 'code', 'e.g. ACDelco PF63E'],
+    ['airFilter', 'Engine Air Filter', 'code'], ['cabinFilter', 'Cabin Air Filter', 'code'], ['brakes', 'Last Brake Service', 'date'], ['battery', 'Battery Installed', 'date'], ['wipers', 'Wiper Blade Sizes', 'code', 'e.g. 22 in. driver, 22 in. passenger'],
+    ['h', 'Tires'], ['rotateLast', 'Last Tire Rotation', 'date'], ['tiresBought', 'Tires Bought', 'date'], ['tires', 'Tire Size', 'code', 'e.g. 275/55R20'], ['tireBrand', 'Tire Brand & Model'], ['psi', 'Tire Pressure', 'code', 'e.g. 35 PSI front and rear'],
+    ['h', 'Ownership'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date'], ['history', 'Accidents & Repairs', 'long']] },
   Home: { icon: 'home', ph: 'e.g. Home', key: ['furnaceFilter', 'fridgeFilter', 'shutoff', 'policy'], fields: [['address', 'Address'], ['built', 'Year Built', 'num'], ['furnaceFilter', 'Furnace Filter Size', 'code'], ['fridgeFilter', 'Fridge Water Filter #', 'code'], ['waterHeater', 'Water Heater Installed (Year)', 'num'], ['roof', 'Roof Replaced (Year)', 'num'], ['shutoff', 'Main Water Shutoff Location'], ['paint', 'Paint Colors', 'long'], ['insurer', 'Insurance Company'], ['policy', 'Policy Number', 'code'], ['insRenew', 'Policy Renews', 'date']] },
   Appliance: { icon: 'plug', ph: 'e.g. Dishwasher', key: ['model', 'serial', 'part', 'warranty'], fields: [['kind', 'Appliance', 'sel', ['Dishwasher', 'Refrigerator', 'Freezer', 'Range / oven', 'Cooktop', 'Microwave', 'Range hood', 'Garbage disposal', 'Washer', 'Dryer', 'Water heater', 'Furnace', 'Air conditioner', 'Heat pump', 'Water softener', 'Sump pump', 'Dehumidifier', 'Humidifier', 'Garage door opener', 'Generator', 'Grill', 'Lawn mower', 'Snow blower', 'Other']], ['brand', 'Brand'], ['model', 'Model Number', 'code'], ['serial', 'Serial Number', 'code'], ['where', 'Where It Is'], ['bought', 'Purchased', 'date'], ['warranty', 'Warranty Ends', 'date'], ['part', 'Filter / Part Number', 'code'], ['store', 'Bought From']] },
   Pet: { icon: 'paw', ph: 'e.g. Max', key: ['chip', 'tag', 'tagExp'], fields: [['species', 'Animal', 'sel', ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Guinea pig / hamster', 'Reptile', 'Horse', 'Other']], ['breed', 'Breed'], ['born', 'Birthday', 'date'], ['chip', 'Microchip Number', 'code'], ['tag', 'License / Rabies Tag #', 'code'], ['tagExp', 'Tag Expires', 'date'], ['food', 'Food & Amount'], ['meds', 'Medicines']] },
@@ -699,9 +705,16 @@ var ITEM_ORDER = ['Vehicle', 'Home', 'Appliance', 'Pet', 'Document', 'Thing', 'O
 var ITEM_PLURAL = { Vehicle: 'Vehicles', Home: 'Homes', Appliance: 'Appliances', Pet: 'Pets', Document: 'Documents', Other: 'Other' };
 /* only ID numbers people paste into forms get a Copy button */
 var COPY_KEYS = { vin: 1, plate: 1, policy: 1, serial: 1, model: 1, chip: 1, tag: 1, number: 1, ident: 1, part: 1 };
-var EXPIRY_KEYS = { plateExp: 1, warranty: 1, tagExp: 1, expires: 1, insRenew: 1 };
+var EXPIRY_KEYS = { plateExp: 1, warranty: 1, tagExp: 1, expires: 1, insRenew: 1, inspect: 1 };
+/* parts that wear out with age: how old they are, and when that's worth a look */
+var AGE_KEYS = { tiresBought: 6, battery: 4 };
+function ageNote(d, limit) {
+  var mo = (today().getFullYear() - d.getFullYear()) * 12 + today().getMonth() - d.getMonth(); if (mo < 0) return '';
+  var txt = mo < 12 ? (mo <= 1 ? 'New' : mo + ' months old') : (Math.floor(mo / 12) + (mo >= 24 ? ' years' : ' year') + (mo % 12 >= 6 ? ' and a half' : '') + ' old');
+  return '<span class="exp" style="color:' + (mo >= limit * 12 ? 'var(--orange)' : 'var(--muted)') + '">' + txt + (mo >= limit * 12 ? ', worth checking' : '') + '</span>';
+}
 /* dates a task can keep up to date: an expiration it renews, or the last time something was done */
-var LAST_KEYS = { oilLast: 1, rotateLast: 1 };
+var LAST_KEYS = { oilLast: 1, rotateLast: 1, brakes: 1 };
 function tieOf(t) {
   var b = t && t.tie ? itemById(t.item) : null; if (!b) return null;
   var x = ITEM_TYPES[b.type].fields.find(function (y) { return y[0] === t.tie; });
@@ -712,7 +725,7 @@ function tieChoices(b) { return b ? ITEM_TYPES[b.type].fields.filter(function (x
 /* a likely match from the task's name, for new tasks */
 function guessTie(name, b) {
   var keys = tieChoices(b).map(function (x) { return x[0]; }), n = String(name || '').toLowerCase();
-  var rules = [[/registration|plates?\b|sticker/, 'plateExp'], [/insurance|policy/, 'insRenew'], [/oil/, 'oilLast'], [/rotat/, 'rotateLast'], [/rabies|tag|pet license/, 'tagExp'], [/warranty/, 'warranty'], [/renew|license|passport|expire/, 'expires']];
+  var rules = [[/registration|plates?\b|sticker/, 'plateExp'], [/insurance|policy/, 'insRenew'], [/oil/, 'oilLast'], [/rotat/, 'rotateLast'], [/brake/, 'brakes'], [/emission|inspection/, 'inspect'], [/rabies|tag|pet license/, 'tagExp'], [/warranty/, 'warranty'], [/renew|license|passport|expire/, 'expires']];
   for (var i = 0; i < rules.length; i++) if (rules[i][0].test(n) && keys.indexOf(rules[i][1]) >= 0) return rules[i][1];
   return '';
 }
@@ -724,7 +737,7 @@ function renewGuess(t, ti) {
 function miles(v) { var n = parseInt(String(v || '').replace(/\D/g, ''), 10); return n > 0 ? n : 0; }
 function renewName(b, key) {
   return key === 'plateExp' ? 'Renew ' + b.name + ' Registration' : key === 'insRenew' ? 'Renew ' + b.name + ' Insurance' : key === 'tagExp' ? 'Renew ' + b.name + '\u2019s License Tag'
-    : key === 'warranty' ? b.name + ' Warranty Ends' : 'Renew ' + b.name;
+    : key === 'warranty' ? b.name + ' Warranty Ends' : key === 'inspect' ? b.name + ' Emissions / Inspection' : 'Renew ' + b.name;
 }
 function itemById(id) { return id ? db.items.find(function (b) { return b.id === id; }) || null : null; }
 function itemExpiry(b) {
@@ -743,16 +756,21 @@ function expiryNote(d) {
 }
 var GENERIC_NAME = /^(vehicle|car|pet|appliance|item) ?\d*$|^(our )?home$|^untitled$/i;
 function autoName(type, f) {
-  if (type === 'Vehicle') return [f.year, f.model || f.make].filter(Boolean).join(' ');
+  if (type === 'Vehicle') return vehName(f.desc);
   if (type === 'Appliance') return f.kind && f.kind !== 'Other' ? f.kind : [f.brand, f.model].filter(Boolean).join(' ');
   if (type === 'Home') return f.address ? f.address.split(',')[0].trim() : 'Home';
   if (type === 'Document') return f.holder && f.kind ? f.holder + '\u2019s ' + (f.kind === 'Driver\u2019s license' ? 'driver\u2019s license' : f.kind.toLowerCase()) : (f.kind || '');
   if (type === 'Other') return [f.brand, f.model].filter(Boolean).join(' ');
   return '';
 }
+/* a short name from the description: "2026 Chevy Silverado LTZ" becomes "Silverado" */
+function vehName(desc) {
+  var w = String(desc || '').trim().split(/\s+/).filter(function (x) { return !/^(19|20)\d\d$/.test(x); });
+  return w.length > 1 ? w[1] : w[0] || '';
+}
 function itemSub(b) {
   var f = b.fields, out = [];
-  if (b.type === 'Vehicle') { var ymm = [f.year, f.make, f.model].filter(Boolean).join(' '); if (ymm && ymm !== b.name) out.push(ymm); if (f.plate) out.push('Plate ' + f.plate); }
+  if (b.type === 'Vehicle') { if (f.desc && f.desc !== b.name) out.push(f.desc); if (f.plate) out.push('Plate ' + f.plate); }
   else if (b.type === 'Document') { if (f.kind) out.push(f.kind); if (f.holder) out.push(f.holder); }
   else if (b.type === 'Pet') { if (f.breed || f.species) out.push(f.breed || f.species); }
   else if (b.type === 'Home') { if (f.address) out.push(f.address); }
@@ -766,20 +784,23 @@ function itemRow(b, alt) {
   return '<button class="row' + (alt ? ' alt' : '') + '" data-act="item" data-id="' + esc(b.id) + '"><span class="badge">' + ic(ITEM_TYPES[b.type].icon, 20) + '</span><span class="col"><span class="name ellip">' + esc(b.name) + '</span><span class="meta ellip">' + esc(itemSub(b)) + '</span></span><span class="st">' + right + '</span></button>';
 }
 function fieldRows(b, keys, withTie) {
-  return ITEM_TYPES[b.type].fields.filter(function (x) { return b.fields[x[0]] && (!keys || keys.indexOf(x[0]) >= 0); }).map(function (x) {
+  var head = '', showHeads = !keys && withTie;
+  return ITEM_TYPES[b.type].fields.filter(function (x) { if (x[0] === 'h') return showHeads; return b.fields[x[0]] && (!keys || keys.indexOf(x[0]) >= 0); }).map(function (x) {
+    if (x[0] === 'h') { head = x[1]; return ''; }
+    var hd = head ? '<div class="lrow" style="min-height:0;padding:12px 0 2px;border:0"><span class="s" style="font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:11.5px">' + esc(head) + '</span></div>' : ''; head = '';
     var v = b.fields[x[0]], d = x[2] === 'date' ? parse(v) : null, amt = x[2] === 'money' ? parseFloat(String(v).replace(/[^\d.]/g, '')) : NaN;
     var shown = x[2] === 'mi' && miles(v) ? miles(v).toLocaleString() + ' mi' : v;
     var tied = d && withTie ? db.tasks.find(function (t) { return t.item === b.id && t.tie === x[0]; }) : null;
     var extra = !withTie || !d ? '' : tied ? '<button class="link" style="align-self:flex-start;font-size:13px;padding:2px 0" data-act="task" data-id="' + esc(tied.id) + '">' + (EXPIRY_KEYS[x[0]] ? 'Renewal task: ' : 'Updated by: ') + esc(tied.name) + '</button>'
       : EXPIRY_KEYS[x[0]] && x[0] !== 'warranty' ? '<button class="link" style="align-self:flex-start;font-size:13px;padding:2px 0" data-act="tie-new" data-k="' + x[0] + '">' + ic('bell', 13) + ' Remind me to renew</button>' : '';
-    return '<div class="lrow"><span class="col"><span class="s">' + esc(x[1]) + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(d ? fmt(d, true) : amt > 0 ? money(amt) : shown) + '</span>' + (d && EXPIRY_KEYS[x[0]] ? expiryNote(d) : '') + extra + '</span>' +
+    return hd + '<div class="lrow"><span class="col"><span class="s">' + esc(x[1]) + '</span><span class="t" style="word-break:break-word;white-space:pre-wrap">' + esc(d ? fmt(d, true) : amt > 0 ? money(amt) : shown) + '</span>' + (d && EXPIRY_KEYS[x[0]] ? expiryNote(d) : '') + (d && AGE_KEYS[x[0]] ? ageNote(d, AGE_KEYS[x[0]]) : '') + extra + '</span>' +
       (d || !COPY_KEYS[x[0]] ? '' : '<button class="copy" data-act="copy" data-v="' + esc(v) + '" aria-label="Copy ' + esc(x[1]) + '">' + ic('copy', 15) + '<span>Copy</span></button>') + '</div>';
   }).join('');
 }
 function keyRows(b) {
   var keys = ITEM_TYPES[b.type].key, html = fieldRows(b, keys);
   if (html) return html;
-  return fieldRows(b, ITEM_TYPES[b.type].fields.filter(function (x) { return b.fields[x[0]]; }).slice(0, 4).map(function (x) { return x[0]; }));
+  return fieldRows(b, ITEM_TYPES[b.type].fields.filter(function (x) { return x[0] !== 'h' && b.fields[x[0]]; }).slice(0, 4).map(function (x) { return x[0]; }));
 }
 function dirSwitch(cur) {
   return '<div class="segdark" role="tablist" aria-label="Directory">' + [['contacts', 'Contacts'], ['items', 'Belongings']].map(function (x) {
@@ -893,15 +914,16 @@ function scrEditItem() {
     '<label class="field"><span>Name</span><input class="input" name="name" value="' + esc(f.name) + '" placeholder="' + esc(T.ph) + '">' + (f.type === 'Pet' ? '' : '<small>Optional. Leave it blank and Tend names it from the details below (' + esc(T.ph.replace('e.g. ', '')) + ').</small>') + '</label>';
   var pair = [];
   T.fields.forEach(function (x) {
-    var nm = 'f_' + x[0], v = f[nm] || '', el;
+    if (x[0] === 'h') { if (pair.length) { h += pair[0]; pair = []; } h += '<div class="fsec">' + esc(x[1]) + '</div>'; return; }
+    var nm = 'f_' + x[0], v = f[nm] || '', el, ph = x[2] !== 'sel' && x[3] ? ' placeholder="' + esc(x[3]) + '"' : '';
     if (x[2] === 'date') el = '<input class="input" type="date" name="' + nm + '" value="' + esc(v) + '">';
     else if (x[2] === 'num') el = '<input class="input" inputmode="numeric" name="' + nm + '" value="' + esc(v) + '" maxlength="6">';
     else if (x[2] === 'mi') el = '<input class="input" inputmode="numeric" name="' + nm + '" value="' + esc(v) + '" maxlength="9" placeholder="Miles">';
     else if (x[2] === 'money') el = '<input class="input" inputmode="decimal" name="' + nm + '" value="' + esc(v) + '" placeholder="$">';
-    else if (x[2] === 'code') el = '<input class="input" autocapitalize="characters" autocorrect="off" spellcheck="false" name="' + nm + '" value="' + esc(v) + '">';
+    else if (x[2] === 'code') el = '<input class="input" autocapitalize="characters" autocorrect="off" spellcheck="false" name="' + nm + '" value="' + esc(v) + '"' + ph + '>';
     else if (x[2] === 'long') el = '<textarea class="input" name="' + nm + '" rows="2">' + esc(v) + '</textarea>';
     else if (x[2] === 'sel') el = '<select class="input" name="' + nm + '"><option value="">Choose…</option>' + (v && x[3].indexOf(v) < 0 ? opt(v, v) : '') + x[3].map(function (o) { return opt(o, v); }).join('') + '</select>';
-    else el = '<input class="input" name="' + nm + '" value="' + esc(v) + '">';
+    else el = '<input class="input" name="' + nm + '" value="' + esc(v) + '"' + ph + '>';
     var fld = '<label class="field"><span>' + esc(x[1]) + '</span>' + el + '</label>';
     var small = x[2] === 'num' || x[2] === 'mi' || x[2] === 'date' || x[2] === 'sel' || x[2] === 'money';
     if (small && x[1].length < 22) { pair.push(fld); if (pair.length === 2) { h += '<div class="two">' + pair.join('') + '</div>'; pair = []; } }
@@ -944,6 +966,7 @@ function saveItem() {
   f.name = (f.name || '').trim();
   var type = ITEM_TYPES[f.type] ? f.type : 'Other', fields = {};
   ITEM_TYPES[type].fields.forEach(function (x) {
+    if (x[0] === 'h') return;
     var v = String(f['f_' + x[0]] || '').trim();
     if (x[0] === 'vin' || x[0] === 'plate') v = v.toUpperCase();
     if (x[2] === 'date' && v && !parse(v)) v = '';

@@ -208,8 +208,9 @@ async function swipe(p, sel, dx, dy) {
   await A.evaluate(() => { ui.q = ''; go('home'); });
   // ---- a task tied to a date on a belonging ----
   await A.evaluate(() => { ui.form = null; go('edit-item', { form: itemForm(null) }, true); });
-  await A.fill('input[name=name]', 'Tahoe'); await A.fill('input[name=f_year]', '2017'); await A.fill('input[name=f_plate]', '874086'); await A.fill('input[name=f_plateExp]', '2026-12-15'); await A.fill('input[name=f_miles]', '45,000');
+  await A.fill('input[name=name]', 'Tahoe'); await A.fill('input[name=f_desc]', '2017 Chevy Tahoe LTZ'); await A.fill('input[name=f_tiresBought]', '2019-05-01'); await A.fill('input[name=f_plate]', '874086'); await A.fill('input[name=f_plateExp]', '2026-12-15'); await A.fill('input[name=f_miles]', '45,000');
   await A.fill('textarea[name=f_history]', '2024-05 rear bumper, fixed at Sample Auto Care'); await A.click('[data-act=save-item]');
+  check('the vehicle page groups details and says how old the tires are', await A.evaluate(() => /BASICS|Basics/.test(view.innerText) && /2017 Chevy Tahoe LTZ/.test(view.innerText) && /7 years and a half old, worth checking|years old, worth checking|and a half old, worth checking/.test(view.innerText)));
   check('a vehicle saves mileage and accident history', await A.evaluate(() => { const b = db.items.find(x => x.name === 'Tahoe'); return b && b.fields.miles === '45000' && /45,000 mi/.test(view.innerText) && /Accidents & Repairs\n2024-05 rear bumper/.test(view.innerText); }));
   await A.click('[data-act=tie-new][data-k=plateExp]');
   check('Remind me to renew starts a tied renewal task', await A.evaluate(() => ui.screen === 'edit-task' && document.querySelector('input[name=name]').value === 'Renew Tahoe Registration' && document.querySelector('select[name=tie]').value === 'plateExp'));

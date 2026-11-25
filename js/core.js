@@ -91,6 +91,10 @@ function normalize(d) {
   out.items = list(d.items).map(function (b) {
     var f = {}, src = b.fields && typeof b.fields === 'object' ? b.fields : {};
     Object.keys(src).forEach(function (k) { if (src[k] != null && String(src[k]).trim() !== '') f[k] = String(src[k]); });
+    if (b.type === 'Vehicle' && (f.year || f.make || f.model)) { // year, make and model are one description now
+      if (!f.desc) f.desc = [f.year, f.make, f.model].filter(Boolean).join(' ');
+      delete f.year; delete f.make; delete f.model;
+    }
     return { id: String(b.id || ('b' + n++)), type: ITEM_TYPES[b.type] ? b.type : 'Other', name: String(b.name || b.type || 'Untitled'), fields: f, notes: b.notes || '', contacts: (Array.isArray(b.contacts) ? b.contacts : []).map(String).filter(function (x, i, a) { return cids[x] && a.indexOf(x) === i; }), photos: normPhotos(b.photos) };
   });
   var bids = {}; out.items.forEach(function (b) { bids[b.id] = 1; });
