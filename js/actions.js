@@ -3,6 +3,8 @@
 /* ---------- render ---------- */
 var view = document.getElementById('view'), tabs = document.getElementById('tabs');
 function render() {
+  // the desktop layout (css: min-width 1024px) reads these: shell = the app with its tabs, screen = which page
+  document.body.classList.remove('shell'); document.body.setAttribute('data-screen', '');
   if (C.on) { var cs = cloudScreen(); if (cs) { view.innerHTML = cs; tabs.hidden = true; document.getElementById('fab').innerHTML = ''; return; } }
   if (!db) { view.innerHTML = scrWelcome(); tabs.hidden = true; return; }
   if ((ui.screen === 'starter' || ui.screen === 'starter-pick') && !ui.st) ui.screen = 'home';
@@ -10,6 +12,7 @@ function render() {
   var stp = inStarter ? 0 : setupStep();
   if (stp) { tabs.hidden = true; document.getElementById('fab').innerHTML = ''; view.innerHTML = stp === 1 ? scrProfile(true) : scrReminders(true); return; }
   if (!inStarter) { var pfn = getProfile().first; if (db.user !== pfn || db.members.indexOf(pfn) < 0 || ensureBirthday()) { syncUser(); save(); } }
+  document.body.classList.add('shell'); document.body.setAttribute('data-screen', ui.screen);
   tabs.hidden = ['edit-task', 'edit-contact', 'edit-item', 'prefs', 'starter', 'starter-pick', 'profile'].indexOf(ui.screen) >= 0;
   var s = ui.screen;
   view.innerHTML = s === 'home' ? scrHome() : s === 'list' ? scrList() : s === 'calendar' ? scrCal() : s === 'contacts' ? scrContacts()
@@ -19,9 +22,13 @@ function render() {
   var cur = tabOf[ui.screen];
   var fab = document.getElementById('fab');
   fab.innerHTML = '';
-  tabs.innerHTML = [['home', 'Home', 'tab-home'], ['tasks', 'Tasks', 'tab-tasks'], ['cal', 'Calendar', 'tab-cal'], ['people', 'Directory', 'tab-people']].map(function (x) {
-    return '<button data-act="' + x[2] + '"' + (cur === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[0], 24) + x[1] + '</button>';
-  }).join('');
+  var inSettings = ['settings', 'profile', 'prefs'].indexOf(ui.screen) >= 0;
+  // the brand and Settings only show in the desktop sidebar; phones reach Settings from Home
+  tabs.innerHTML = '<div class="brand" aria-hidden="true"><img src="apple-touch-icon.png" alt="">Tend</div>' +
+    [['home', 'Home', 'tab-home'], ['tasks', 'Tasks', 'tab-tasks'], ['cal', 'Calendar', 'tab-cal'], ['people', 'Directory', 'tab-people']].map(function (x) {
+      return '<button data-act="' + x[2] + '"' + (cur === x[0] ? ' aria-current="page"' : '') + (x[0] === 'home' && inSettings ? ' data-dim' : '') + '>' + ic(x[0], 24) + x[1] + '</button>';
+    }).join('') +
+    '<button class="deskonly" data-act="tab-settings"' + (inSettings ? ' data-on' : '') + '>' + ic('gear', 24) + 'Settings</button>';
 }
 
 /* ---------- actions ---------- */
@@ -239,6 +246,7 @@ document.addEventListener('click', function (e) {
   if (['del-hist', 'del-task', 'del-contact', 'del-item', 'example', 'wipe'].indexOf(a) < 0 && ui.armed) { ui.armed = null; }
   switch (a) {
     case 'tab-home': go('home'); break;
+    case 'tab-settings': go('settings'); break;
     case 'tab-tasks': go('list', { filter: 'all', cat: '', q: '' }); break;
     case 'tab-cal': go('calendar', { calY: T.getFullYear(), calM: T.getMonth(), calDay: iso(T) }); break;
     case 'tab-people': go(ui.dir === 'items' ? 'items' : 'contacts', { cq: '', bq: '' }); break;

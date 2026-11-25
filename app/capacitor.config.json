@@ -1,0 +1,14 @@
+{
+  "appId": "com.solomonrowland.tend",
+  "appName": "Tend",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#F4F7FC"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#0A5DD6"
+    }
+  }
+}

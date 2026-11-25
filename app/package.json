@@ -1,0 +1,18 @@
+{
+  "name": "tend-app",
+  "private": true,
+  "description": "Tend as an iPhone app (Capacitor). See README.md in this folder.",
+  "scripts": {
+    "build": "node build.js",
+    "sync": "node build.js && npx cap sync ios",
+    "open": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/local-notifications": "^8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}
